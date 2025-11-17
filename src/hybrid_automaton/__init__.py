@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: MIT
 
 from .automaton import HybridAutomaton
-from .guards_resets import GuardFunction, ResetFunction, InvariantFunction
+from .guards_resets import GuardFunction, ResetFunction, InvariantFunction, IntegrationFunction
 from .integration import IntegrationMethods
 from .state import HybridState
 from .transition import HybridTransition
@@ -18,5 +18,6 @@ __all__ = [
     "GuardFunction",
     "ResetFunction",
     "InvariantFunction",
-    "IntegrationMethods"
+    "IntegrationMethods",
+    "IntegrationFunction"
 ]
