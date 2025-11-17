@@ -88,6 +88,7 @@ class HybridAutomaton:
         self.Q = states
 
         init_idx = [i for i, s in enumerate(self.Q) if getattr(s, "_is_init", False)]
+        
         cnt_init = len(init_idx)
         if cnt_init == 0: 
             raise ValueError("invalid HybridAutomaton initialization, need 1 initial state, got 0.")
@@ -95,8 +96,8 @@ class HybridAutomaton:
             raise ValueError(f"invalid HybridAutomaton initialization, need 1 initial state, got {cnt_init}")
         
         self._real_time_mode = real_time_mode
-
-        self._Q_T0 = self.Q[init_idx[0]]
+        self._q = self.Q[init_idx[0]]
+        # self._Q_T0 = self.Q[init_idx[0]]
         self._ON_ENTRY = on_entry
         self._ON_EXIT = on_exit
 

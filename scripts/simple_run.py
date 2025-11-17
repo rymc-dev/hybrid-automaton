@@ -4,14 +4,15 @@ import asyncio
 def main():
     def guard(*args, **kwargs):
         return True
+    
+    def reset(*args, **kwargs):
+        return None, None
 
     state_1 = HybridState(
         name="start",
         value=0,
         initial=True
     )
-
-
     state_2 = HybridState(
         name = "end",
         value=1,
@@ -23,6 +24,7 @@ def main():
             value=1,
             to_state=state_2,
             guards=[guard],
+            reset=reset
         )
     )
     state_1.add_transition(
@@ -49,8 +51,12 @@ def main():
         'virtual_waypoint': np.array([0.0, 0.0])
     }
     dt = 0.1  # Adjusted to a small positive value for time step
+    async def step():
+        await ha.step()
 
+    asyncio.run(step())
 
+    print('here')
 
     
 
