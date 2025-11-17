@@ -32,7 +32,7 @@ Issues = "https://github.com/Ryan McKee/hybrid-automaton/issues"
 Source = "https://github.com/Ryan McKee/hybrid-automaton"
 
 [tool.hatch.version]
-path = "hybrid_automaton/__init__.py"
+path = "src/hybrid_automaton/__init__.py"
 
 [tool.hatch.envs.types]
 extra-dependencies = [

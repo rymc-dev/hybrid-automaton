@@ -2,7 +2,11 @@
 #
 # SPDX-License-Identifier: MIT
 
-from .hybrid_automaton import HybridAutomaton, HybridState, HybridTransition, GuardFunction, InvariantFunction, ResetFunction
+from .automaton import HybridAutomaton
+from .guards_resets import GuardFunction, ResetFunction, InvariantFunction
+from .integration import IntegrationMethods
+from .state import HybridState
+from .transition import HybridTransition
 
 __author__ = "Ryan McKee (R.McKee@liverpool.ac.uk)"
 __version__ = "0.0.1"
@@ -13,5 +17,6 @@ __all__ = [
     "HybridTransition",
     "GuardFunction",
     "ResetFunction",
-    "InvariantFunction"
+    "InvariantFunction",
+    "IntegrationMethods"
 ]
