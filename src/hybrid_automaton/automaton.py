@@ -132,7 +132,7 @@ class Automaton:
         if cnt_init > 1: 
             raise ValueError(f"invalid HybridAutomaton initialization, need 1 initial state, got {cnt_init}")
         
-        self._q0 = self._Q[init_idx[0]]
+        self._q_t0 = self._Q[init_idx[0]]
 
         self._real_time_mode = real_time_mode
         
@@ -185,6 +185,13 @@ class Automaton:
     def elapsed_time_since_last_transition(self):
         return self._elapsed_time_since_last_transition
     
+    def activate(self):
+        self._q = self._q_t0
+        self._x = self._x_t0 
+        self._aux_x = self._aux_x
+        self._ctx = self._ctx_t0
+        self._active = True
+
     def set_continous_state(self, new_continous_state: Any): # NOTE: This setter should only be avialable if real_time hybrid automaton.
         """explcit setter for the _x attribute value which is the continous state values of the hybrid automaton"""
         self._x = new_continous_state
@@ -228,6 +235,10 @@ class Automaton:
         Perform one hybrid automaton evaluation step.
         This is pure logic — no loops, no sleeping.
         """
+        if not self._active:
+            print (f"can't step, automaton '{self._name}' is not active.")
+            return None
+        
         if not self._is_completed: 
             # ---------------------------------------------------------
             # 1️⃣ Continuous dynamics
@@ -282,6 +293,11 @@ class Automaton:
             invariants_ok = self._q.check_invariants(
                 self._x, self._aux_x, self._u, self._ctx, self._dt
             )
+
+            if not invariants_ok and self._q._is_final:
+                print ('automaton completed')
+                self._is_completed = True
+                self._active = False
 
             return StepResult(
                 q=self._q, aux_x=self._aux_x, x=self._x, ctx=self._ctx, 

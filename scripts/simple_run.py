@@ -37,6 +37,7 @@ def main():
         real_time_mode=True,
         states=[state_1, state_2],
     )
+    ha.activate()
 
     step_result = ha.step()
 
