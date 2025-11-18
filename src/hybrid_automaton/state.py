@@ -1,8 +1,8 @@
 from typing import Optional, Callable, List, Any, Tuple
 import asyncio
-from .transition import HybridTransition
+from .transition import Transition
 
-class HybridState:
+class State:
     """ 
     HybridState is a discrete state represeting a control mode the hybrid
     automaton can be in. 
@@ -45,21 +45,24 @@ class HybridState:
         continous_dynamics(x: Any, Optional[Any], dt)
     """
 
+    _id_counter = 0
+
+
     def __init__(
         self,
         name: str = "",
-        value: int = 0,
         initial: bool = False,
         final: bool = False,
         flow: Optional[Callable] = None,
         invariants: Optional[List[Callable]] = None,
-        transitions: Optional[List['HybridTransition']] = None,
+        transitions: Optional[List['Transition']] = None,
         integartion_method: Optional[Callable] = None,
         on_enter: Optional[Callable] = None,
         on_exit: Optional[Callable] = None
     ):
         self.name = name
-        self.value = value
+        self._id = State._id_counter
+        State._id_counter += 1
         self.flow = flow
         self._Inv = invariants
         self._D = [] if transitions == None else transitions
@@ -69,27 +72,31 @@ class HybridState:
         self.on_enter = on_enter
         self.on_exit = on_exit
 
-    def add_transition(self, d: HybridTransition): 
+    def get_state_id(self): 
+        return self._id
+
+    def add_transition(self, d: Transition): 
         """function for adding transition post HybridState obj creation"""
         self._D.append(d)
 
-    def add_transitions(self, D: List[HybridTransition]):
+    def add_transitions(self, D: List[Transition]):
         """add several transitions to the state"""
         [self._D.append(d) for d in D]
 
-    def remove_transition(self, d: HybridTransition):
+    def remove_transition(self, d: Transition):
         """remove a transition from transitions"""
         self._D.remove(d)
 
     def evaluate_transitions(
         self,
         x: Any,
+        aux_x: Any = None,
         u: Optional[Any] = None,
         ctx: Optional[Any] = None,
         dt: float = 0.1
-    ) -> List[Tuple[HybridTransition, bool, Optional[Exception]]]:
+    ) -> List[Tuple[Transition, bool, Optional[Exception]]]:
         """
-        Synchronously evaluate guards for each HybridTransition.
+        Synchronously evaluate guards for each Transition.
 
         Returns a list of tuples (transition, enabled, exception). If an exception
         occurred while evaluating a guard, `enabled` will be False and `exception`
@@ -106,7 +113,7 @@ class HybridState:
         results = []
         for d in self._D:
             try:
-                enabled = bool(d.is_enabled(x, ctx))
+                enabled = bool(d.is_enabled(x, aux_x, u, ctx, dt))
                 results.append((d, enabled, None))
             except Exception as e:
                 results.append((d, False, e))
@@ -135,7 +142,7 @@ class HybridState:
 
     def check_invariants(self, x, aux_x=None, u=None, ctx=None, dt=0.1) -> bool:
         if not self._Inv:
-            return True
+            return False if self._is_final else True
 
         for i in self._Inv:
             try:
@@ -145,8 +152,6 @@ class HybridState:
                 return False
 
         return True
-
-
     
     def __repr__(self):
         """Developer representation: unambiguous string useful for debugging."""
@@ -158,7 +163,7 @@ class HybridState:
             getattr(i, "__name__", repr(i)) for i in self._Inv
         ]
         return (
-            f"HybridState(name={self.name}, value={self.value}, "
+            f"HybridState(name={self.name}, id={self._id}, "
             f"flow={flow_repr}, invariants={invariants_repr}, "
             f"transitions={transitions_repr})"
         )
@@ -188,14 +193,14 @@ class HybridState:
             D_str_list = []
             for d in self._D:
                 # Only show the target state's name or id to avoid recursion
-                to_name = getattr(d.to_q, "name", f"<State id={id(d.to_q)}>")
-                guards_list = [getattr(g, "__name__", repr(g)) for g in (d.G or [])]
-                reset_name = getattr(d.R, "__name__", repr(d.R)) if d.R else "None"
-                D_str_list.append(f"{d.name} -> {to_name}, guards={guards_list}, reset={reset_name}")
+                to_name = getattr(d._to_q, "name", f"<State id={id(d._to_q)}>")
+                guards_list = [getattr(g, "__name__", repr(g)) for g in (d._G or [])]
+                reset_name = getattr(d._R, "__name__", repr(d._R)) if d._R else "None"
+                D_str_list.append(f"{d._name} -> {to_name}, guards={guards_list}, reset={reset_name}")
             D_str = "; ".join(D_str_list)
 
         return (
-            f"State '{self.name}' (value={self.value}, {flags_str})\n"
+            f"State '{self.name}' (id={self._id}, {flags_str})\n"
             f"  flow: {flow_str}\n"
             f"  invariants: [{Inv_str}]\n"
             f"  transitions: [{D_str}]"

@@ -1,18 +1,18 @@
 import pytest
-from hybrid_automaton import HybridState
-from hybrid_automaton import HybridTransition
+from hybrid_automaton import State
+from hybrid_automaton import Transition
 from unittest.mock import Mock
 
 
-class TestHybridTransition: 
+class TestTransition: 
     """ === valid test case paths === """
     @pytest.mark.parametrize(
         'kwargs',
         [
-            {'name': 't', 'value': 0, 'to_state': Mock(spec=HybridState)},
-            {'name': 't', 'value': 0, 'to_state': Mock(spec=HybridState), 'priority': 1},
-            {'name': 't', 'value': 0, 'to_state': Mock(spec=HybridState), 'guards': [Mock()], 'priority': 1},
-            {'name': 't', 'value': 0, 'to_state': Mock(spec=HybridState), 'guards': [Mock()], 'reset': Mock(), 'priority': 1},
+            {'name': 't', 'value': 0, 'to_state': Mock(spec=State)},
+            {'name': 't', 'value': 0, 'to_state': Mock(spec=State), 'priority': 1},
+            {'name': 't', 'value': 0, 'to_state': Mock(spec=State), 'guards': [Mock()], 'priority': 1},
+            {'name': 't', 'value': 0, 'to_state': Mock(spec=State), 'guards': [Mock()], 'reset': Mock(), 'priority': 1},
         ],
         ids=[
             'T1: Minimal initialization',
@@ -23,8 +23,8 @@ class TestHybridTransition:
     )
     def test_valid_initialization(self, kwargs, request):
         try:
-            t = HybridTransition(**kwargs)
-            assert isinstance(t, HybridTransition)
+            t = Transition(**kwargs)
+            assert isinstance(t, Transition)
         except AssertionError:
             pytest.fail(f"Test failed: {request.node.callspec.id}")
 
@@ -44,10 +44,10 @@ class TestHybridTransition:
             ]
     )
     def test_valid_is_enabled(self, guards, expected): 
-        mock_hybrid_transition = HybridTransition(
+        mock_hybrid_transition = Transition(
             name='t1',
             value=1,
-            to_state=Mock(spec=HybridState),
+            to_state=Mock(spec=State),
             guards=guards,
             priority=0
         )
@@ -67,10 +67,10 @@ class TestHybridTransition:
         ids=["T1"]
     )
     def test_apply_rest(self, input_kwargs, reset_func, expected_output):
-        t = HybridTransition(
+        t = Transition(
             name='t1',
             value=1,
-            to_state=Mock(spec=HybridState),
+            to_state=Mock(spec=State),
             guards=None,
             reset=reset_func,
             priority=0
@@ -97,8 +97,8 @@ class TestHybridTransition:
         ids=["T1: reset modifies states", "T2: no reset, pass-through"]
     )
     def test_execute(self, reset_func, input_kwargs, expected_output):
-        mock_to_state = Mock(spec=HybridState)
-        t = HybridTransition(
+        mock_to_state = Mock(spec=State)
+        t = Transition(
             name="t_execute",
             value=1,
             to_state=mock_to_state,

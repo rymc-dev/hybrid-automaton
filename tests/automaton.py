@@ -4,21 +4,21 @@ import os
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'src', 'hybrid_automaton'))
 
 import pytest
-from hybrid_automaton import HybridTransition
-from hybrid_automaton import HybridState
+from hybrid_automaton import Transition
+from hybrid_automaton import State
 from unittest.mock import Mock
 import pytest
 
 
-class TestHybridTransition: 
+class TestTransition: 
     """ === valid test case paths === """
     @pytest.mark.parametrize(
         'kwargs',
         [
-            {'name': 't', 'value': 0, 'to_state': Mock(spec=HybridState)},
-            {'name': 't', 'value': 0, 'to_state': Mock(spec=HybridState), 'priority': 1},
-            {'name': 't', 'value': 0, 'to_state': Mock(spec=HybridState), 'guards': [Mock()], 'priority': 1},
-            {'name': 't', 'value': 0, 'to_state': Mock(spec=HybridState), 'guards': [Mock()], 'reset': Mock(), 'priority': 1},
+            {'name': 't', 'value': 0, 'to_state': Mock(spec=State)},
+            {'name': 't', 'value': 0, 'to_state': Mock(spec=State), 'priority': 1},
+            {'name': 't', 'value': 0, 'to_state': Mock(spec=State), 'guards': [Mock()], 'priority': 1},
+            {'name': 't', 'value': 0, 'to_state': Mock(spec=State), 'guards': [Mock()], 'reset': Mock(), 'priority': 1},
         ],
         ids=[
             'T1: Minimal initialization',
@@ -29,8 +29,8 @@ class TestHybridTransition:
     )
     def test_valid_initialization(self, kwargs, request):
         try:
-            t = HybridTransition(**kwargs)
-            assert isinstance(t, HybridTransition)
+            t = Transition(**kwargs)
+            assert isinstance(t, Transition)
         except AssertionError:
             pytest.fail(f"Test failed: {request.node.callspec.id}")
 
@@ -50,10 +50,10 @@ class TestHybridTransition:
             ]
     )
     def test_valid_is_enabled(self, guards, expected): 
-        mock_hybrid_transition = HybridTransition(
+        mock_hybrid_transition = Transition(
             name='t1',
             value=1,
-            to_state=Mock(spec=HybridState),
+            to_state=Mock(spec=State),
             guards=guards,
             priority=0
         )

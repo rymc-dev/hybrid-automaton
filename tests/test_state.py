@@ -1,10 +1,10 @@
-from hybrid_automaton import HybridState
-from hybrid_automaton import HybridTransition
+from hybrid_automaton import State
+from hybrid_automaton import Transition
 import pytest
 
 def test_add_transition(): 
-    x = HybridState()
-    d = HybridTransition("t", 1, None, None, None, 0)
+    x = State()
+    d = Transition("t", 1, None, None, None, 0)
     assert x._D == []
 
     x.add_transition(d)
@@ -13,9 +13,9 @@ def test_add_transition():
     assert x._D[-1] == d
 
 def test_add_transitions():
-    x = HybridState()
-    d1 = HybridTransition("t1", 1, None, None, None, 0)
-    d2 = HybridTransition("t2", 2, None, None, None, 0)
+    x = State()
+    d1 = Transition("t1", 1, None, None, None, 0)
+    d2 = Transition("t2", 2, None, None, None, 0)
     assert x._D == []
 
     x.add_transitions([d1, d2])
@@ -25,9 +25,9 @@ def test_add_transitions():
     assert x._D[1] == d2
 
 # def test_remove_transition():
-#     d = HybridTransition("t", 1, None, None, None, 0)
-#     x = HybridState(transitions=[d])
-#     d = HybridTransition("t", 1, None, None, None, 0)
+#     d = Transition("t", 1, None, None, None, 0)
+#     x = State(transitions=[d])
+#     d = Transition("t", 1, None, None, None, 0)
 #     assert len(x._D) == 1 
 
 #     x.remove_transition(d)
@@ -36,15 +36,15 @@ def test_add_transitions():
 
 
 def test_evaluate_transitions():
-    d1 = HybridTransition("t1", 1, None, None, None, 0)
-    d2 = HybridTransition("t2", 2, None, None, None, 0)
-    x = HybridState(transitions=[d1, d2])
+    d1 = Transition("t1", 1, None, None, None, 0)
+    d2 = Transition("t2", 2, None, None, None, 0)
+    x = State(transitions=[d1, d2])
 
     results = x.evaluate_transitions(None)
     print (results)
 
 def test_continous_dynamics():
-    x = HybridState(
+    x = State(
         name="blah blah ", 
         flow=lambda x, aux_x, u, ctx, dt: [0.5, 5.0]
     )
@@ -54,7 +54,7 @@ def test_continous_dynamics():
 
 def test_check_invariants():
 
-    x = HybridState(
+    x = State(
         invariants=[
             lambda x, aux_x, u, ctx, dt: True,
             lambda x, aux_x, u, ctx, dt: True

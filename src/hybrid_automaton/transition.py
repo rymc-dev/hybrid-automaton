@@ -1,6 +1,6 @@
 from typing import Optional, List, Callable, Any, Tuple
 
-class HybridTransition:
+class Transition:
     """ 
     Defines the transition logic for a hybrid automaton model.
 
@@ -22,18 +22,17 @@ class HybridTransition:
 
     """
 
+    _id_counter = 0
+
     def __init__(
         self,
         name: str,
-        value: int,
         to_state: Any,
         guards: Optional[List[Callable]] = None,
         reset: Optional[Callable] = None,
         priority: int = 0
     ):
         if not isinstance(name, str):
-            raise ValueError('')
-        if not isinstance(value, int):
             raise ValueError('')
         # if not isinstance(to_state, HybridState):
         #     raise ValueError('')
@@ -44,7 +43,8 @@ class HybridTransition:
             raise ValueError('')
 
         self._name = name
-        self._value = value
+        self._id = Transition._id_counter
+        Transition._id_counter += 1
         self._to_q = to_state
         self._G = guards
         self._R = reset

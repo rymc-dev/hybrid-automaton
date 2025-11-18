@@ -1,4 +1,4 @@
-from .transition import HybridTransition
+from .transition import Transition
 from typing import List, Optional, Callable, Any, Dict
 import time
 import asyncio
@@ -9,18 +9,23 @@ class StepResult:
         self,
         q,
         x,
+        aux_x,
         ctx,
         transition_taken=None,
+        reset_applied=False,
         invariants_ok=True,
     ):
         self.q = q
         self.x = x
+        self.aux_x = aux_x
         self.ctx = ctx
+
         self.transition_taken = transition_taken
+        self.reset_applied = reset_applied
         self.invariants_ok = invariants_ok
 
 
-class HybridAutomaton: 
+class Automaton: 
     """ 
     model of the hybrid automaton 
 
@@ -71,12 +76,13 @@ class HybridAutomaton:
     _elapsed_time_active = None
     _elapsed_time_since_transition = None
     _elapsed_time_since_last_transition = None
+    _id_counter = 0
+    _is_completed = False
     
     def __init__(
         self, 
-        name: str, 
-        value: int, 
-        states: List[HybridTransition], 
+        name: str,
+        states: List[Transition], 
         on_entry: Optional[Callable] = None, 
         on_exit: Optional[Callable] = None,
         real_time_mode: bool = False
@@ -84,7 +90,8 @@ class HybridAutomaton:
         """ """
         
         self.NAME = name
-        self.VALUE = value
+        self._id = Automaton._id_counter
+        Automaton._id_counter += 1
         self.Q = states
 
         init_idx = [i for i, s in enumerate(self.Q) if getattr(s, "_is_init", False)]
@@ -102,6 +109,15 @@ class HybridAutomaton:
         self._ON_EXIT = on_exit
 
     """ === getters and setters === """
+
+    @property
+    def is_completed(self):
+        return self._is_completed
+
+    @property
+    def id(self):
+        return self._id
+
     @property
     def q(self): 
         return self._q
@@ -176,71 +192,74 @@ class HybridAutomaton:
             self._elapsed_time_since_last_transition = time.perf_counter() - _start
             await asyncio.sleep(0.01)
 
-    async def step(self) -> StepResult:
+    def step(self) -> StepResult:
         """
         Perform one hybrid automaton evaluation step.
         This is pure logic — no loops, no sleeping.
         """
+        if not self._is_completed: 
+            # ---------------------------------------------------------
+            # 1️⃣ Continuous dynamics
+            # ---------------------------------------------------------
+            xdot = self._q.continuous_dynamics(
+                self._x, self._aux_x, self._u, self._ctx, self._dt
+            )
+            self._xdot = xdot
 
-        # ---------------------------------------------------------
-        # 1️⃣ Continuous dynamics
-        # ---------------------------------------------------------
-        xdot = await self._q.continuous_dynamics(
-            self._x, self._u, self._ctx, self._dt
-        )
-        self._xdot = xdot
+            # Integrate if in simulation mode
+            if not self._real_time_mode and (xdot is not None):
+                self._x = self._x + xdot * self._dt
 
-        # Integrate if in simulation mode
-        if not self._real_time_mode and (xdot is not None):
-            self._x = self._x + xdot * self._dt
-
-        # ---------------------------------------------------------
-        # 2️⃣ Guard transitions
-        # ---------------------------------------------------------
-        D_eval = await self._q.evaluate_transitions(
-            self._x, self._u, self._ctx, self._dt
-        )
-
-        active_guards = [item[0] for item in D_eval if item[1] is True]
-
-        if active_guards:
-            if len(active_guards) == 1:
-                d = active_guards[0]
-            else:
-                d = min(active_guards, key=lambda t: t.priority)
-
-            # Execute transition
-            new_q, new_x, new_ctx = d.execute(
-                self._x, self._u, self._ctx, self._dt
+            # ---------------------------------------------------------
+            # 2️⃣ Guard transitions
+            # ---------------------------------------------------------
+            D_eval = self._q.evaluate_transitions(
+                self._x, self._aux_x, self._u, self._ctx, self._dt
             )
 
-            # Update state
-            self._q = new_q
-            self._x = new_x
-            self._ctx = new_ctx
+            active_guards = [item[0] for item in D_eval if item[1] is True]
 
-            # State entry callback
-            if new_q.on_enter:
-                new_q.on_enter()
+            if active_guards:
+                if len(active_guards) == 1:
+                    d = active_guards[0]
+                else:
+                    d = min(active_guards, key=lambda t: t.priority)
+
+                # Execute transition
+                new_q, new_x, new_ctx = d.execute(
+                    self._x, self._u, self._ctx, self._dt
+                )
+
+                # Update state
+                self._q = new_q
+                self._x = new_x
+                self._ctx = new_ctx
+
+                # State entry callback
+                if new_q.on_enter:
+                    new_q.on_enter()
+
+                return StepResult(
+                    q=new_q, aux_x=self.aux_x, x=new_x, ctx=new_ctx,
+                    transition_taken=d,
+                    invariants_ok=True
+                )
+
+            # ---------------------------------------------------------
+            # 3️⃣ No transition → invariant check
+            # ---------------------------------------------------------
+            invariants_ok = self._q.check_invariants(
+                self._x, self._aux_x, self._u, self._ctx, self._dt
+            )
 
             return StepResult(
-                q=new_q, x=new_x, ctx=new_ctx,
-                transition_taken=d,
-                invariants_ok=True
+                q=self._q, aux_x=self._aux_x, x=self._x, ctx=self._ctx, 
+                transition_taken=None,
+                invariants_ok=invariants_ok
             )
-
-        # ---------------------------------------------------------
-        # 3️⃣ No transition → invariant check
-        # ---------------------------------------------------------
-        invariants_ok = await self._q.check_invariants(
-            self._x, self._u, self._ctx, self._dt
-        )
-
-        return StepResult(
-            q=self._q, x=self._x, ctx=self._ctx,
-            transition_taken=None,
-            invariants_ok=invariants_ok
-        )
+        else: 
+            print ("automaton completed, can't step")
+            return None
 
     async def evaluation_loop_worker(
         self,
