@@ -100,14 +100,14 @@ class Automaton:
     _x_t0: Any = None
     _aux_x_t0: Any = None
     _u_t0: Any = None
-    _ctx_t0: Ctx = Ctx()
+    _ctx_t0: AutomatonContext = AutomatonContext()
 
     # Current States inside automaton
     _q: Any = None
     _x: Any = None
     _aux_x: Any = None 
     _u: Any = None
-    _ctx: Ctx = None
+    _ctx: AutomatonContext = None
 
     _xdot: Any = None
 
@@ -206,18 +206,183 @@ class Automaton:
     def elapsed_time_since_last_transition(self):
         return self._elapsed_time_since_last_transition
     
-    def activate(self):
+    def activate(
+        self,
+        x0: Dict,
+        aux_x0: Optional[Dict] = None,
+        u0: Optional[Dict] = None,
+        dt: Optional[float] = 0.1
+    ):
+        """
+        Activate the hybrid automaton.
+
+        This function initializes the automaton for execution. Activation defines the
+        *runtime* initial conditions of the system, including the continuous state `x`,
+        auxiliary continuous states `aux_x`, and the static control inputs `u`.
+
+        It also sets the initial discrete state (the state marked `initial=True`)
+        and prepares the internal context (ctx) for timing, real-time mode, and 
+        other evaluation metadata.
+
+        Notes:
+            • The automaton must be activated before calling `step()` or 
+            `evaluation_loop_worker()`.
+
+            • `x0` represents the continuous state that will be updated over time
+            through the state's flow() function and integrated using the provided 
+            integration method (unless in real-time mode).
+
+            • `aux_x0` represents auxiliary continuous variables that do not undergo
+            automatic integration, but may be accessed by:
+                – guard functions
+                – invariant checks
+                – reset maps
+                – flow functions
+            (Typical examples: temperature, waypoint position, agent metadata.)
+
+            • `u0` contains static or piecewise-static control inputs that may be
+            referenced by flow functions or guards. These are not integrated and
+            are only updated externally via `set_control_input()`.
+
+        Args:
+            x0 (dict):
+                Initial continuous state at activation time t₀. This is the state
+                variable that will be advanced by the continuous dynamics of the
+                active hybrid state.
+
+            aux_x0 (Optional[dict]):
+                Initial auxiliary continuous state at activation time t₀. These 
+                values do *not* undergo automatic integration but participate as 
+                additional inputs to transitions, invariants, and flow functions.
+
+            u0 (Optional[dict]):
+                Initial control inputs. These remain static unless updated by 
+                `set_control_input()`.
+
+            dt (Optional[float])
+                Expected delta time between evaluation steps of automaton, defaults
+                to `0.1`
+
+        Example:
+            >>> ha = Automaton(name="vessel_controller", states=[q1, q2], dt=0.1)
+            >>> ha.activate(
+            ...     x0={'heading': float(np.deg2rad(100)), 'speed': 5.0},
+            ...     aux_x0={'waypoint': [100.0, 100.0]},
+            ...     u0={'rudder_offset': -2.0},
+            ...     dt=1.0
+            ... )
+        """
         self._q = self._q_t0
-        self._x = self._x_t0 
-        self._aux_x = self._aux_x
+        self._x = x0 
+        self._aux_x = aux_x0
+        self._u = u0
         self._ctx = self._ctx_t0
+        self._dt = dt
         self._active = True
 
-    def set_continous_state(self, new_continous_state: Any): # NOTE: This setter should only be avialable if real_time hybrid automaton.
-        """explcit setter for the _x attribute value which is the continous state values of the hybrid automaton"""
-        self._x = new_continous_state
+    def set_continous_state(self, x: Any): # NOTE: This setter should only be avialable if real_time hybrid automaton.
+        """
+        Explicit setter for the continuous state `x` of the automaton.
 
-    def set_auxilary_states(self, new_auxielary_states: Any):
+        This updates the internal continuous state that is normally evolved by
+        the active state's continuous dynamics (flow function) and integrated
+        via the automaton’s integration method. This setter is intended for
+        real-time operation, where the continuous state comes from external
+        sensors rather than simulation-based integration.
+
+        This function may **only** be called while the automaton is active.
+
+        Args:
+            x (Any):
+                New continuous state value. The structure (e.g., dict keys,
+                dimensionality) must match the structure provided during
+                activation (`x0`).
+
+        Raises:
+            SystemError:
+                If called when the automaton has not been activated or is not
+                currently active.
+
+            ValueError:
+                If the provided value `x` does not match the format/structure of
+                the initial continuous state defined at activation time.
+
+        Examples:
+            >>> ha = Automaton(name="vessel_controller", states=[q1, q2], dt=0.1)
+            >>> ha.activate(x0={"heading": float(np.deg2rad(100))})
+            >>> 
+            >>> # Simulate sensor updates
+            >>> ha.set_continous_state({"heading": float(np.deg2rad(101))})
+            >>> time.sleep(0.1)
+            >>> ha.set_continous_state({"heading": float(np.deg2rad(102))})
+        """
+        # -------------------------------
+        # 1. Automaton must be active
+        # -------------------------------
+        if not getattr(self, "_active", False):
+            raise SystemError(
+                "Attempted to update continuous state `x` but the automaton "
+                "is not active. Call `activate()` first."
+            )
+
+        # -------------------------------
+        # 2. Must be in real-time mode
+        # -------------------------------
+        if not getattr(self._ctx, "is_real_time", False):
+            raise SystemError(
+                "Attempted to manually update continuous state while in simulation mode. "
+                "In simulation mode, `x` must be advanced only by the integration method."
+            )
+
+        # -------------------------------
+        # 3. Validate structure matches x0
+        # -------------------------------
+        x0 = self._x_t0
+
+        if x0 is not None:
+            if isinstance(x0, dict):
+                if not isinstance(x, dict):
+                    raise ValueError(
+                        f"Invalid type for x. Expected dict with keys {list(x0.keys())}, "
+                        f"got {type(x).__name__}."
+                    )
+                # Ensure keys match
+                if set(x.keys()) != set(x0.keys()):
+                    raise ValueError(
+                        "Invalid structure for x. Keys do not match initial x0.\n"
+                        f"Expected keys: {set(x0.keys())}\nGot keys: {set(x.keys())}"
+                    )
+
+            elif isinstance(x0, (list, tuple)):
+                if not isinstance(x, type(x0)):
+                    raise ValueError(
+                        f"Invalid type for x. Expected {type(x0).__name__}, got {type(x).__name__}."
+                    )
+                if len(x) != len(x0):
+                    raise ValueError(
+                        f"Invalid structure for x. Expected length {len(x0)}, got {len(x)}."
+                    )
+
+            # Optional: numpy array shape check
+            elif hasattr(x0, "shape"):
+                if not hasattr(x, "shape") or x.shape != x0.shape:
+                    raise ValueError(
+                        f"Invalid array shape for x. Expected {x0.shape}, got {getattr(x, 'shape', None)}."
+                    )
+
+            # Otherwise assume opaque object → type must match
+            else:
+                if not isinstance(x, type(x0)):
+                    raise ValueError(
+                        f"Invalid type for x. Expected {type(x0).__name__}, got {type(x).__name__}."
+                    )
+
+        # -------------------------------
+        # 4. Passed validation → assign
+        # -------------------------------
+        self._x = x
+
+    def set_auxilary_continous_states(self, new_auxielary_states: Any):
         """explicit setting for the _aux_x value which is the values of auxelary continous states"""
         self._aux_x = new_auxielary_states
 
