@@ -81,33 +81,39 @@ class HybridState:
         """remove a transition from transitions"""
         self._D.remove(d)
 
-    async def evaluate_transitions(self, x: Any, u: Optional[Any] = None, ctx: Optional[Any] = None, dt: float = 0.1) -> List[Tuple[HybridTransition, bool, Optional[Exception]]]:
+    def evaluate_transitions(
+        self,
+        x: Any,
+        u: Optional[Any] = None,
+        ctx: Optional[Any] = None,
+        dt: float = 0.1
+    ) -> List[Tuple[HybridTransition, bool, Optional[Exception]]]:
         """
-        Concurrently evaluate guards for each HybridTransition.
+        Synchronously evaluate guards for each HybridTransition.
 
         Returns a list of tuples (transition, enabled, exception). If an exception
         occurred while evaluating a guard, `enabled` will be False and `exception`
         contains the caught exception.
 
-        Args: 
-            x: continous state
-            ctx: auxielary context for this Hybrid Automaton to run
+        Args:
+            x: continuous state
+            ctx: auxiliary context for this Hybrid Automaton
         """
+
         if not self._D:
             return []
 
-        async def _eval(d: HybridTransition):
+        results = []
+        for d in self._D:
             try:
                 enabled = bool(d.is_enabled(x, ctx))
-                return (d, enabled, None)
+                results.append((d, enabled, None))
             except Exception as e:
-                return (d, False, e)
+                results.append((d, False, e))
 
-        coros = [_eval(d) for d in self._D]
-        results = await asyncio.gather(*coros, return_exceptions=False)
         return results
 
-    async def continuous_dynamics(self, x: Any, aux_x: Optional[Any] = None, u: Optional[Any] = None,  ctx: Optional[Any] = None, dt: Optional[float] = None) -> Any:
+    def continuous_dynamics(self, x: Any, aux_x: Optional[Any] = None, u: Optional[Any] = None,  ctx: Optional[Any] = None, dt: Optional[float] = None) -> Any:
         """
         Process continuous dynamics using current state and context.
         Synchronous function.
@@ -125,35 +131,22 @@ class HybridState:
         """
         if self.flow is None:
             return x if x is not None else []
-        return self.flow(x, u, dt, ctx)
+        return self.flow(x, aux_x, u, ctx, dt)
 
-    async def check_invariants(self, x: Any, aux_x: Optional[Any] = None, u: Optional[Any] = None, ctx: Optional[Any] = None, dt: float = 0.1) -> bool:
-        """
-        a coro async function for checking invariants for this HybridState
-
-        Args: 
-            x: Optional[Any]
-                continous state represntation
-            ctx: Optional[Any]
-                auxielary context information
-
-        returns: 
-        bool: True if invariant holds, else False
-        """
-    
+    def check_invariants(self, x, aux_x=None, u=None, ctx=None, dt=0.1) -> bool:
         if not self._Inv:
             return True
 
-        async def _eval(i: Callable):
+        for i in self._Inv:
             try:
-                enabled = bool(i(x, ctx))
-                return (i, enabled, None)
-            except Exception as e:
-                return (i, False, e)
+                if not bool(i(x, aux_x, u, ctx, dt)):
+                    return False
+            except Exception:
+                return False
 
-        coros = [_eval(i) for i in self._Inv]
-        results = await asyncio.gather(*coros, return_exceptions=False)
-        return results
+        return True
+
+
     
     def __repr__(self):
         """Developer representation: unambiguous string useful for debugging."""
