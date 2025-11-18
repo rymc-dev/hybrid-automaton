@@ -1,4 +1,5 @@
 from .transition import Transition
+from .state import State
 from typing import List, Optional, Callable, Any, Dict
 import time
 import asyncio
@@ -61,23 +62,51 @@ class Automaton:
     
     """
 
-    _q = None
-    _x_t0 = None
-    _x = None
-    _aux_x_t0 = None
-    _aux_x = None # auxielary continous state
-    _u_t0 = None
-    _u = None
-    _ctx_t0 = None
-    _ctx = None
-    _dt = None
-    _xdot = None
-    _active = False
-    _elapsed_time_active = None
-    _elapsed_time_since_transition = None
-    _elapsed_time_since_last_transition = None
-    _id_counter = 0
-    _is_completed = False
+    class Ctx: 
+        active: bool = False 
+        is_completed: bool = False
+        elapsed_time_active: float = 0.0
+        elapsed_time_since_last_transition: float = 0.0
+
+    _name: str = ""
+    _id: int = 0
+    _id_counter: int = 0
+
+    # 
+    _Q: List[State] = []
+
+
+    # Internal Context Values
+    _active: bool = False
+    _is_completed: bool = False
+
+    _elapsed_time_active: float = None
+    _elapsed_time_since_last_transition: float = None
+
+    # Initial States inside automaton
+    _q_t0: Any = None
+    _x_t0: Any = None
+    _aux_x_t0: Any = None
+    _u_t0: Any = None
+    _ctx_t0: Ctx = Ctx()
+
+    # Current States inside automaton
+    _q: Any = None
+    _x: Any = None
+    _aux_x: Any = None 
+    _u: Any = None
+    _ctx: Ctx = None
+
+    _xdot: Any = None
+    
+    # on entry and on exit
+    _on_entry: Callable = None
+    _on_exit: Callable = None
+
+    _real_time_mode = False
+    _dt: float = 0.1
+   
+
     
     def __init__(
         self, 
@@ -89,12 +118,13 @@ class Automaton:
     ):
         """ """
         
-        self.NAME = name
+        self._name = name
         self._id = Automaton._id_counter
         Automaton._id_counter += 1
-        self.Q = states
 
-        init_idx = [i for i, s in enumerate(self.Q) if getattr(s, "_is_init", False)]
+        # TODO: Validate states
+        self._Q = states
+        init_idx = [i for i, s in enumerate(self._Q) if getattr(s, "_is_init", False)]
         
         cnt_init = len(init_idx)
         if cnt_init == 0: 
@@ -102,11 +132,12 @@ class Automaton:
         if cnt_init > 1: 
             raise ValueError(f"invalid HybridAutomaton initialization, need 1 initial state, got {cnt_init}")
         
+        self._q0 = self._Q[init_idx[0]]
+
         self._real_time_mode = real_time_mode
-        self._q = self.Q[init_idx[0]]
-        # self._Q_T0 = self.Q[init_idx[0]]
-        self._ON_ENTRY = on_entry
-        self._ON_EXIT = on_exit
+        
+        self._on_entry = on_entry
+        self._on_exit = on_exit
 
     """ === getters and setters === """
 
@@ -261,54 +292,57 @@ class Automaton:
             print ("automaton completed, can't step")
             return None
 
-    async def evaluation_loop_worker(
-        self,
-        x_t0: Any,
-        u_t0: Optional[Any] = None,
-        ctx_t0: Optional[Any] = None,
-        dt: float = 0.1
-    ):
-        print(f"starting {self.NAME}")
+    # async def evaluation_loop_worker(
+    #     self,
+    #     x_t0: Any,
+    #     x_aux_t0: Any,
+    #     u_t0: Optional[Any] = None,
+    #     ctx_t0: Optional[Any] = None,
+    #     dt: float = 0.1
+    # ):
+    #     print(f"starting {self.NAME}")
 
-        if self._ON_ENTRY:
-            self._ON_ENTRY()
+    #     if self._on_entry:
+    #         self._on_entry()
 
-        self._active = True
-        self._dt = dt
-        self._x = x_t0
-        self._u = u_t0
-        self._ctx = ctx_t0
-        self._q = self._Q_T0
+    #     self._active = True
+        
+    #     self._dt = dt
+    #     self._x = x_t0
+    #     self._aux_x = aux
+    #     self._u = u_t0
+    #     self._ctx = ctx_t0
+    #     self._q = self._q_t0
 
-        # Background timers
-        tasks = [
-            asyncio.create_task(self._elapsed_time_active_worker()),
-            asyncio.create_task(self._elapsed_time_since_last_transition_worker()),
-        ]
+    #     # Background timers
+    #     tasks = [
+    #         asyncio.create_task(self._elapsed_time_active_worker()),
+    #         asyncio.create_task(self._elapsed_time_since_last_transition_worker()),
+    #     ]
 
-        # Main eval loop
-        while self._active:
-            result = await self.step()
+    #     # Main eval loop
+    #     while self._active:
+    #         result = await self.step()
 
-            # (Optional) handle invariant violation
-            if not result.invariants_ok:
-                if self._q._is_final:
-                    print(f"{self.NAME} reached final state {self._q.name}")
-                    self._active = False
-                    break
-                else:
-                    raise RuntimeError(
-                        f"Invariant violated in state {self._q.name} "
-                        "with no available transition."
-                    )
+    #         # (Optional) handle invariant violation
+    #         if not result.invariants_ok:
+    #             if self._q._is_final:
+    #                 print(f"{self.NAME} reached final state {self._q.name}")
+    #                 self._active = False
+    #                 break
+    #             else:
+    #                 raise RuntimeError(
+    #                     f"Invariant violated in state {self._q.name} "
+    #                     "with no available transition."
+    #                 )
 
-            # Cooperative yielding / real-time pacing
-            await asyncio.sleep(self._dt)
+    #         # Cooperative yielding / real-time pacing
+    #         await asyncio.sleep(self._dt)
 
-        # Cleanup
-        for task in tasks:
-            task.cancel()
+    #     # Cleanup
+    #     for task in tasks:
+    #         task.cancel()
 
-        if self._ON_EXIT:
-            self._ON_EXIT()
+    #     if self._on_exit:
+    #         self._on_exit()
 
