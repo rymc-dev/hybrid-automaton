@@ -26,6 +26,24 @@ class StepResult:
         self.invariants_ok = invariants_ok
 
 
+
+class AutomatonContext: 
+    active: bool = False 
+    is_completed: bool = False
+    elapsed_time_active: float = 0.0
+    elapsed_time_since_last_transition: float = 0.0
+    dt: float = 0.1
+    is_real_time: bool = False
+
+    def update_elapsed_time_real_time(self, unix_timestamp: float):
+        self.elapsed_time_active = time.perf_counter() - self.elapsed_time_active
+
+    def dt_step(self):
+        self.elapsed_time_active = self.elapsed_time_active + self.dt
+
+    def update_dt(self, updated_dt: float):
+        self.dt = updated_dt  
+
 class Automaton: 
     """ 
     model of the hybrid automaton 
@@ -33,13 +51,10 @@ class Automaton:
     args: 
         name: str
             human readable representaiton of the hybrid automaton model
-        value: int
-            value respetnation of the hybrid automaton, clearly shows the model 
-            for storage purposes in case you have sevelar models running at the same time
         states: List[HybridState]
             these are the Hybrid STates of the automaton, these represent the discrete modes
             of the automaton 
-
+        
         real_time_mode: bool
             determines whether continous state should have simulated integration,
             (automation to compute xdot (continous dynamics) and integrate it with continous state
@@ -52,6 +67,10 @@ class Automaton:
         on_exit: Optional[Callable]
             on exit callback function for when evaluation_loop_worker completes
 
+        dt: Optional[float]
+            mainly used for 'real_time_mode == False' for performing integration
+            on continous x state based on this
+
     
     
     functions:
@@ -59,29 +78,22 @@ class Automaton:
             async coro worker for running the automaton 
             using asyncio
 
+        step(self): 
+            synchronous function for performing one step in automaton 
+            evalution (continous dynamics, integration if sim, check transitions
+            , check if invariants hold for current state)
+
     
     """
 
-    class Ctx: 
-        active: bool = False 
-        is_completed: bool = False
-        elapsed_time_active: float = 0.0
-        elapsed_time_since_last_transition: float = 0.0
+
 
     _name: str = ""
     _id: int = 0
     _id_counter: int = 0
 
-    # 
+    # set of potential states
     _Q: List[State] = []
-
-
-    # Internal Context Values
-    _active: bool = False
-    _is_completed: bool = False
-
-    _elapsed_time_active: float = None
-    _elapsed_time_since_last_transition: float = None
 
     # Initial States inside automaton
     _q_t0: Any = None
@@ -98,29 +110,37 @@ class Automaton:
     _ctx: Ctx = None
 
     _xdot: Any = None
-    
-    # on entry and on exit
-    _on_entry: Callable = None
-    _on_exit: Callable = None
 
-    _real_time_mode = False
-    _dt: float = 0.1
+    # integration method: this is used when automaton is in simulation 
+    # mode for taking the derivative#s calculated by the flow function as input
+    # then updated the x state accordingly based on that. 
+    _integration_function: Optional[Callable] = None
+    
+    # on entry and on exit have allow the end user to add additional
+    # on start functions on entry by default and on exit on default has a couple
+    # functionalites associated with it by default, such as starting timers, ending them
+    # updating the state of the automaton to deactived .....
+    _on_entry: Optional[Callable] = None
+    _on_exit: Optional[Callable] = None
    
 
-    
     def __init__(
         self, 
         name: str,
         states: List[Transition], 
         on_entry: Optional[Callable] = None, 
         on_exit: Optional[Callable] = None,
-        real_time_mode: bool = False
+        real_time_mode: bool = False,
+        integration_function: Optional[Callable] = None,
+        dt: Optional[float] = 0.1
     ):
         """ """
         
         self._name = name
         self._id = Automaton._id_counter
         Automaton._id_counter += 1
+
+        self._integration_function = integration_function
 
         # TODO: Validate states
         self._Q = states
@@ -134,7 +154,8 @@ class Automaton:
         
         self._q_t0 = self._Q[init_idx[0]]
 
-        self._real_time_mode = real_time_mode
+        self._ctx_t0.update_dt(dt)
+        self._ctx_t0.is_real_time = real_time_mode
         
         self._on_entry = on_entry
         self._on_exit = on_exit
