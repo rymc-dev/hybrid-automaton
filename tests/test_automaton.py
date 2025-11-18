@@ -59,6 +59,20 @@ import pytest
 import numpy as np
 
 
+class TestActivate: 
+    pass
+
+class TestAuxilaryContinousStates: 
+    pass
+
+class TestSetControlInput:
+    pass
+
+class TestSetAuxContext: 
+    pass
+
+
+
 class TestSetContinuousState:
 
     @pytest.fixture

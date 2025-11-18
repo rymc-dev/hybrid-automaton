@@ -96,18 +96,17 @@ class Automaton:
     _Q: List[State] = []
 
     # Initial States inside automaton
-    _q_t0: Any = None
-    _x_t0: Any = None
-    _aux_x_t0: Any = None
-    _u_t0: Any = None
-    _ctx_t0: AutomatonContext = AutomatonContext()
+    _q0: Any = None
+    _x0: Any = None
+    _aux_x0: Any = None
+    _u0: Any = None
 
     # Current States inside automaton
     _q: Any = None
     _x: Any = None
     _aux_x: Any = None 
     _u: Any = None
-    _ctx: AutomatonContext = None
+    _ctx: AutomatonContext = AutomatonContext()
 
     _xdot: Any = None
 
@@ -152,10 +151,10 @@ class Automaton:
         if cnt_init > 1: 
             raise ValueError(f"invalid HybridAutomaton initialization, need 1 initial state, got {cnt_init}")
         
-        self._q_t0 = self._Q[init_idx[0]]
+        self._q0 = self._Q[init_idx[0]]
 
-        self._ctx_t0.update_dt(dt)
-        self._ctx_t0.is_real_time = real_time_mode
+        self._ctx.update_dt(dt)
+        self._ctx.is_real_time = real_time_mode
         
         self._on_entry = on_entry
         self._on_exit = on_exit
@@ -169,6 +168,22 @@ class Automaton:
     @property
     def id(self):
         return self._id
+
+    @property
+    def q0(self):
+        return self._q0
+
+    @property
+    def x0(self):
+        return self.x0
+    
+    @property
+    def aux_x0(self):
+        return self._aux_x0  
+    
+    @property
+    def u0(self):
+        return self._u0 
 
     @property
     def q(self): 
@@ -187,31 +202,18 @@ class Automaton:
         return self._u
 
     @property
-    def ctx(self):
-        return self._ctx
-    
-    @property
-    def dt(self):
-        return self._dt
-
-    @property
     def xdot(self): # NOTE: continous dynamics has not setter, becuase this is internally generated
         return self._xdot
-    
+
     @property
-    def elapsed_time_active(self): 
-        return self._elapsed_time_active
-    
-    @property
-    def elapsed_time_since_last_transition(self):
-        return self._elapsed_time_since_last_transition
+    def ctx(self):
+        return self._ctx
     
     def activate(
         self,
         x0: Dict,
         aux_x0: Optional[Dict] = None,
-        u0: Optional[Dict] = None,
-        dt: Optional[float] = 0.1
+        u0: Optional[Dict] = None
     ):
         """
         Activate the hybrid automaton.
@@ -272,12 +274,10 @@ class Automaton:
             ...     dt=1.0
             ... )
         """
-        self._q = self._q_t0
+        self._q = self._q0
         self._x = x0 
         self._aux_x = aux_x0
         self._u = u0
-        self._ctx = self._ctx_t0
-        self._dt = dt
         self._active = True
 
     def set_continous_state(self, x: Any): # NOTE: This setter should only be avialable if real_time hybrid automaton.
@@ -382,39 +382,73 @@ class Automaton:
         # -------------------------------
         self._x = x
 
-    def set_auxilary_continous_states(self, new_auxielary_states: Any):
-        """explicit setting for the _aux_x value which is the values of auxelary continous states"""
-        self._aux_x = new_auxielary_states
+    def set_auxilary_continous_states(self, aux_x: Any):
+        """
+        explicity auxilary continous state setter
 
-    def set_control_input(self, new_ctrl_input: Any): 
-        """explicity setter for the internal _u control input vector"""
-        self._u = new_ctrl_input
+        Args: 
+            aux_x: Any
+                aux_x can be a list, dict or whatever else is required
+                is's structure is defined by the aux_x0 representation 
+                at time 0.
+
+        Raises:
+            SystemError: if you try set aux_x while the automaton is not active
+            ValueError: if you try to set a aux_x which is invalid 
+
+        """
+        if not getattr(self, "_active", False):
+            raise SystemError(
+                "Attempted to update auxilary continuous state `aux_x` but the automaton "
+                "is not active. Call `activate()` first."
+            ) 
+        
+        # perform the second validation for value error
+
+
+
+        self._aux_x = aux_x 
+
+    def set_control_input(self, u: Any): 
+        """
+        explicity setter for the internal control input value
+        this is a value that effects flow functions, can be heading
+        offset or so on.
+
+        Args:
+            u: Any
+                u can be a list, dict or whatever else is required 
+                it's structure is defined by the u0 representation which
+                is set on t0.
+
+        Raises: 
+            SystemError: if you try set control input state `u` but the automaton is not active
+            ValueError: if you try to set `u` value but the structure is not the same as u0
+        """
+        self._u = u
     
-    def set_aux_context(self, new_aux_ctx: Dict[str, Any]):
-        """explicit setter for the internal _ctx auxiliary context for the hybrid automaton""" 
-        self._ctx = new_aux_ctx
 
     def set_dt(self, new_dt: float):
         """explicit setter for internal dt, used for timing of evalution loop and calculations"""
         self._dt = new_dt
 
-    async def _elapsed_time_active_worker(self): 
-        """a background worker for during the evaluation loop, for updating elapsed time active"""
-        start = time.perf_counter()
-        while True: 
-            self._elapsed_time_active = time.perf_counter() - start
-            await asyncio.sleep(0.01)
+    # async def _elapsed_time_active_worker(self): 
+    #     """a background worker for during the evaluation loop, for updating elapsed time active"""
+    #     start = time.perf_counter()
+    #     while True: 
+    #         self._elapsed_time_active = time.perf_counter() - start
+    #         await asyncio.sleep(0.01)
 
-    async def _elapsed_time_since_last_transition_worker(self):
-        q = self._q
-        _start = time.perf_counter()
-        while True:
-            if q != self._q:
-                q = self._q
-                _start = time.perf_counter() 
+    # async def _elapsed_time_since_last_transition_worker(self):
+    #     q = self._q
+    #     _start = time.perf_counter()
+    #     while True:
+    #         if q != self._q:
+    #             q = self._q
+    #             _start = time.perf_counter() 
             
-            self._elapsed_time_since_last_transition = time.perf_counter() - _start
-            await asyncio.sleep(0.01)
+    #         self._elapsed_time_since_last_transition = time.perf_counter() - _start
+    #         await asyncio.sleep(0.01)
 
     def step(self) -> StepResult:
         """
