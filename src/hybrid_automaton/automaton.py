@@ -122,11 +122,17 @@ class Automaton:
     _on_entry: Optional[Callable] = None
     _on_exit: Optional[Callable] = None
    
+    # Additional missing attributes
+    _active: bool = False
+    _is_completed: bool = False
+    _real_time_mode: bool = False
+    _dt: float = 0.1
+    _x_t0: Any = None  # Store initial x for validation
 
     def __init__(
         self, 
         name: str,
-        states: List[Transition], 
+        states: List[State],  # Fixed: was Transition, should be State
         on_entry: Optional[Callable] = None, 
         on_exit: Optional[Callable] = None,
         real_time_mode: bool = False,
@@ -140,6 +146,8 @@ class Automaton:
         Automaton._id_counter += 1
 
         self._integration_function = integration_function
+        self._real_time_mode = real_time_mode
+        self._dt = dt
 
         # TODO: Validate states
         self._Q = states
@@ -160,6 +168,9 @@ class Automaton:
         self._on_exit = on_exit
 
     """ === getters and setters === """
+    @property
+    def name(self):
+        return self._name
 
     @property
     def is_completed(self):
@@ -175,7 +186,7 @@ class Automaton:
 
     @property
     def x0(self):
-        return self.x0
+        return self._x0  # Fixed: was self.x0 (recursive)
     
     @property
     def aux_x0(self):
@@ -275,10 +286,15 @@ class Automaton:
             ... )
         """
         self._q = self._q0
-        self._x = x0 
+        self._x = x0
+        self._x0 = x0  # Store initial state
+        self._x_t0 = x0  # Store for validation
         self._aux_x = aux_x0
+        self._aux_x0 = aux_x0
         self._u = u0
+        self._u0 = u0
         self._active = True
+        self._is_completed = False
 
     def set_continous_state(self, x: Any): # NOTE: This setter should only be avialable if real_time hybrid automaton.
         """
@@ -286,7 +302,7 @@ class Automaton:
 
         This updates the internal continuous state that is normally evolved by
         the active state's continuous dynamics (flow function) and integrated
-        via the automaton’s integration method. This setter is intended for
+        via the automaton's integration method. This setter is intended for
         real-time operation, where the continuous state comes from external
         sensors rather than simulation-based integration.
 
@@ -403,9 +419,31 @@ class Automaton:
                 "is not active. Call `activate()` first."
             ) 
         
-        # perform the second validation for value error
-
-
+        # Validate structure matches aux_x0
+        aux_x0 = self._aux_x0
+        
+        if aux_x0 is not None:
+            if isinstance(aux_x0, dict):
+                if not isinstance(aux_x, dict):
+                    raise ValueError(
+                        f"Invalid type for aux_x. Expected dict, got {type(aux_x).__name__}."
+                    )
+                if set(aux_x.keys()) != set(aux_x0.keys()):
+                    raise ValueError(
+                        f"Invalid structure for aux_x. Expected keys: {set(aux_x0.keys())}, "
+                        f"got keys: {set(aux_x.keys())}"
+                    )
+            elif isinstance(aux_x0, (list, tuple)):
+                if not isinstance(aux_x, type(aux_x0)):
+                    raise ValueError(
+                        f"Invalid type for aux_x. Expected {type(aux_x0).__name__}, "
+                        f"got {type(aux_x).__name__}."
+                    )
+                if len(aux_x) != len(aux_x0):
+                    raise ValueError(
+                        f"Invalid structure for aux_x. Expected length {len(aux_x0)}, "
+                        f"got {len(aux_x)}."
+                    )
 
         self._aux_x = aux_x 
 
@@ -425,30 +463,45 @@ class Automaton:
             SystemError: if you try set control input state `u` but the automaton is not active
             ValueError: if you try to set `u` value but the structure is not the same as u0
         """
+        if not getattr(self, "_active", False):
+            raise SystemError(
+                "Attempted to update control input `u` but the automaton "
+                "is not active. Call `activate()` first."
+            )
+        
+        # Validate structure matches u0
+        u0 = self._u0
+        
+        if u0 is not None:
+            if isinstance(u0, dict):
+                if not isinstance(u, dict):
+                    raise ValueError(
+                        f"Invalid type for u. Expected dict, got {type(u).__name__}."
+                    )
+                if set(u.keys()) != set(u0.keys()):
+                    raise ValueError(
+                        f"Invalid structure for u. Expected keys: {set(u0.keys())}, "
+                        f"got keys: {set(u.keys())}"
+                    )
+            elif isinstance(u0, (list, tuple)):
+                if not isinstance(u, type(u0)):
+                    raise ValueError(
+                        f"Invalid type for u. Expected {type(u0).__name__}, "
+                        f"got {type(u).__name__}."
+                    )
+                if len(u) != len(u0):
+                    raise ValueError(
+                        f"Invalid structure for u. Expected length {len(u0)}, "
+                        f"got {len(u)}."
+                    )
+        
         self._u = u
     
 
     def set_dt(self, new_dt: float):
         """explicit setter for internal dt, used for timing of evalution loop and calculations"""
         self._dt = new_dt
-
-    # async def _elapsed_time_active_worker(self): 
-    #     """a background worker for during the evaluation loop, for updating elapsed time active"""
-    #     start = time.perf_counter()
-    #     while True: 
-    #         self._elapsed_time_active = time.perf_counter() - start
-    #         await asyncio.sleep(0.01)
-
-    # async def _elapsed_time_since_last_transition_worker(self):
-    #     q = self._q
-    #     _start = time.perf_counter()
-    #     while True:
-    #         if q != self._q:
-    #             q = self._q
-    #             _start = time.perf_counter() 
-            
-    #         self._elapsed_time_since_last_transition = time.perf_counter() - _start
-    #         await asyncio.sleep(0.01)
+        self._ctx.update_dt(new_dt)
 
     def step(self) -> StepResult:
         """
@@ -456,7 +509,7 @@ class Automaton:
         This is pure logic — no loops, no sleeping.
         """
         if not self._active:
-            print (f"can't step, automaton '{self._name}' is not active.")
+            print(f"can't step, automaton '{self._name}' is not active.")
             return None
         
         if not self._is_completed: 
@@ -489,7 +542,7 @@ class Automaton:
 
                 # Execute transition
                 new_q, new_x, new_ctx = d.execute(
-                    self._x, self._u, self._ctx, self._dt
+                    self._x, self._aux_x, self._u, self._ctx, self._dt
                 )
 
                 # Update state
@@ -502,7 +555,7 @@ class Automaton:
                     new_q.on_enter()
 
                 return StepResult(
-                    q=new_q, aux_x=self.aux_x, x=new_x, ctx=new_ctx,
+                    q=new_q, aux_x=self._aux_x, x=new_x, ctx=new_ctx,
                     transition_taken=d,
                     invariants_ok=True
                 )
@@ -515,7 +568,7 @@ class Automaton:
             )
 
             if not invariants_ok and self._q._is_final:
-                print ('automaton completed')
+                print('automaton completed')
                 self._is_completed = True
                 self._active = False
 
@@ -525,60 +578,5 @@ class Automaton:
                 invariants_ok=invariants_ok
             )
         else: 
-            print ("automaton completed, can't step")
+            print("automaton completed, can't step")
             return None
-
-    # async def evaluation_loop_worker(
-    #     self,
-    #     x_t0: Any,
-    #     x_aux_t0: Any,
-    #     u_t0: Optional[Any] = None,
-    #     ctx_t0: Optional[Any] = None,
-    #     dt: float = 0.1
-    # ):
-    #     print(f"starting {self.NAME}")
-
-    #     if self._on_entry:
-    #         self._on_entry()
-
-    #     self._active = True
-        
-    #     self._dt = dt
-    #     self._x = x_t0
-    #     self._aux_x = aux
-    #     self._u = u_t0
-    #     self._ctx = ctx_t0
-    #     self._q = self._q_t0
-
-    #     # Background timers
-    #     tasks = [
-    #         asyncio.create_task(self._elapsed_time_active_worker()),
-    #         asyncio.create_task(self._elapsed_time_since_last_transition_worker()),
-    #     ]
-
-    #     # Main eval loop
-    #     while self._active:
-    #         result = await self.step()
-
-    #         # (Optional) handle invariant violation
-    #         if not result.invariants_ok:
-    #             if self._q._is_final:
-    #                 print(f"{self.NAME} reached final state {self._q.name}")
-    #                 self._active = False
-    #                 break
-    #             else:
-    #                 raise RuntimeError(
-    #                     f"Invariant violated in state {self._q.name} "
-    #                     "with no available transition."
-    #                 )
-
-    #         # Cooperative yielding / real-time pacing
-    #         await asyncio.sleep(self._dt)
-
-    #     # Cleanup
-    #     for task in tasks:
-    #         task.cancel()
-
-    #     if self._on_exit:
-    #         self._on_exit()
-

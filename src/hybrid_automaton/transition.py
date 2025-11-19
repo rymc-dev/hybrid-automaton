@@ -49,6 +49,10 @@ class Transition:
         self._G = guards
         self._R = reset
         self._priority = priority
+    
+    @property
+    def name(self):
+        return self._name
 
     @property
     def priority(self): 
