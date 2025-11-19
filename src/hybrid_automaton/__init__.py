@@ -8,7 +8,7 @@ from .integration import IntegrationMethods
 from .state import State
 from .transition import Transition
 
-__author__ = "Ryan McKee (R.McKee@liverpool.ac.uk)"
+__author__ = "Ryan McKee <R.McKee@liverpool.ac.uk>"
 __version__ = "0.0.1"
 
 __all__ = [
