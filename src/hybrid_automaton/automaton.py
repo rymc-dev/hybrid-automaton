@@ -523,7 +523,7 @@ class Automaton:
 
             # Integrate if in simulation mode
             if not self._real_time_mode and (xdot is not None):
-                self._x = self._x + xdot * self._dt
+                self._x = self._x + xdot * self._dt # TODO: Need to update this to use self._integration function instead
 
             # ---------------------------------------------------------
             # 2️⃣ Guard transitions
