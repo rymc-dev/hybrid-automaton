@@ -5,6 +5,11 @@
 
 -----
 
+| Field         | Value        |
+|---------------|--------------|
+| Last Updated  | 2025-11-19   |
+| Version       | 0.0.1        |
+
 ## Overview
 Hybrid Automaton is a Python-based framework for simulating and running hybrid automata in both real-time and offline settings. It provides a lightweight, flexible foundation for defining custom automata, while remaining easily integrable into real-world technology stacks such as ROS2 or other systems. The design emphasizes simplicity, extensibility, and practical applicability for a wide range of use cases.
 
