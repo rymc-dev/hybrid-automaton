@@ -48,6 +48,35 @@ class AutomatonContext:
     def set_real_time(self, is_real_time: bool): 
         self.is_real_time = is_real_time
 
+
+class AutomatonState:
+
+    def __init__(self, x: List, aux_x: Dict = None, u: Dict = None): 
+        self.x = x 
+        self.aux_x = aux_x
+        self.u = u
+
+        self._x0 = x.copy() if hasattr(x, "copy") else x
+        self._aux_x0 = aux_x.copy() if aux_x and hasattr(aux_x, "copy") else aux_x
+        self._u0 = u.copy() if u and hasattr(u, "copy") else u
+
+
+    def validate(self, x=None, aux_x=None, u=None):
+        """
+        Check that new states match the initial structure
+        """
+        x = x if x is not None else self.x
+        aux_x = aux_x if aux_x is not None else self.aux_x
+        u = u if u is not None else self.u
+
+        # perform the same kind of type/structure validation as in your setters
+        if isinstance(self._x0, dict):
+            if set(x.keys()) != set(self._x0.keys()):
+                raise ValueError(f"x keys {x.keys()} do not match initial keys {self._x0.keys()}")
+        elif isinstance(self._x0, (list, tuple)):
+            if len(x) != len(self._x0):
+                raise ValueError(f"x length {len(x)} does not match initial length {len(self._x0)}")
+
 class Automaton: 
     """ 
     model of the hybrid automaton 
@@ -167,58 +196,28 @@ class Automaton:
         self._on_entry = on_entry
         self._on_exit = on_exit
 
-    """ === getters and setters === """
+    """ === property getters === """
     @property
-    def name(self):
+    def name(self) -> str: 
         return self._name
 
     @property
-    def is_completed(self):
-        return self._is_completed
-
-    @property
-    def id(self):
+    def id(self) -> int:
         return self._id
 
-    @property
-    def q0(self):
-        return self._q0
-
-    @property
-    def x0(self):
-        return self._x0  # Fixed: was self.x0 (recursive)
-    
-    @property
-    def aux_x0(self):
-        return self._aux_x0  
-    
-    @property
-    def u0(self):
-        return self._u0 
-
-    @property
-    def q(self): 
-        return self._q
-
-    @property
-    def x(self): 
-        return self._x
-    
-    @property
-    def aux_x(self):
-        return self._aux_x
-    
-    @property
-    def u(self):
-        return self._u
-
-    @property
-    def xdot(self): # NOTE: continous dynamics has not setter, becuase this is internally generated
+    """ === getter for when active === """
+    def get_continous_dynamics(self): 
+        """ 
+        utilized for retrieving the current continous dynamics if there are any continous dynamics to get
+        """
+        if not self._active: 
+            raise SystemError(
+                "Attempted to get continous dynamics `xdot` but the automaton is not active. Call `activate()` first."
+            )
+        
         return self._xdot
-
-    @property
-    def ctx(self):
-        return self._ctx
+    
+    """ === setter function for when active === """
 
     def set_continous_state(self, x: Any): # NOTE: This setter should only be avialable if real_time hybrid automaton.
         """
@@ -424,18 +423,13 @@ class Automaton:
                     )
         
         self._u = u
-    
-    def set_dt(self, new_dt: float):
-        """explicit setter for internal dt, used for timing of evalution loop and calculations"""
-        if not isinstance(new_dt, (float, int)):
-            raise ValueError(f"invalid type for dt, expected float got {type(new_dt)}")
 
-        self._ctx.update_dt(float(new_dt))
+    """ === core evaluation functions === """
 
-
-    def step(self) -> StepResult:
+    def _evaluation_step(self) -> StepResult:
         """
-        Perform one hybrid automaton evaluation step.
+        Perform one hybrid automaton evaluation step the current state 
+        of the hybrid automaton.
         This is pure logic — no loops, no sleeping.
         """
         if not self._active:
@@ -511,7 +505,7 @@ class Automaton:
             print("automaton completed, can't step")
             return None
 
-    async def automaton_loop_worker(self):
+    async def _automaton_loop_worker(self):
         """ 
         async evaluation loop worker for running the automaton
         instance, either in real time mode or simulation mode.
@@ -531,7 +525,7 @@ class Automaton:
             if is_real_time: 
                 step_start_time = time.perf_counter()
 
-            step_result: StepResult = self.step() # NOTE: not sure what to do with step result yet.
+            step_result: StepResult = self._evaluation_step() # NOTE: not sure what to do with step result yet.
 
             if is_real_time: 
                 # real-time mode
@@ -547,7 +541,8 @@ class Automaton:
 
         print (f"automaton '{self._name}' evaluation loop worker exiting.")
 
-        
+    """ === toggle active / deactive functions === """
+
     async def activate(
         self,
         x0: List,
@@ -616,6 +611,11 @@ class Automaton:
             ... )
         """
         
+        if self._active:
+            raise SystemError(f"can't activate automaton '{self._name}', it's already active.")
+
+        # should probably validate x0, aux_x0, u0 here
+
         print (f"activating automaton '{self._name}'")
         self._q = self._q0
         
@@ -634,14 +634,27 @@ class Automaton:
         self._active = True
         self._is_completed = False
 
-        automaton_runner = asyncio.create_task(self.automaton_loop_worker())
+
+        # could create several tasks one for updating the elapsed time continously and so on.
+        automaton_runner = asyncio.create_task(self._automaton_loop_worker())
         await automaton_runner
 
         print (f"automaton '{self._name}' deactived.")
 
     def deactivate(self): 
         """deactives the automaton"""
+        if not self._active:
+            raise SystemError(f"can't deactivate automaton '{self._name}', it's not active.")
+
         self._active = False    
         print (f"automaton '{self._name}' deactived.")
 
+    """ === string representations of the class === """
 
+    def __repr__(self):
+        """ developer string representation of instance"""
+        ... 
+
+    def __str__(self): 
+        """user friendly represnetaiton of instance"""
+        ...
