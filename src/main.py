@@ -88,8 +88,15 @@ if __name__ == '__main__':
     car = Automaton(name="Cruise Control", states=[accelerate, cruise, brake, emergency])
 
     # Initial: x = [velocity, distance_to_car_ahead]
-    x0 = np.array([20.0, 100.0])
-    asyncio.run(car.activate(x0=x0))
+    async def deactivate_after_10_seconds():
+        await asyncio.sleep(2)
+        car.deactivate()
+        
+    async def runner():
+        x0 = np.array([20.0, 100.0])
+        t1 = asyncio.create_task(car.activate(x0=x0))
+        t2 = asyncio.create_task(deactivate_after_10_seconds())
+        await asyncio.gather(asyncio.gather(t1, t2))
 
-    import time
-    time.sleep(20)
+    asyncio.run(runner())
+    print ('task completed')

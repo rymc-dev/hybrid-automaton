@@ -543,7 +543,7 @@ class Automaton:
             else:
                 # simulation mode
                 self._ctx.dt_step()
-                asyncio.sleep(0.01) # yield control to event loop for short period to stop race conditions
+                await asyncio.sleep(0.01) # yield control to event loop for short period to stop race conditions
 
         print (f"automaton '{self._name}' evaluation loop worker exiting.")
 
