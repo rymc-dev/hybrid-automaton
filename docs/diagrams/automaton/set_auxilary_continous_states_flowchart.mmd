@@ -1,0 +1,14 @@
+flowchart TD
+    A([start: set_auxilary_continous_states]) --> B{is automaton active?}
+
+    B -->|no| C[/raise SystemError/]
+    C --> I
+    B -->|yes| D[Proceed]
+
+    D --> F{new_aux_x structure matches self.aux_x_t0 structure?}
+
+    F -->|no| G[/raise ValueError/]
+    F -->|yes| H[self.aux_x = new_aux_x]
+
+    G --> H
+    H --> I([End])
