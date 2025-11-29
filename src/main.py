@@ -89,12 +89,12 @@ if __name__ == '__main__':
 
     # Initial: x = [velocity, distance_to_car_ahead]
     async def deactivate_after_10_seconds():
-        await asyncio.sleep(2)
+        await asyncio.sleep(10)
         car.deactivate()
         
     async def runner():
         x0 = np.array([20.0, 100.0])
-        t1 = asyncio.create_task(car.activate(x0=x0))
+        t1 = asyncio.create_task(car.activate(x0=x0, dt=0.001))
         t2 = asyncio.create_task(deactivate_after_10_seconds())
         await asyncio.gather(asyncio.gather(t1, t2))
 
