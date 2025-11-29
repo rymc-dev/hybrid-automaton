@@ -30,6 +30,7 @@ class StepResult:
 class AutomatonContext: 
     active: bool = False 
     is_completed: bool = False
+    start_timestamp: float = 0.0
     elapsed_time_active: float = 0.0
     elapsed_time_since_last_transition: float = 0.0
     dt: float = 0.1
@@ -43,6 +44,9 @@ class AutomatonContext:
 
     def update_dt(self, updated_dt: float):
         self.dt = updated_dt  
+
+    def set_real_time(self, is_real_time: bool): 
+        self.is_real_time = is_real_time
 
 class Automaton: 
     """ 
@@ -126,7 +130,6 @@ class Automaton:
     _active: bool = False
     _is_completed: bool = False
     _real_time_mode: bool = False
-    _dt: float = 0.1
     _x_t0: Any = None  # Store initial x for validation
 
     def __init__(
@@ -136,8 +139,7 @@ class Automaton:
         on_entry: Optional[Callable] = None, 
         on_exit: Optional[Callable] = None,
         real_time_mode: bool = False,
-        integration_function: Optional[Callable] = None,
-        dt: Optional[float] = 0.1
+        integration_function: Optional[Callable] = None
     ):
         """ """
         
@@ -147,7 +149,6 @@ class Automaton:
 
         self._integration_function = integration_function
         self._real_time_mode = real_time_mode
-        self._dt = dt
 
         # TODO: Validate states
         self._Q = states
@@ -161,7 +162,6 @@ class Automaton:
         
         self._q0 = self._Q[init_idx[0]]
 
-        self._ctx.update_dt(dt)
         self._ctx.is_real_time = real_time_mode
         
         self._on_entry = on_entry
@@ -219,82 +219,6 @@ class Automaton:
     @property
     def ctx(self):
         return self._ctx
-    
-    def activate(
-        self,
-        x0: Dict,
-        aux_x0: Optional[Dict] = None,
-        u0: Optional[Dict] = None
-    ):
-        """
-        Activate the hybrid automaton.
-
-        This function initializes the automaton for execution. Activation defines the
-        *runtime* initial conditions of the system, including the continuous state `x`,
-        auxiliary continuous states `aux_x`, and the static control inputs `u`.
-
-        It also sets the initial discrete state (the state marked `initial=True`)
-        and prepares the internal context (ctx) for timing, real-time mode, and 
-        other evaluation metadata.
-
-        Notes:
-            • The automaton must be activated before calling `step()` or 
-            `evaluation_loop_worker()`.
-
-            • `x0` represents the continuous state that will be updated over time
-            through the state's flow() function and integrated using the provided 
-            integration method (unless in real-time mode).
-
-            • `aux_x0` represents auxiliary continuous variables that do not undergo
-            automatic integration, but may be accessed by:
-                – guard functions
-                – invariant checks
-                – reset maps
-                – flow functions
-            (Typical examples: temperature, waypoint position, agent metadata.)
-
-            • `u0` contains static or piecewise-static control inputs that may be
-            referenced by flow functions or guards. These are not integrated and
-            are only updated externally via `set_control_input()`.
-
-        Args:
-            x0 (dict):
-                Initial continuous state at activation time t₀. This is the state
-                variable that will be advanced by the continuous dynamics of the
-                active hybrid state.
-
-            aux_x0 (Optional[dict]):
-                Initial auxiliary continuous state at activation time t₀. These 
-                values do *not* undergo automatic integration but participate as 
-                additional inputs to transitions, invariants, and flow functions.
-
-            u0 (Optional[dict]):
-                Initial control inputs. These remain static unless updated by 
-                `set_control_input()`.
-
-            dt (Optional[float])
-                Expected delta time between evaluation steps of automaton, defaults
-                to `0.1`
-
-        Example:
-            >>> ha = Automaton(name="vessel_controller", states=[q1, q2], dt=0.1)
-            >>> ha.activate(
-            ...     x0={'heading': float(np.deg2rad(100)), 'speed': 5.0},
-            ...     aux_x0={'waypoint': [100.0, 100.0]},
-            ...     u0={'rudder_offset': -2.0},
-            ...     dt=1.0
-            ... )
-        """
-        self._q = self._q0
-        self._x = x0
-        self._x0 = x0  # Store initial state
-        self._x_t0 = x0  # Store for validation
-        self._aux_x = aux_x0
-        self._aux_x0 = aux_x0
-        self._u = u0
-        self._u0 = u0
-        self._active = True
-        self._is_completed = False
 
     def set_continous_state(self, x: Any): # NOTE: This setter should only be avialable if real_time hybrid automaton.
         """
@@ -307,6 +231,10 @@ class Automaton:
         sensors rather than simulation-based integration.
 
         This function may **only** be called while the automaton is active.
+
+        Docs: 
+            flowchart: 
+                ...
 
         Args:
             x (Any):
@@ -497,11 +425,13 @@ class Automaton:
         
         self._u = u
     
-
     def set_dt(self, new_dt: float):
         """explicit setter for internal dt, used for timing of evalution loop and calculations"""
-        self._dt = new_dt
-        self._ctx.update_dt(new_dt)
+        if not isinstance(new_dt, (float, int)):
+            raise ValueError(f"invalid type for dt, expected float got {type(new_dt)}")
+
+        self._ctx.update_dt(float(new_dt))
+
 
     def step(self) -> StepResult:
         """
@@ -517,19 +447,19 @@ class Automaton:
             # 1️⃣ Continuous dynamics
             # ---------------------------------------------------------
             xdot = self._q.continuous_dynamics(
-                self._x, self._aux_x, self._u, self._ctx, self._dt
+                self._x, self._aux_x, self._u, self._ctx
             )
             self._xdot = xdot
 
             # Integrate if in simulation mode
             if not self._real_time_mode and (xdot is not None):
-                self._x = self._x + xdot * self._dt # TODO: Need to update this to use self._integration function instead
+                self._x = self._x + xdot * self._ctx.dt # TODO: Need to update this to use self._integration function instead
 
             # ---------------------------------------------------------
             # 2️⃣ Guard transitions
             # ---------------------------------------------------------
             D_eval = self._q.evaluate_transitions(
-                self._x, self._aux_x, self._u, self._ctx, self._dt
+                self._x, self._aux_x, self._u, self._ctx
             )
 
             active_guards = [item[0] for item in D_eval if item[1] is True]
@@ -541,21 +471,21 @@ class Automaton:
                     d = min(active_guards, key=lambda t: t.priority)
 
                 # Execute transition
-                new_q, new_x, new_ctx = d.execute(
-                    self._x, self._aux_x, self._u, self._ctx, self._dt
+                new_q, new_x, new_aux_x = d.execute(
+                    self._x, self._aux_x, self._u, self._ctx
                 )
 
                 # Update state
                 self._q = new_q
                 self._x = new_x
-                self._ctx = new_ctx
+                self._aux_x = new_aux_x
 
                 # State entry callback
                 if new_q.on_enter:
                     new_q.on_enter()
 
                 return StepResult(
-                    q=new_q, aux_x=self._aux_x, x=new_x, ctx=new_ctx,
+                    q=new_q, aux_x=self._aux_x, x=new_x, ctx=self._ctx,
                     transition_taken=d,
                     invariants_ok=True
                 )
@@ -564,7 +494,7 @@ class Automaton:
             # 3️⃣ No transition → invariant check
             # ---------------------------------------------------------
             invariants_ok = self._q.check_invariants(
-                self._x, self._aux_x, self._u, self._ctx, self._dt
+                self._x, self._aux_x, self._u, self._ctx
             )
 
             if not invariants_ok and self._q._is_final:
@@ -580,3 +510,138 @@ class Automaton:
         else: 
             print("automaton completed, can't step")
             return None
+
+    async def automaton_loop_worker(self):
+        """ 
+        async evaluation loop worker for running the automaton
+        instance, either in real time mode or simulation mode.
+        assumes that the automaton has already been activated
+        and that there is no other current automaton loops running.
+        """
+
+        print (f"automaton '{self._name}' evaluation loop worker starting.")
+        is_real_time = self._ctx.is_real_time
+        
+        if is_real_time: 
+            self._ctx.start_timestamp = time.perf_counter()
+        else:
+            self._ctx.start_timestamp = 0.0 # simulation time starts at 0.0
+
+        while self._active and not self._is_completed:
+            if is_real_time: 
+                step_start_time = time.perf_counter()
+
+            step_result: StepResult = self.step() # NOTE: not sure what to do with step result yet.
+
+            if is_real_time: 
+                # real-time mode
+                step_end_time = time.perf_counter()
+                time_elapsed_in_step = step_end_time - step_start_time
+                time_to_wait = self._ctx.dt - time_elapsed_in_step
+                if time_to_wait > 0:
+                    await asyncio.sleep(time_to_wait)
+            else:
+                # simulation mode
+                self._ctx.dt_step()
+                asyncio.sleep(0.01) # yield control to event loop for short period to stop race conditions
+
+        print (f"automaton '{self._name}' evaluation loop worker exiting.")
+
+        
+    async def activate(
+        self,
+        x0: List,
+        aux_x0: Optional[Dict] = {},
+        u0: Optional[Dict] = {},
+        real_time_mode: Optional[bool] = False,
+        dt: Optional[float] = 0.1
+    ):
+        """
+        Activate the hybrid automaton.
+
+        This function initializes the automaton for execution. Activation defines the
+        *runtime* initial conditions of the system, including the continuous state `x`,
+        auxiliary continuous states `aux_x`, and the static control inputs `u`.
+
+        It also sets the initial discrete state (the state marked `initial=True`)
+        and prepares the internal context (ctx) for timing, real-time mode, and 
+        other evaluation metadata.
+
+        Notes:
+            • The automaton must be activated before calling `step()` or 
+            `evaluation_loop_worker()`.
+
+            • `x0` represents the continuous state that will be updated over time
+            through the state's flow() function and integrated using the provided 
+            integration method (unless in real-time mode).
+
+            • `aux_x0` represents auxiliary continuous variables that do not undergo
+            automatic integration, but may be accessed by:
+                – guard functions
+                – invariant checks
+                – reset maps
+                – flow functions
+            (Typical examples: temperature, waypoint position, agent metadata.)
+
+            • `u0` contains static or piecewise-static control inputs that may be
+            referenced by flow functions or guards. These are not integrated and
+            are only updated externally via `set_control_input()`.
+
+        Args:
+            x0 (dict):
+                Initial continuous state at activation time t₀. This is the state
+                variable that will be advanced by the continuous dynamics of the
+                active hybrid state.
+
+            aux_x0 (Optional[dict]):
+                Initial auxiliary continuous state at activation time t₀. These 
+                values do *not* undergo automatic integration but participate as 
+                additional inputs to transitions, invariants, and flow functions.
+
+            u0 (Optional[dict]):
+                Initial control inputs. These remain static unless updated by 
+                `set_control_input()`.
+
+            dt (Optional[float])
+                Expected delta time between evaluation steps of automaton, defaults
+                to `0.1`
+
+        Example:
+            >>> ha = Automaton(name="vessel_controller", states=[q1, q2], dt=0.1)
+            >>> ha.activate(
+            ...     x0={'heading': float(np.deg2rad(100)), 'speed': 5.0},
+            ...     aux_x0={'waypoint': [100.0, 100.0]},
+            ...     u0={'rudder_offset': -2.0},
+            ...     dt=1.0
+            ... )
+        """
+        
+        print (f"activating automaton '{self._name}'")
+        self._q = self._q0
+        
+        self._x0 = x0  # Store initial state
+        self._x = self._x0
+
+        self._aux_x0 = aux_x0
+        self._aux_x = self._aux_x0
+        
+        self._u0 = u0
+        self._u = u0
+        
+        self._ctx.update_dt(dt)
+        self._ctx.set_real_time(real_time_mode)
+
+        self._active = True
+        self._is_completed = False
+
+        automaton_runner = asyncio.create_task(self.automaton_loop_worker())
+        await automaton_runner
+
+        print (f"automaton '{self._name}' deactived.")
+
+    def deactivate(self): 
+        """deactives the automaton"""
+        self._active = False    
+        print (f"automaton '{self._name}' deactived.")
+
+
