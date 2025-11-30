@@ -43,9 +43,7 @@ class Automaton:
         step(self): 
             synchronous function for performing one step in automaton 
             evalution (continous dynamics, integration if sim, check transitions
-            , check if invariants hold for current state)
-
-    
+            , check if invariants hold for current state)    
     """
 
     class Definition: 
@@ -343,7 +341,7 @@ class Automaton:
                     self._time_elapsed_active += self._dt
                     await asyncio.sleep(0.01) # yield control to event loop for short period to stop race conditions
 
-            print (f"automaton '{self._name}' evaluation loop worker exiting.")
+            print (f"automaton '{self._automaton_definition.name}' evaluation loop worker exiting.")
 
         async def run(self): 
             #   start the tasks for updating elapsed time, time_since_last_transition and automaton_loop_worker
@@ -353,7 +351,7 @@ class Automaton:
             self._active = True
             await main_runner_task
 
-        def deactive(self): 
+        def deactivate(self): 
             self._active = False
 
 
@@ -618,7 +616,7 @@ class Automaton:
 
         print (f"activating automaton '{self._definition.name}'...")
 
-        runner = Automaton.Runtime(
+        self._runtime: Automaton.Runtime = Automaton.Runtime(
             automaton_definition=self._definition,
             x0=x0,
             aux_x0=aux_x0,
@@ -627,16 +625,16 @@ class Automaton:
         )
         self._active = True
 
-        await runner.run()
+        await self._runtime.run()
 
-        print (f"automaton '{self._name}' deactived.")
+        print (f"automaton '{self._definition.name}' deactived.")
 
     def deactivate(self): 
         """deactives the automaton"""
-        if not self._active:
-            raise SystemError(f"can't deactivate automaton '{self._name}', it's not active.")
+        if self._runtime is None or not self._runtime._active:
+            raise SystemError(f"can't deactivate automaton '{self._definition.name}', it's not active.")
 
-        self._active = False    
+        self._runtime.deactivate()
         print (f"automaton '{self._definition.name}' deactived.")
 
     """ === string representations of the class === """
