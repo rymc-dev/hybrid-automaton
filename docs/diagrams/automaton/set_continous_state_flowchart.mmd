@@ -1,0 +1,17 @@
+flowchart TD
+    A([start: set_continous_state]) --> B{is automaton active?}
+    B -->|no| C[/raise SystemError/]
+    C --> H
+
+    B -->|yes| D{is real_time_mode?}
+
+    D -->|no| E[raise SystemError]
+    E --> H
+
+    D -->|yes| F{new_x structure matches self.x_t0 structure?}
+
+    F -->|no| G[/raise ValueError/]
+    G --> H
+    F -->|yes| H[self.x = new_x] 
+    %% H --> ([End])
+    H([End])

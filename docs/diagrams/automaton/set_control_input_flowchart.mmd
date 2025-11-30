@@ -1,0 +1,14 @@
+flowchart TD
+    A([start: set_control_input]) --> B{is automaton active?}
+
+    B -->|no| C[/raise SystemError/]
+    C --> I
+    B -->|yes| D[Proceed]
+
+    D --> F{new_U structure matches self.u_t0 structure?}
+
+    F -->|no| G[/raise ValueError/]
+    F -->|yes| H[self.u = new_u]
+
+    G --> H
+    H --> I([End])

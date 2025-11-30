@@ -42,7 +42,7 @@ class State:
         evaluate_transitions(x: Any, ctx: Any) -> ...: 
             a coro async function for evaluation of transitions within for this state.#
 
-        continous_dynamics(x: Any, Optional[Any], dt)
+        continous_dynamics(x: Any, Optional[Any])
     """
 
     _id_counter = 0
@@ -74,6 +74,15 @@ class State:
 
     def get_state_id(self): 
         return self._id
+    
+    def get_transitions(self):
+        return self._D
+    
+    def get_invariants(self):
+        return self._Inv
+
+    def get_continous_dynamics(self):
+        return self.flow
 
     def add_transition(self, d: Transition): 
         """function for adding transition post HybridState obj creation"""
@@ -92,8 +101,7 @@ class State:
         x: Any,
         aux_x: Any = None,
         u: Optional[Any] = None,
-        ctx: Optional[Any] = None,
-        dt: float = 0.1
+        ctx: Optional[Any] = None
     ) -> List[Tuple[Transition, bool, Optional[Exception]]]:
         """
         Synchronously evaluate guards for each Transition.
@@ -113,14 +121,14 @@ class State:
         results = []
         for d in self._D:
             try:
-                enabled = bool(d.is_enabled(x, aux_x, u, ctx, dt))
+                enabled = bool(d.is_enabled(x, aux_x, u, ctx))
                 results.append((d, enabled, None))
             except Exception as e:
                 results.append((d, False, e))
 
         return results
 
-    def continuous_dynamics(self, x: Any, aux_x: Optional[Any] = None, u: Optional[Any] = None,  ctx: Optional[Any] = None, dt: Optional[float] = None) -> Any:
+    def continuous_dynamics(self, x: Any, aux_x: Optional[Any] = None, u: Optional[Any] = None,  ctx: Optional[Any] = None) -> Any:
         """
         Process continuous dynamics using current state and context.
         Synchronous function.
@@ -130,23 +138,20 @@ class State:
                 continous dynamics representation for this model
             u: Optional[Any]
                 optional command inputs like rudder, thrust, etc....
-            dt: Optional[float]
-                optional delta time for continous dynamics that required future predictions,
-                dt represented in seconds
             ctx: Optional[Any]
                 auxielary contexts like goal waypoints, or some other params for the continous dynamics.
         """
         if self.flow is None:
             return x if x is not None else []
-        return self.flow(x, aux_x, u, ctx, dt)
+        return self.flow(x, aux_x, u, ctx)
 
-    def check_invariants(self, x, aux_x=None, u=None, ctx=None, dt=0.1) -> bool:
+    def check_invariants(self, x, aux_x=None, u=None, ctx=None) -> bool:
         if not self._Inv:
             return False if self._is_final else True
 
         for i in self._Inv:
             try:
-                if not bool(i(x, aux_x, u, ctx, dt)):
+                if not bool(i(x, aux_x, u, ctx)):
                     return False
             except Exception:
                 return False

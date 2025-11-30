@@ -75,8 +75,7 @@ class Transition:
         return self._R
 
     def is_enabled(self, x: Any, aux_x: Optional[Any] = None, 
-        u: Optional[Any] = None, ctx: Optional[Any] = None, 
-        dt: Optional[float] = 0.1) -> bool:
+        u: Optional[Any] = None, ctx: Optional[Any] = None) -> bool:
         """
         apply guard to continous state and/or auxielary context 
         to see if transition is enabled or not
@@ -88,8 +87,6 @@ class Transition:
                 control input
             ctx: Optional[Any]
                 auxilary information for the hybrid automaton model
-            dt: Optional[float]
-                the delta time for calculating future states
 
         Outputs: 
             boolean: represents if transition is enabled
@@ -97,11 +94,10 @@ class Transition:
         if self._G is None:
             return True # pass through guard, always true if guard not given
         
-        return all(g(x, aux_x, u, ctx, dt) for g in self._G)
+        return all(g(x, aux_x, u, ctx) for g in self._G)
     
     def apply_reset(self, x: Any, aux_x: Optional[Any] = None, 
-        u: Optional[Any] = None, ctx: Optional[Any] = None, 
-        dt: Optional[float] = 0.1) ->  Tuple[Any, Any]: 
+        u: Optional[Any] = None, ctx: Optional[Any] = None) ->  Tuple[Any, Any]: 
         """
         apply reset to continous states and/or auxielary context information 
         for the hybrid automaton model
@@ -115,17 +111,14 @@ class Transition:
                 control input
             ctx: Optional[Any]
                 auxielary context information represenation the for hybrid automaton
-            dt: Optional[float]
-                delta time
-
         Outputs:
             Tuple[x, aux_x]: represents new continous states and continous auxielary states
         """
         if self._R is None: 
             return x, aux_x # pass through, reset just returns the x and ctx
-        return self._R(x, aux_x, u, ctx, dt)
+        return self._R(x, aux_x, u, ctx)
     
-    def execute(self, x: Any, aux_x: Optional[Any] = None, u: Optional[Any] = None, ctx: Optional[Any] = None, dt: Optional[float] = 0.1) -> Tuple[Any, Any, Any]:
+    def execute(self, x: Any, aux_x: Optional[Any] = None, u: Optional[Any] = None, ctx: Optional[Any] = None) -> Tuple[Any, Any, Any]:
         """ 
         execute applies resets to the current contious and auxielary states
         utilzing information regarding the automaton and also return the next state
@@ -139,10 +132,8 @@ class Transition:
                 external inputs
             ctx: Optional[Any]
                 auxiarly context of automaton
-            dt: Optional[float] = 0.1
-                the delta time in seconds
         """
-        new_x, new_aux_x = self.apply_reset(x, aux_x, u, ctx, dt)
+        new_x, new_aux_x = self.apply_reset(x, aux_x, u, ctx)
         return self._to_q, new_x, new_aux_x
     
     def __repr__(self): 
