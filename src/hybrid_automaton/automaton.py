@@ -4,78 +4,7 @@ from typing import List, Optional, Callable, Any, Dict
 import time
 import asyncio
 
-class StepResult:
-    """Return container for one automaton step evaluation."""
-    def __init__(
-        self,
-        q,
-        x,
-        aux_x,
-        ctx,
-        transition_taken=None,
-        reset_applied=False,
-        invariants_ok=True,
-    ):
-        self.q = q
-        self.x = x
-        self.aux_x = aux_x
-        self.ctx = ctx
 
-        self.transition_taken = transition_taken
-        self.reset_applied = reset_applied
-        self.invariants_ok = invariants_ok
-
-
-
-class AutomatonContext: 
-    active: bool = False 
-    is_completed: bool = False
-    start_timestamp: float = 0.0
-    elapsed_time_active: float = 0.0
-    elapsed_time_since_last_transition: float = 0.0
-    dt: float = 0.1
-    is_real_time: bool = False
-
-    def update_elapsed_time_real_time(self, unix_timestamp: float):
-        self.elapsed_time_active = time.perf_counter() - self.elapsed_time_active
-
-    def dt_step(self):
-        self.elapsed_time_active = self.elapsed_time_active + self.dt
-
-    def update_dt(self, updated_dt: float):
-        self.dt = updated_dt  
-
-    def set_real_time(self, is_real_time: bool): 
-        self.is_real_time = is_real_time
-
-
-class AutomatonState:
-
-    def __init__(self, x: List, aux_x: Dict = None, u: Dict = None): 
-        self.x = x 
-        self.aux_x = aux_x
-        self.u = u
-
-        self._x0 = x.copy() if hasattr(x, "copy") else x
-        self._aux_x0 = aux_x.copy() if aux_x and hasattr(aux_x, "copy") else aux_x
-        self._u0 = u.copy() if u and hasattr(u, "copy") else u
-
-
-    def validate(self, x=None, aux_x=None, u=None):
-        """
-        Check that new states match the initial structure
-        """
-        x = x if x is not None else self.x
-        aux_x = aux_x if aux_x is not None else self.aux_x
-        u = u if u is not None else self.u
-
-        # perform the same kind of type/structure validation as in your setters
-        if isinstance(self._x0, dict):
-            if set(x.keys()) != set(self._x0.keys()):
-                raise ValueError(f"x keys {x.keys()} do not match initial keys {self._x0.keys()}")
-        elif isinstance(self._x0, (list, tuple)):
-            if len(x) != len(self._x0):
-                raise ValueError(f"x length {len(x)} does not match initial length {len(self._x0)}")
 
 class Automaton: 
     """ 
@@ -119,47 +48,313 @@ class Automaton:
     
     """
 
+    class Definition: 
+        """ 
+        Definition class for the Automaton, 
+        contains static information about the automaton.
+
+        Class Attributes: 
+            _id_counter: int
+                class level id counter for assigning unique ids to automaton definitions
+
+        Args: 
+            name: str
+            states: List[State]
+                list of states for the automaton
+            on_entry: Optional[Callable]
+                on entry callback function for when automaton is activated
+            on_exit: Optional[Callable] 
+                on exit callback function for when automaton is deactivated
+        """
+        _id_counter: int = 0
+
+        def __init__(self, name: str, states: List[State], 
+                     on_entry: Optional[Callable] = None, on_exit: Optional[Callable] = None): 
+            self.name = name
+            self.id = Automaton.Definition._id_counter
+            Automaton.Definition._id_counter += 1
+
+            self.states = states
+            init_idx = [i for i, s in enumerate(self.states) if getattr(s, "_is_init", False)]
+            cnt_init = len(init_idx)
+            if cnt_init > 1 or cnt_init == 0: 
+                raise ValueError(f"invalid HybridAutomaton initialization, need 1 initial state, got {cnt_init}")
+            
+            self.state_t0 = self.states[init_idx[0]]
+
+            self.on_entry = on_entry
+            self.on_exit = on_exit
+
+    class Runtime: 
+        """ 
+        Runtime class for the Automaton, contains dynamic information
+        about the automaton during execution.
+        """
+
+        # NOTE: Both auxiliary state and continous state are 
+        #       mathmatically continous, however in simulation/real_time
+        #       implementation they are treated differently as, 
+        #       continous represents the agent for the automaton hence
+        #       it in simulation mode especially the continous dynamics 
+        #       in each state/mode are utilized to integrate for next state
+
+        class AuxiliaryState: 
+            def __init__(self, name: str, state_t0: List, expected_dt: float = 0.1): 
+                self.name = name
+                self.state_t0 = state_t0
+                self.state = self.state_t0
+
+                self.avg_dt: float = expected_dt
+                self.timestep: int = 0
+
+            def set_auxiliary_state(self, aux_x: List): 
+                self.state = aux_x
+                # TODO: Timestamp and calc avg dt
+                self.timestep += 1
+
+        class ContinousState: 
+            
+            _integration_function: Optional[Callable] = None
+
+            def __init__(self, name: str, state_t0: Any, expeceted_dt: float = 0.1): 
+                self.name = name
+                self.state_t0: Any = None
+                self.state: Any = self.state_t0
+
+                self.avg_dt: float = expeceted_dt
+                self.timestep: int = 0
+
+            def set_continous_state(self, x: Any):
+                self.state = x
+                # TODO: Timestamp and calc avg dt
+                self.timestep += 1
+
+            def get_continous_state(self) -> List:
+                return self.state
+
+            def integrate(self, xdot: Any, dt: float) -> Any: 
+                if self._integration_function is not None: 
+                    self.state = self._integration_function(self.state, xdot, dt)
+                else: 
+                    self.state = self.state + xdot * dt
+                
+                self.set_continous_state(self.state)
+
+        class ControlInput: 
+            
+            def __init__(self, name: str, state_t0: Any): 
+                self.name = name
+                self.state_t0: Any = state_t0
+                self.state: Any = self.state_t0
+
+            def set_control_input(self, u: Any): 
+                self.state = u
+            
+            def get_control_input(self) -> Any:
+                return self.state
+
+        class StepResult:
+            """Return container for one automaton step evaluation."""
+            def __init__(
+                self,
+                q,
+                x,
+                aux_x,
+                ctx,
+                transition_taken=None,
+                reset_applied=False,
+                invariants_ok=True,
+            ):
+                self.q = q
+                self.x = x
+                self.aux_x = aux_x
+                self.ctx = ctx
+
+                self.transition_taken = transition_taken
+                self.reset_applied = reset_applied
+                self.invariants_ok = invariants_ok
 
 
-    _name: str = ""
-    _id: int = 0
-    _id_counter: int = 0
+        def __init__(
+                self,
+                automaton_definition: 'Automaton.Definition',
+                x0: List,
+                aux_x0: Dict = None,
+                u0: Dict = None,
+                real_time_mode: Optional[bool] = False,
+                dt: Optional[float] = 0.1
 
-    # set of potential states
-    _Q: List[State] = []
+        ): 
 
-    # Initial States inside automaton
-    _q0: Any = None
-    _x0: Any = None
-    _aux_x0: Any = None
-    _u0: Any = None
+            self._automaton_definition: Automaton.Definition = automaton_definition
+            self._mode: State = automaton_definition.state_t0 
 
-    # Current States inside automaton
-    _q: Any = None
-    _x: Any = None
-    _aux_x: Any = None 
-    _u: Any = None
-    _ctx: AutomatonContext = AutomatonContext()
+            self._continous_state: Automaton.Runtime.ContinousState = Automaton.Runtime.ContinousState(name='agent_state', state_t0=x0)
+            self._auxilary_states: List[Automaton.Runtime.AuxiliaryState] = [Automaton.Runtime.AuxiliaryState(name=k, state_t0=v) for k, v in aux_x0.items()] if aux_x0 is not None else []
+            self._control_inputs: List[Automaton.Runtime.ControlInput] = [Automaton.Runtime.ControlInput(name=k, state_t0=v) for k, v in u0.items()] if u0 is not None else []
 
-    _xdot: Any = None
+            self._time_elapsed_active: float = 0.0
+            self._time_elapsed_since_last_transition: float = 0.0
 
-    # integration method: this is used when automaton is in simulation 
-    # mode for taking the derivative#s calculated by the flow function as input
-    # then updated the x state accordingly based on that. 
-    _integration_function: Optional[Callable] = None
-    
-    # on entry and on exit have allow the end user to add additional
-    # on start functions on entry by default and on exit on default has a couple
-    # functionalites associated with it by default, such as starting timers, ending them
-    # updating the state of the automaton to deactived .....
-    _on_entry: Optional[Callable] = None
-    _on_exit: Optional[Callable] = None
-   
-    # Additional missing attributes
-    _active: bool = False
-    _is_completed: bool = False
-    _real_time_mode: bool = False
-    _x_t0: Any = None  # Store initial x for validation
+            self._real_time_mode: bool = real_time_mode
+            self._dt = dt
+            self.is_completed: bool = False
+            self._xdot: List = None
+            self._active: bool = False
+            self._is_completed: bool = False
+
+        def get_continous_dynamics(self) -> List:
+            # returns a vector representing the continous dynamics 
+            return self._xdot
+
+        def get_continous_state(self) -> 'Automaton.Runtime.ContinousState':
+            return self._continous_state
+
+        def get_auxilary_state(self) -> List['Automaton.Runtime.AuxiliaryState']: 
+            return self._auxilary_states
+        
+        def get_control_input(self) -> List['Automaton.Runtime.ControlInput']:
+            return self._control_inputs
+
+        def set_continous_state(self, x: List): 
+            # setting the continous state directly means we pass in the list of values 
+            self._continous_state = x
+
+        def set_auxilary_state(self, aux_x: Dict):
+            # setting the auxilary state directly means we pass in the dict of values 
+            self.set_auxilary_state = aux_x
+
+        def set_control_input(self, u: Dict):
+            # setting the control input directly means we pass in the dict of values
+            # TODO: Need to do validation on input
+            self.set_control_input = u
+
+        def _evaluation_step(self) -> StepResult:
+            """
+            Perform one hybrid automaton evaluation step the current state 
+            of the hybrid automaton.
+            This is pure logic — no loops, no sleeping.
+            """
+            if not self._active:
+                print(f"can't step, automaton '{self._automaton_definition.name}' is not active.")
+                return None
+            
+            if not self._is_completed: 
+                # ---------------------------------------------------------
+                # 1️⃣ Continuous dynamics
+                # ---------------------------------------------------------
+                xdot = self._mode.continuous_dynamics( # TODO: need to change this function to use new class attribute reprensetations instead of dicts
+                    self._continous_state.state, self._auxilary_states, self._control_inputs, {}# self._u, self._ctx
+                )
+                self._xdot = xdot
+
+                # Integrate if in simulation mode
+                if not self._real_time_mode and (xdot is not None):
+                    self._x = self._x + xdot * self._ctx.dt # TODO: Need to update this to use self._integration function instead
+
+                # ---------------------------------------------------------
+                # 2️⃣ Guard transitions
+                # ---------------------------------------------------------
+                D_eval = self._mode.evaluate_transitions(
+                    self._x, self._aux_x, self._u, self._ctx
+                )
+
+                active_guards = [item[0] for item in D_eval if item[1] is True]
+
+                if active_guards:
+                    if len(active_guards) == 1:
+                        d = active_guards[0]
+                    else:
+                        d = min(active_guards, key=lambda t: t.priority)
+
+                    # Execute transition
+                    new_q, new_x, new_aux_x = d.execute(
+                        self._x, self._aux_x, self._u, self._ctx
+                    )
+
+                    # Update state
+                    self._q = new_q
+                    self._x = new_x
+                    self._aux_x = new_aux_x
+
+                    # State entry callback
+                    if new_q.on_enter:
+                        new_q.on_enter()
+
+                    return Automaton.Runtime.StepResult(
+                        q=new_q, aux_x=self._aux_x, x=new_x, ctx=self._ctx,
+                        transition_taken=d,
+                        invariants_ok=True
+                    )
+
+                # ---------------------------------------------------------
+                # 3️⃣ No transition → invariant check
+                # ---------------------------------------------------------
+                invariants_ok = self._q.check_invariants(
+                    self._x, self._aux_x, self._u, self._ctx
+                )
+
+                if not invariants_ok and self._q._is_final:
+                    print('automaton completed')
+                    self._is_completed = True
+                    self._active = False
+
+                return Automaton.Runtime.StepResult(
+                    q=self._q, aux_x=self._aux_x, x=self._x, ctx=self._ctx, 
+                    transition_taken=None,
+                    invariants_ok=invariants_ok
+                )
+            else: 
+                print("automaton completed, can't step")
+                return None
+
+        async def _automaton_loop_worker(self):
+            """ 
+            async evaluation loop worker for running the automaton
+            instance, either in real time mode or simulation mode.
+            assumes that the automaton has already been activated
+            and that there is no other current automaton loops running.
+            """
+
+            print (f"automaton '{self._automaton_definition.name}' evaluation loop worker starting.")
+            is_real_time = self._real_time_mode
+            
+            if is_real_time: 
+                self.start_timestamp = time.perf_counter()
+            else:
+                self.start_timestamp = 0.0 # simulation time starts at 0.0
+
+            while self._active and not self._is_completed:
+                if is_real_time: 
+                    step_start_time = time.perf_counter()
+
+                step_result: Automaton.Runtime.StepResult = self._evaluation_step() # NOTE: not sure what to do with step result yet.
+
+                if is_real_time: 
+                    # real-time mode
+                    step_end_time = time.perf_counter()
+                    time_elapsed_in_step = step_end_time - step_start_time
+                    time_to_wait = self._ctx.dt - time_elapsed_in_step
+                    if time_to_wait > 0:
+                        await asyncio.sleep(time_to_wait)
+                else:
+                    # simulation mode
+                    self._ctx.dt_step()
+                    await asyncio.sleep(0.01) # yield control to event loop for short period to stop race conditions
+
+            print (f"automaton '{self._name}' evaluation loop worker exiting.")
+
+        async def run(self): 
+            #   start the tasks for updating elapsed time, time_since_last_transition and automaton_loop_worker
+            main_runner_task = asyncio.create_task(self._automaton_loop_worker())
+            # elapsed_time_active_task = asyncio.create_task(self._update_elapsed_time_worker())
+            # elapsed_time_since_last_transition_task = asyncio.create_task(self._update_time_since_last_transition_worker()) 
+            self._active = True
+            await main_runner_task
+
+        def deactive(self): 
+            self._active = False
+
 
     def __init__(
         self, 
@@ -167,43 +362,29 @@ class Automaton:
         states: List[State],  # Fixed: was Transition, should be State
         on_entry: Optional[Callable] = None, 
         on_exit: Optional[Callable] = None,
-        real_time_mode: bool = False,
         integration_function: Optional[Callable] = None
     ):
-        """ """
+        """ 
         
-        self._name = name
-        self._id = Automaton._id_counter
-        Automaton._id_counter += 1
-
-        self._integration_function = integration_function
-        self._real_time_mode = real_time_mode
-
-        # TODO: Validate states
-        self._Q = states
-        init_idx = [i for i, s in enumerate(self._Q) if getattr(s, "_is_init", False)]
-        
-        cnt_init = len(init_idx)
-        if cnt_init == 0: 
-            raise ValueError("invalid HybridAutomaton initialization, need 1 initial state, got 0.")
-        if cnt_init > 1: 
-            raise ValueError(f"invalid HybridAutomaton initialization, need 1 initial state, got {cnt_init}")
-        
-        self._q0 = self._Q[init_idx[0]]
-
-        self._ctx.is_real_time = real_time_mode
-        
-        self._on_entry = on_entry
-        self._on_exit = on_exit
+        """
+        self._definition: Automaton.Definition = Automaton.Definition(
+            name=name,
+            states=states,
+            on_entry=on_entry,
+            on_exit=on_exit
+        )
+        self._runtime: Automaton.Runtime = None # by default while not active therefore not initializaed
+        # set the integration function for the continous state which is a class attribute
+        Automaton.Runtime.ContinousState._integration_function = integration_function
 
     """ === property getters === """
     @property
     def name(self) -> str: 
-        return self._name
+        return self._definition.name
 
     @property
     def id(self) -> int:
-        return self._id
+        return self._definition.id
 
     """ === getter for when active === """
     def get_continous_dynamics(self): 
@@ -215,7 +396,7 @@ class Automaton:
                 "Attempted to get continous dynamics `xdot` but the automaton is not active. Call `activate()` first."
             )
         
-        return self._xdot
+        return self._runtime.get_continous_dynamics()
     
     """ === setter function for when active === """
 
@@ -259,71 +440,32 @@ class Automaton:
             >>> time.sleep(0.1)
             >>> ha.set_continous_state({"heading": float(np.deg2rad(102))})
         """
+
         # -------------------------------
-        # 1. Automaton must be active
+        # 1. Must be in active and real-time mode
         # -------------------------------
-        if not getattr(self, "_active", False):
+        if self._runtime is None:
             raise SystemError(
-                "Attempted to update continuous state `x` but the automaton "
-                "is not active. Call `activate()` first."
+                "Automaton runtime is not initialized. Ensure the automaton is activated."
             )
+        else: 
+            if not self._runtime._active: 
+                raise SystemError(
+                    "Attempted to update continuous state `x` but the automaton "
+                    "is not active. Call `activate()` first."
+                )
+            if self._runtime._real_time_mode is False: 
+                raise SystemError(
+                    "Attempted to manually update continuous state while in simulation mode. "
+                    "In simulation mode, `x` must be advanced only by the integration method."
+                )
 
-        # -------------------------------
-        # 2. Must be in real-time mode
-        # -------------------------------
-        if not getattr(self._ctx, "is_real_time", False):
-            raise SystemError(
-                "Attempted to manually update continuous state while in simulation mode. "
-                "In simulation mode, `x` must be advanced only by the integration method."
-            )
-
-        # -------------------------------
-        # 3. Validate structure matches x0
-        # -------------------------------
-        x0 = self._x_t0
-
-        if x0 is not None:
-            if isinstance(x0, dict):
-                if not isinstance(x, dict):
-                    raise ValueError(
-                        f"Invalid type for x. Expected dict with keys {list(x0.keys())}, "
-                        f"got {type(x).__name__}."
-                    )
-                # Ensure keys match
-                if set(x.keys()) != set(x0.keys()):
-                    raise ValueError(
-                        "Invalid structure for x. Keys do not match initial x0.\n"
-                        f"Expected keys: {set(x0.keys())}\nGot keys: {set(x.keys())}"
-                    )
-
-            elif isinstance(x0, (list, tuple)):
-                if not isinstance(x, type(x0)):
-                    raise ValueError(
-                        f"Invalid type for x. Expected {type(x0).__name__}, got {type(x).__name__}."
-                    )
-                if len(x) != len(x0):
-                    raise ValueError(
-                        f"Invalid structure for x. Expected length {len(x0)}, got {len(x)}."
-                    )
-
-            # Optional: numpy array shape check
-            elif hasattr(x0, "shape"):
-                if not hasattr(x, "shape") or x.shape != x0.shape:
-                    raise ValueError(
-                        f"Invalid array shape for x. Expected {x0.shape}, got {getattr(x, 'shape', None)}."
-                    )
-
-            # Otherwise assume opaque object → type must match
-            else:
-                if not isinstance(x, type(x0)):
-                    raise ValueError(
-                        f"Invalid type for x. Expected {type(x0).__name__}, got {type(x).__name__}."
-                    )
-
-        # -------------------------------
-        # 4. Passed validation → assign
-        # -------------------------------
-        self._x = x
+        try: 
+            self._runtime.set_continous_state(x)
+        except Exception as e:
+            raise ValueError(
+                f"Failed to set continuous state `x`: {str(e)}"
+            ) from e
 
     def set_auxilary_continous_states(self, aux_x: Any):
         """
@@ -340,39 +482,27 @@ class Automaton:
             ValueError: if you try to set a aux_x which is invalid 
 
         """
-        if not getattr(self, "_active", False):
-            raise SystemError(
-                "Attempted to update auxilary continuous state `aux_x` but the automaton "
-                "is not active. Call `activate()` first."
-            ) 
-        
-        # Validate structure matches aux_x0
-        aux_x0 = self._aux_x0
-        
-        if aux_x0 is not None:
-            if isinstance(aux_x0, dict):
-                if not isinstance(aux_x, dict):
-                    raise ValueError(
-                        f"Invalid type for aux_x. Expected dict, got {type(aux_x).__name__}."
-                    )
-                if set(aux_x.keys()) != set(aux_x0.keys()):
-                    raise ValueError(
-                        f"Invalid structure for aux_x. Expected keys: {set(aux_x0.keys())}, "
-                        f"got keys: {set(aux_x.keys())}"
-                    )
-            elif isinstance(aux_x0, (list, tuple)):
-                if not isinstance(aux_x, type(aux_x0)):
-                    raise ValueError(
-                        f"Invalid type for aux_x. Expected {type(aux_x0).__name__}, "
-                        f"got {type(aux_x).__name__}."
-                    )
-                if len(aux_x) != len(aux_x0):
-                    raise ValueError(
-                        f"Invalid structure for aux_x. Expected length {len(aux_x0)}, "
-                        f"got {len(aux_x)}."
-                    )
 
-        self._aux_x = aux_x 
+        """ 
+            1. automaton must be active
+        """
+        if self._runtime is None:
+            raise SystemError(
+                "Automaton runtime is not initialized. Ensure the automaton is activated."
+            )
+        else: 
+            if not self._runtime._active: 
+                raise SystemError(
+                    "Attempted to update auxielary state `x` but the automaton "
+                    "is not active. Call `activate()` first."
+                )
+        
+        try: 
+            self._runtime.set_auxilary_state(aux_x)
+        except Exception as e: 
+            raise Exception(
+                f"Failed to set auxiliary continuous state `aux_x`: {str(e)}"
+            ) from e 
 
     def set_control_input(self, u: Any): 
         """
@@ -390,156 +520,24 @@ class Automaton:
             SystemError: if you try set control input state `u` but the automaton is not active
             ValueError: if you try to set `u` value but the structure is not the same as u0
         """
-        if not getattr(self, "_active", False):
+
+        if self._runtime is None:
             raise SystemError(
-                "Attempted to update control input `u` but the automaton "
-                "is not active. Call `activate()` first."
-            )
-        
-        # Validate structure matches u0
-        u0 = self._u0
-        
-        if u0 is not None:
-            if isinstance(u0, dict):
-                if not isinstance(u, dict):
-                    raise ValueError(
-                        f"Invalid type for u. Expected dict, got {type(u).__name__}."
-                    )
-                if set(u.keys()) != set(u0.keys()):
-                    raise ValueError(
-                        f"Invalid structure for u. Expected keys: {set(u0.keys())}, "
-                        f"got keys: {set(u.keys())}"
-                    )
-            elif isinstance(u0, (list, tuple)):
-                if not isinstance(u, type(u0)):
-                    raise ValueError(
-                        f"Invalid type for u. Expected {type(u0).__name__}, "
-                        f"got {type(u).__name__}."
-                    )
-                if len(u) != len(u0):
-                    raise ValueError(
-                        f"Invalid structure for u. Expected length {len(u0)}, "
-                        f"got {len(u)}."
-                    )
-        
-        self._u = u
-
-    """ === core evaluation functions === """
-
-    def _evaluation_step(self) -> StepResult:
-        """
-        Perform one hybrid automaton evaluation step the current state 
-        of the hybrid automaton.
-        This is pure logic — no loops, no sleeping.
-        """
-        if not self._active:
-            print(f"can't step, automaton '{self._name}' is not active.")
-            return None
-        
-        if not self._is_completed: 
-            # ---------------------------------------------------------
-            # 1️⃣ Continuous dynamics
-            # ---------------------------------------------------------
-            xdot = self._q.continuous_dynamics(
-                self._x, self._aux_x, self._u, self._ctx
-            )
-            self._xdot = xdot
-
-            # Integrate if in simulation mode
-            if not self._real_time_mode and (xdot is not None):
-                self._x = self._x + xdot * self._ctx.dt # TODO: Need to update this to use self._integration function instead
-
-            # ---------------------------------------------------------
-            # 2️⃣ Guard transitions
-            # ---------------------------------------------------------
-            D_eval = self._q.evaluate_transitions(
-                self._x, self._aux_x, self._u, self._ctx
-            )
-
-            active_guards = [item[0] for item in D_eval if item[1] is True]
-
-            if active_guards:
-                if len(active_guards) == 1:
-                    d = active_guards[0]
-                else:
-                    d = min(active_guards, key=lambda t: t.priority)
-
-                # Execute transition
-                new_q, new_x, new_aux_x = d.execute(
-                    self._x, self._aux_x, self._u, self._ctx
-                )
-
-                # Update state
-                self._q = new_q
-                self._x = new_x
-                self._aux_x = new_aux_x
-
-                # State entry callback
-                if new_q.on_enter:
-                    new_q.on_enter()
-
-                return StepResult(
-                    q=new_q, aux_x=self._aux_x, x=new_x, ctx=self._ctx,
-                    transition_taken=d,
-                    invariants_ok=True
-                )
-
-            # ---------------------------------------------------------
-            # 3️⃣ No transition → invariant check
-            # ---------------------------------------------------------
-            invariants_ok = self._q.check_invariants(
-                self._x, self._aux_x, self._u, self._ctx
-            )
-
-            if not invariants_ok and self._q._is_final:
-                print('automaton completed')
-                self._is_completed = True
-                self._active = False
-
-            return StepResult(
-                q=self._q, aux_x=self._aux_x, x=self._x, ctx=self._ctx, 
-                transition_taken=None,
-                invariants_ok=invariants_ok
+                "Automaton runtime is not initialized. Ensure the automaton is activated."
             )
         else: 
-            print("automaton completed, can't step")
-            return None
-
-    async def _automaton_loop_worker(self):
-        """ 
-        async evaluation loop worker for running the automaton
-        instance, either in real time mode or simulation mode.
-        assumes that the automaton has already been activated
-        and that there is no other current automaton loops running.
-        """
-
-        print (f"automaton '{self._name}' evaluation loop worker starting.")
-        is_real_time = self._ctx.is_real_time
+            if not self._runtime._active: 
+                raise SystemError(
+                    "Attempted to update control input `x` but the automaton "
+                    "is not active. Call `activate()` first."
+                )
         
-        if is_real_time: 
-            self._ctx.start_timestamp = time.perf_counter()
-        else:
-            self._ctx.start_timestamp = 0.0 # simulation time starts at 0.0
-
-        while self._active and not self._is_completed:
-            if is_real_time: 
-                step_start_time = time.perf_counter()
-
-            step_result: StepResult = self._evaluation_step() # NOTE: not sure what to do with step result yet.
-
-            if is_real_time: 
-                # real-time mode
-                step_end_time = time.perf_counter()
-                time_elapsed_in_step = step_end_time - step_start_time
-                time_to_wait = self._ctx.dt - time_elapsed_in_step
-                if time_to_wait > 0:
-                    await asyncio.sleep(time_to_wait)
-            else:
-                # simulation mode
-                self._ctx.dt_step()
-                await asyncio.sleep(0.01) # yield control to event loop for short period to stop race conditions
-
-        print (f"automaton '{self._name}' evaluation loop worker exiting.")
+        try: 
+            self._runtime.set_control_input(u)
+        except Exception as e: 
+            raise ValueError(
+                f"Failed to set control input `u`: {str(e)}"
+            ) from e
 
     """ === toggle active / deactive functions === """
 
@@ -610,34 +608,25 @@ class Automaton:
             ...     dt=1.0
             ... )
         """
-        
-        if self._active:
-            raise SystemError(f"can't activate automaton '{self._name}', it's already active.")
+
+        if self._runtime is not None: 
+            if self._runtime._active:
+                raise SystemError(f"can't activate automaton '{self._definition.name}', it's already active.")
 
         # should probably validate x0, aux_x0, u0 here
 
-        print (f"activating automaton '{self._name}'")
-        self._q = self._q0
-        
-        self._x0 = x0  # Store initial state
-        self._x = self._x0
+        print (f"activating automaton '{self._definition.name}'...")
 
-        self._aux_x0 = aux_x0
-        self._aux_x = self._aux_x0
-        
-        self._u0 = u0
-        self._u = u0
-        
-        self._ctx.update_dt(dt)
-        self._ctx.set_real_time(real_time_mode)
-
+        runner = Automaton.Runtime(
+            automaton_definition=self._definition,
+            x0=x0,
+            aux_x0=aux_x0,
+            real_time_mode=real_time_mode,
+            dt=dt
+        )
         self._active = True
-        self._is_completed = False
 
-
-        # could create several tasks one for updating the elapsed time continously and so on.
-        automaton_runner = asyncio.create_task(self._automaton_loop_worker())
-        await automaton_runner
+        await runner.run()
 
         print (f"automaton '{self._name}' deactived.")
 
