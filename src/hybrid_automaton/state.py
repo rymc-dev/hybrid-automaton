@@ -74,6 +74,15 @@ class State:
 
     def get_state_id(self): 
         return self._id
+    
+    def get_transitions(self):
+        return self._D
+    
+    def get_invariants(self):
+        return self._Inv
+
+    def get_continous_dynamics(self):
+        return self.flow
 
     def add_transition(self, d: Transition): 
         """function for adding transition post HybridState obj creation"""

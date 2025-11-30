@@ -83,6 +83,136 @@ class Automaton:
             self.on_entry = on_entry
             self.on_exit = on_exit
 
+        # def to_dict(self):
+        #     return {
+        #         'name': self.name,
+        #         'id': self.id,
+        #         'states': self.states,
+        #         'on_entry': 
+        #     }
+
+        def to_mermaid(self):
+            """Return a Mermaid stateDiagram-v2 representation of the automaton."""
+
+            lines = ["stateDiagram-v2"]
+
+            lines.append(f"    direction LR")
+
+            # ---------------------------------------------------------
+            # Initial state arrow
+            # ---------------------------------------------------------
+            lines.append(f"    [*] --> {self.state_t0.name}")
+
+            # ---------------------------------------------------------
+            # Transitions
+            # ---------------------------------------------------------
+            for state in self.states:
+                for t in state.get_transitions():
+                    lines.append(
+                        f"    {state.name} --> {t.to_state.name}: {t.name}"
+                    )
+
+            # ---------------------------------------------------------
+            # Invariants (optional annotation)
+            # ---------------------------------------------------------
+            for state in self.states:
+                inv = ", ".join(g.__name__ for g in state.get_invariants()) if state.get_invariants() else ""
+                if inv:
+                    lines.append(f"    note right of {state.name}: invariant = {inv}")
+
+            return "\n".join(lines)
+
+
+        def __repr__(self):
+            """string represnetaion for devs, this outputs the amdl format"""
+            return self.to_mermaid()
+
+        def __str__(self):
+            """String representation for end users."""
+
+            # ---------------------------------------------------------
+            # Transitions
+            # ---------------------------------------------------------
+            transition_lines = []
+            for state in self.states:
+                for t in state.get_transitions():
+                    transition_lines.append(
+                        f"\t\t{state.name} --[{t.name}]--> {t.to_state.name}"
+                    )
+
+            transitions_block = "\n".join(transition_lines) if transition_lines else "\t\t<none>"
+
+            # ---------------------------------------------------------
+            # Continuous Dynamics
+            # ---------------------------------------------------------
+            continous_dynamics_lines = []
+            for state in self.states:
+                dyn = state.get_continous_dynamics()
+                dyn_name = dyn.__name__ if dyn else "<none>"
+                continous_dynamics_lines.append(
+                    f"\t\t{state.name} -> {dyn_name}"
+                )
+
+            continous_dynamics_block = "\n".join(continous_dynamics_lines)
+
+            # ---------------------------------------------------------
+            # Guards
+            # ---------------------------------------------------------
+            guard_lines = []
+            for state in self.states:
+                for t in state.get_transitions():
+                    if not t.guards:
+                        guard_lines.append(f"\t\t{t.name}: <none>")
+                        continue
+
+                    guard_list = ", ".join(g.__name__ for g in t.guards)
+                    guard_lines.append(f"\t\t{t.name}: [{guard_list}]")
+
+            guards_block = "\n".join(guard_lines) if guard_lines else "\t\t<none>"
+
+            # ---------------------------------------------------------
+            # Resets
+            # ---------------------------------------------------------
+            reset_lines = []
+            for state in self.states:
+                for t in state.get_transitions():
+                    if not t.reset:
+                        reset_lines.append(f"\t\t{t.name}: <none>")
+                        continue
+                    else: 
+                        reset_lines.append(f"\t\t{t.name}: {t.reset.__name__}")
+
+            resets_block = "\n".join(reset_lines) if reset_lines else "\t\t<none>"
+
+            invariant_lines = []
+
+            for state in self.states:
+                invariants_list = ", ".join(g.__name__ for g in t.guards)
+                invariant_lines.append(f"\t\t{state.name}: [{invariants_list}]")
+
+            invariants_block = "\n".join(invariant_lines) if invariant_lines else "\t\t<none>"
+
+            # ---------------------------------------------------------
+            # Modes
+            # ---------------------------------------------------------
+            modes = ", ".join(s.name for s in self.states)
+
+            # ---------------------------------------------------------
+            # Final string return
+            # ---------------------------------------------------------
+            return (
+                "Hybrid Automaton Definition:\n"
+                f"\tname: {self.name}\n"
+                f"\tid: {self.id}\n"
+                f"\tinitial_mode: {self.state_t0.name}\n"
+                f"\tmodes: [{modes}]\n"
+                f"\ttransitions:\n{transitions_block}\n"
+                f"\tguards:\n{guards_block}\n"
+                f"\tresets:\n{resets_block}\n"
+                f"\tinvariants:\n{invariants_block}\n"
+                f"\tcontinous_dynamics:\n{continous_dynamics_block}\n"
+            )
+
     class Runtime: 
         """ 
         Runtime class for the Automaton, contains dynamic information
@@ -641,8 +771,8 @@ class Automaton:
 
     def __repr__(self):
         """ developer string representation of instance"""
-        ... 
+        return repr(self._definition)
 
     def __str__(self): 
         """user friendly represnetaiton of instance"""
-        ...
+        return str(self._definition)

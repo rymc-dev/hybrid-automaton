@@ -86,6 +86,9 @@ if __name__ == '__main__':
 
     # Create automaton
     car = Automaton(name="Cruise Control", states=[accelerate, cruise, brake, emergency])
+    print (str(car))
+    print (repr(car))
+
 
     # Initial: x = [velocity, distance_to_car_ahead]
     async def deactivate_after_10_seconds():
