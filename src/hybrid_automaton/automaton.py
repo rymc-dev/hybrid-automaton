@@ -116,12 +116,12 @@ class Automaton:
             
             _integration_function: Optional[Callable] = None
 
-            def __init__(self, name: str, state_t0: Any, expeceted_dt: float = 0.1): 
+            def __init__(self, name: str, state_t0: Any, expected_dt: float = 0.1): 
                 self.name = name
-                self.state_t0: Any = None
+                self.state_t0: Any = state_t0
                 self.state: Any = self.state_t0
 
-                self.avg_dt: float = expeceted_dt
+                self.avg_dt: float = expected_dt
                 self.timestep: int = 0
 
             def set_continous_state(self, x: Any):
@@ -250,13 +250,12 @@ class Automaton:
 
                 # Integrate if in simulation mode
                 if not self._real_time_mode and (xdot is not None):
-                    self._x = self._x + xdot * self._ctx.dt # TODO: Need to update this to use self._integration function instead
-
+                    self._continous_state.integrate(xdot, self._dt) 
                 # ---------------------------------------------------------
                 # 2️⃣ Guard transitions
                 # ---------------------------------------------------------
                 D_eval = self._mode.evaluate_transitions(
-                    self._x, self._aux_x, self._u, self._ctx
+                    self._continous_state.state, self._auxilary_states, {}, {}# TODO: self._u, self._ctx
                 )
 
                 active_guards = [item[0] for item in D_eval if item[1] is True]
@@ -269,20 +268,20 @@ class Automaton:
 
                     # Execute transition
                     new_q, new_x, new_aux_x = d.execute(
-                        self._x, self._aux_x, self._u, self._ctx
+                        self._continous_state.state, self._auxilary_states, {}, {} #TODO:  self._u, self._ctx
                     )
 
                     # Update state
-                    self._q = new_q
-                    self._x = new_x
-                    self._aux_x = new_aux_x
+                    self._mode = new_q
+                    self._continous_state.state = new_x
+                    self._auxilary_states = new_aux_x
 
                     # State entry callback
-                    if new_q.on_enter:
-                        new_q.on_enter()
+                    if self._mode.on_enter:
+                        self._mode.on_enter()
 
                     return Automaton.Runtime.StepResult(
-                        q=new_q, aux_x=self._aux_x, x=new_x, ctx=self._ctx,
+                        q=new_q, aux_x=self._auxilary_states, x=new_x, ctx={},
                         transition_taken=d,
                         invariants_ok=True
                     )
@@ -290,17 +289,17 @@ class Automaton:
                 # ---------------------------------------------------------
                 # 3️⃣ No transition → invariant check
                 # ---------------------------------------------------------
-                invariants_ok = self._q.check_invariants(
-                    self._x, self._aux_x, self._u, self._ctx
+                invariants_ok = self._mode.check_invariants(
+                    self._continous_state.state, self._auxilary_states, {}, {} # TODO: self._u, self._ctx
                 )
 
-                if not invariants_ok and self._q._is_final:
+                if not invariants_ok and self._mode._is_final:
                     print('automaton completed')
                     self._is_completed = True
                     self._active = False
 
                 return Automaton.Runtime.StepResult(
-                    q=self._q, aux_x=self._aux_x, x=self._x, ctx=self._ctx, 
+                    q=self._mode, aux_x=self._auxilary_states, x=self._continous_state, ctx={}, 
                     transition_taken=None,
                     invariants_ok=invariants_ok
                 )
@@ -334,12 +333,14 @@ class Automaton:
                     # real-time mode
                     step_end_time = time.perf_counter()
                     time_elapsed_in_step = step_end_time - step_start_time
-                    time_to_wait = self._ctx.dt - time_elapsed_in_step
+                    time_to_wait = self._dt - time_elapsed_in_step
                     if time_to_wait > 0:
                         await asyncio.sleep(time_to_wait)
                 else:
                     # simulation mode
-                    self._ctx.dt_step()
+                    # Need to update timestamp for this
+                    # TOOD: Update time stamp here somehow
+                    self._time_elapsed_active += self._dt
                     await asyncio.sleep(0.01) # yield control to event loop for short period to stop race conditions
 
             print (f"automaton '{self._name}' evaluation loop worker exiting.")
@@ -636,7 +637,7 @@ class Automaton:
             raise SystemError(f"can't deactivate automaton '{self._name}', it's not active.")
 
         self._active = False    
-        print (f"automaton '{self._name}' deactived.")
+        print (f"automaton '{self._definition.name}' deactived.")
 
     """ === string representations of the class === """
 

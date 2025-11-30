@@ -43,7 +43,7 @@ if __name__ == '__main__':
     def below_target_speed(x, aux_x, u, ctx):
         return x[0] < TARGET_SPEED - 1.0 and x[1] > SAFE_DISTANCE
 
-    def too_close(x, aux_x, u, ctx, dt):
+    def too_close(x, aux_x, u, ctx):
         return x[1] < SAFE_DISTANCE
 
     def dangerously_close(x, aux_x, u, ctx):
@@ -94,7 +94,7 @@ if __name__ == '__main__':
         
     async def runner():
         x0 = np.array([20.0, 100.0])
-        t1 = asyncio.create_task(car.activate(x0=x0, dt=0.001))
+        t1 = asyncio.create_task(car.activate(x0=x0, dt=0.1))
         t2 = asyncio.create_task(deactivate_after_10_seconds())
         await asyncio.gather(asyncio.gather(t1, t2))
 
