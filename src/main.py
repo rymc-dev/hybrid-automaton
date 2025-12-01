@@ -16,40 +16,40 @@ if __name__ == '__main__':
     SAFE_DISTANCE = 50.0  # meters
     CAR_AHEAD_SPEED = 20.0  # m/s
 
-    def accelerate_flow(x, aux_x, u, ctx):
+    def accelerate_flow(x, aux_x, u, cfg, clk):
         """Accelerate at 2 m/s² - x = [v, dist]"""
         v_dot = 2.0 if x[0] < TARGET_SPEED else 0.0
         dist_dot = -(x[0] - CAR_AHEAD_SPEED)
         return np.array([v_dot, dist_dot])
 
-    def cruise_flow(x, aux_x, u, ctx):
+    def cruise_flow(x, aux_x, u, cfg, clk):
         """Maintain constant speed"""
         return np.array([0.0, -(x[0] - CAR_AHEAD_SPEED)])
 
-    def brake_flow(x, aux_x, u, ctx):
+    def brake_flow(x, aux_x, u, cfg, clk):
         """Gentle braking at -1.5 m/s²"""
         v_dot = -1.5 if x[0] > 0 else 0.0
         return np.array([v_dot, -(x[0] - CAR_AHEAD_SPEED)])
 
-    def emergency_brake_flow(x, aux_x, u, ctx):
+    def emergency_brake_flow(x, aux_x, u, cfg, clk):
         """Hard braking at -5 m/s²"""
         v_dot = -5.0 if x[0] > 0 else 0.0
         return np.array([v_dot, -(x[0] - CAR_AHEAD_SPEED)])
     
     # Guards - x = [v, dist]
-    def reached_target_speed(x, aux_x, u, ctx):
+    def reached_target_speed(x, aux_x, u, cfg, clk):
         return abs(x[0] - TARGET_SPEED) < 0.5
 
-    def below_target_speed(x, aux_x, u, ctx):
+    def below_target_speed(x, aux_x, u, cfg, clk):
         return x[0] < TARGET_SPEED - 1.0 and x[1] > SAFE_DISTANCE
 
-    def too_close(x, aux_x, u, ctx):
+    def too_close(x, aux_x, u, cfg, clk):
         return x[1] < SAFE_DISTANCE
 
-    def dangerously_close(x, aux_x, u, ctx):
+    def dangerously_close(x, aux_x, u, cfg, clk):
         return x[1] < 20.0
 
-    def safe_distance_restored(x, aux_x, u, ctx):
+    def safe_distance_restored(x, aux_x, u, cfg, clk):
         return x[1] > SAFE_DISTANCE + 10.0
     
     # Callbacks
@@ -94,12 +94,19 @@ if __name__ == '__main__':
     async def deactivate_after_10_seconds():
         await asyncio.sleep(10)
         car.deactivate()
+
+    async def print_time_elapsed():
+        await asyncio.sleep(0.1)
+        while True:
+            print (f'Time: {car.get_active_elapsed_time()}') 
+            await asyncio.sleep(0.1)
         
     async def runner():
         x0 = np.array([20.0, 100.0])
-        t1 = asyncio.create_task(car.activate(x0=x0, dt=0.1))
+        t1 = asyncio.create_task(car.activate(x0=x0, dt=0.1, real_time_mode=True))
         t2 = asyncio.create_task(deactivate_after_10_seconds())
-        await asyncio.gather(asyncio.gather(t1, t2))
+        t3 = asyncio.create_task(print_time_elapsed())
+        await asyncio.gather(asyncio.gather(t1, t2, t3))
 
     asyncio.run(runner())
     print ('task completed')

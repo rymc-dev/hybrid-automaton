@@ -2,6 +2,7 @@ from .transition import Transition
 from .state import State
 from typing import List, Optional, Callable, Any, Dict
 import time
+import numpy as np
 import asyncio
 
 
@@ -66,8 +67,14 @@ class Automaton:
         """
         _id_counter: int = 0
 
-        def __init__(self, name: str, states: List[State], 
-                     on_entry: Optional[Callable] = None, on_exit: Optional[Callable] = None): 
+        def __init__(
+            self, 
+            name: str, 
+            states: List[State], 
+            configuration: Dict[str, Any] = {},
+            on_entry: Optional[Callable] = None, 
+            on_exit: Optional[Callable] = None
+        ): 
             self.name = name
             self.id = Automaton.Definition._id_counter
             Automaton.Definition._id_counter += 1
@@ -78,18 +85,26 @@ class Automaton:
             if cnt_init > 1 or cnt_init == 0: 
                 raise ValueError(f"invalid HybridAutomaton initialization, need 1 initial state, got {cnt_init}")
             
+            self._configuration = configuration
             self.state_t0 = self.states[init_idx[0]]
 
-            self.on_entry = on_entry
-            self.on_exit = on_exit
+            self._on_entry = on_entry
+            self._on_exit = on_exit
 
-        # def to_dict(self):
-        #     return {
-        #         'name': self.name,
-        #         'id': self.id,
-        #         'states': self.states,
-        #         'on_entry': 
-        #     }
+        def on_entry(self):
+            if self._on_entry is not None:
+                return 
+            
+            self._on_entry()
+
+        def on_exit(self):
+            if self._on_exit is not None:
+                return
+            
+            self._on_exit()
+
+        def get_configuration(self) -> Dict:
+            return self._configuration
 
         def to_mermaid(self):
             """Return a Mermaid stateDiagram-v2 representation of the automaton."""
@@ -121,7 +136,6 @@ class Automaton:
                     lines.append(f"    note right of {state.name}: invariant = {inv}")
 
             return "\n".join(lines)
-
 
         def __repr__(self):
             """string represnetaion for devs, this outputs the amdl format"""
@@ -227,7 +241,7 @@ class Automaton:
         #       in each state/mode are utilized to integrate for next state
 
         class AuxiliaryState: 
-            def __init__(self, name: str, state_t0: List, expected_dt: float = 0.1): 
+            def __init__(self, name: str, state_t0: np.array, expected_dt: float = 0.1): 
                 self.name = name
                 self.state_t0 = state_t0
                 self.state = self.state_t0
@@ -244,23 +258,23 @@ class Automaton:
             
             _integration_function: Optional[Callable] = None
 
-            def __init__(self, name: str, state_t0: Any, expected_dt: float = 0.1): 
+            def __init__(self, name: str, state_t0: np.array, expected_dt: float = 0.1): 
                 self.name = name
-                self.state_t0: Any = state_t0
-                self.state: Any = self.state_t0
+                self.state_t0: np.array = state_t0
+                self.state: np.array = self.state_t0
 
                 self.avg_dt: float = expected_dt
                 self.timestep: int = 0
 
-            def set_continous_state(self, x: Any):
+            def set_continous_state(self, x: np.array):
                 self.state = x
                 # TODO: Timestamp and calc avg dt
                 self.timestep += 1
 
-            def get_continous_state(self) -> List:
+            def get_continous_state(self) -> np.array:
                 return self.state
 
-            def integrate(self, xdot: Any, dt: float) -> Any: 
+            def integrate(self, xdot: np.array, dt: float): 
                 if self._integration_function is not None: 
                     self.state = self._integration_function(self.state, xdot, dt)
                 else: 
@@ -270,15 +284,15 @@ class Automaton:
 
         class ControlInput: 
             
-            def __init__(self, name: str, state_t0: Any): 
+            def __init__(self, name: str, state_t0: np.array): 
                 self.name = name
-                self.state_t0: Any = state_t0
-                self.state: Any = self.state_t0
+                self.state_t0: np.array = state_t0
+                self.state: np.array = self.state_t0
 
-            def set_control_input(self, u: Any): 
+            def set_control_input(self, u: np.array): 
                 self.state = u
             
-            def get_control_input(self) -> Any:
+            def get_control_input(self) -> np.array:
                 return self.state
 
         class StepResult:
@@ -302,34 +316,102 @@ class Automaton:
                 self.reset_applied = reset_applied
                 self.invariants_ok = invariants_ok
 
+        class Clock:
+
+            def __init__(self, dt: float, real_time_mode: bool):
+                self._real_time_mode: bool = real_time_mode
+                self._dt: float = dt
+
+                self._global_time: float = 0.0
+                self._global_time_start: float = 0.0
+                self._time_elapsed_active: float = 0.0
+                self._time_elapsed_since_last_transition: float = 0.0
+                self._last_transition_time: float = 0.0
+
+                self._running: bool = False  # Add running flag for start/stop
+
+            def step_dt(self):
+                if self._real_time_mode:
+                    raise SystemError(
+                    "trying to step `dt` when we are in real time mode."
+                    )
+                self._time_elapsed_active += self._dt
+                self._time_elapsed_since_last_transition += self._dt
+
+            async def sleep_for_dt(self):
+                await asyncio.sleep(self._dt)
+
+            def get_dt(self) -> float: 
+                return self._dt
+            
+            def get_time_elapsed_active(self): 
+                return self._time_elapsed_active
+            
+            def get_time_elapsed_since_last_transition(self):
+                return self._time_elapsed_since_last_transition
+            
+            def is_real_time(self): 
+                return self._real_time_mode
+
+            def ping_transition(self):
+                """
+                Call this method whenever a transition occurs to reset the
+                time elapsed since last transition.
+                """
+                if self._real_time_mode:
+                    now = time.perf_counter()
+                    self._last_transition_time = now
+                    self._time_elapsed_since_last_transition = 0.0
+                else:
+                    self._time_elapsed_since_last_transition = 0.0
+
+            async def start(self): 
+                if not self._real_time_mode:
+                    raise SystemError(
+                    "Attempted to start clock in simulation mode, which is invalid."
+                    )
+
+                self._global_time_start = time.perf_counter()
+                self._time_elapsed_active = 0.0
+                self._time_elapsed_since_last_transition = 0.0
+                self._last_transition_time = self._global_time_start
+
+                self._running = True
+                while self._running: 
+                    await asyncio.sleep(0.001)
+                    now = time.perf_counter()
+                    self._global_time = now
+                    self._time_elapsed_active = now - self._global_time_start
+                    self._time_elapsed_since_last_transition = now - self._last_transition_time
+
+            def stop(self):
+                """Stops the clock timer loop."""
+                self._running = False
 
         def __init__(
                 self,
                 automaton_definition: 'Automaton.Definition',
-                x0: List,
-                aux_x0: Dict = None,
-                u0: Dict = None,
+                x0: np.array,
+                aux_x0: Dict[str, np.array] = {},
+                u0: Dict[str, np.array] = {},
                 real_time_mode: Optional[bool] = False,
                 dt: Optional[float] = 0.1
 
         ): 
+            self._active: bool = False
+            self._is_completed: bool = False
 
             self._automaton_definition: Automaton.Definition = automaton_definition
             self._mode: State = automaton_definition.state_t0 
 
             self._continous_state: Automaton.Runtime.ContinousState = Automaton.Runtime.ContinousState(name='agent_state', state_t0=x0)
-            self._auxilary_states: List[Automaton.Runtime.AuxiliaryState] = [Automaton.Runtime.AuxiliaryState(name=k, state_t0=v) for k, v in aux_x0.items()] if aux_x0 is not None else []
-            self._control_inputs: List[Automaton.Runtime.ControlInput] = [Automaton.Runtime.ControlInput(name=k, state_t0=v) for k, v in u0.items()] if u0 is not None else []
+            self._auxilary_states: Dict[str, Automaton.Runtime.AuxiliaryState] = {k: Automaton.Runtime.AuxiliaryState(name=k, state_t0=v) for k, v in aux_x0.items()} if aux_x0 is not None else {}
+            self._control_inputs: Dict[str, Automaton.Runtime.ControlInput] = {k: Automaton.Runtime.ControlInput(name=k, state_t0=v) for k, v in u0.items()} if u0 is not None else []
 
-            self._time_elapsed_active: float = 0.0
-            self._time_elapsed_since_last_transition: float = 0.0
+            self._runtime_clock: Automaton.Runtime.Clock = Automaton.Runtime.Clock(dt=dt, real_time_mode=real_time_mode)
 
-            self._real_time_mode: bool = real_time_mode
-            self._dt = dt
-            self.is_completed: bool = False
             self._xdot: List = None
-            self._active: bool = False
-            self._is_completed: bool = False
+
 
         def get_continous_dynamics(self) -> List:
             # returns a vector representing the continous dynamics 
@@ -338,24 +420,31 @@ class Automaton:
         def get_continous_state(self) -> 'Automaton.Runtime.ContinousState':
             return self._continous_state
 
-        def get_auxilary_state(self) -> List['Automaton.Runtime.AuxiliaryState']: 
+        def get_auxilary_state(self) -> Dict[str, 'Automaton.Runtime.AuxiliaryState']: 
             return self._auxilary_states
         
-        def get_control_input(self) -> List['Automaton.Runtime.ControlInput']:
+        def get_control_input(self) -> Dict[str, 'Automaton.Runtime.ControlInput']:
             return self._control_inputs
 
-        def set_continous_state(self, x: List): 
-            # setting the continous state directly means we pass in the list of values 
-            self._continous_state = x
+        def get_active_elapsed_time(self) -> float: 
+            return self._runtime_clock.get_time_elapsed_active()
+        
+        def get_active_elapsed_time_since_last_transition(self) -> float:
+            return self._runtime_clock.get_time_elapsed_since_last_transition()
 
-        def set_auxilary_state(self, aux_x: Dict):
-            # setting the auxilary state directly means we pass in the dict of values 
-            self.set_auxilary_state = aux_x
+        def set_continous_state(self, x: np.array): 
+            """updates the current continous state"""
+            self._continous_state.set_continous_state(x)
 
-        def set_control_input(self, u: Dict):
-            # setting the control input directly means we pass in the dict of values
-            # TODO: Need to do validation on input
-            self.set_control_input = u
+        def set_auxilary_state(self, aux_x: Dict[str, np.array]):
+            """updates the current auxilary state"""
+            for key, value in aux_x.items():
+                self._auxilary_states[key].set_auxiliary_state(value)
+
+        def set_control_input(self, u: Dict[str, np.array]):
+            """updates the control input"""
+            for key, value in u.items():
+                self._control_inputs[key].set_control_input(value)
 
         def _evaluation_step(self) -> StepResult:
             """
@@ -377,13 +466,17 @@ class Automaton:
                 self._xdot = xdot
 
                 # Integrate if in simulation mode
-                if not self._real_time_mode and (xdot is not None):
-                    self._continous_state.integrate(xdot, self._dt) 
+                if not self._runtime_clock.is_real_time() and (xdot is not None):
+                    self._continous_state.integrate(xdot, self._runtime_clock.get_dt()) 
                 # ---------------------------------------------------------
                 # 2️⃣ Guard transitions
                 # ---------------------------------------------------------
                 D_eval = self._mode.evaluate_transitions(
-                    self._continous_state.state, self._auxilary_states, {}, {}# TODO: self._u, self._ctx
+                    x=self._continous_state.state, 
+                    aux_x=self._auxilary_states, 
+                    u=self._control_inputs, 
+                    cfg=self._automaton_definition.get_configuration(), 
+                    clk=self._runtime_clock
                 )
 
                 active_guards = [item[0] for item in D_eval if item[1] is True]
@@ -395,13 +488,20 @@ class Automaton:
                         d = min(active_guards, key=lambda t: t.priority)
 
                     # Execute transition
-                    new_q, new_x, new_aux_x = d.execute(
-                        self._continous_state.state, self._auxilary_states, {}, {} #TODO:  self._u, self._ctx
+                    new_mode, new_x, new_aux_x = d.execute(
+                        x=self._continous_state.get_continous_state(), 
+                        aux_x=self._auxilary_states, 
+                        u=self._control_inputs, 
+                        cfg=self._automaton_definition.get_configuration(), 
+                        clk=self._runtime_clock #TODO:  self._u, self._ctx
                     )
 
+                    if self._mode.on_exit:
+                        self._mode.on_exit()
+
                     # Update state
-                    self._mode = new_q
-                    self._continous_state.state = new_x
+                    self._mode = new_mode
+                    self._continous_state.set_continous_state(new_x) 
                     self._auxilary_states = new_aux_x
 
                     # State entry callback
@@ -409,7 +509,7 @@ class Automaton:
                         self._mode.on_enter()
 
                     return Automaton.Runtime.StepResult(
-                        q=new_q, aux_x=self._auxilary_states, x=new_x, ctx={},
+                        q=new_mode, aux_x=self._auxilary_states, x=new_x, ctx={},
                         transition_taken=d,
                         invariants_ok=True
                     )
@@ -418,13 +518,19 @@ class Automaton:
                 # 3️⃣ No transition → invariant check
                 # ---------------------------------------------------------
                 invariants_ok = self._mode.check_invariants(
-                    self._continous_state.state, self._auxilary_states, {}, {} # TODO: self._u, self._ctx
+                    x=self._continous_state.state, 
+                    aux_x = self._auxilary_states, 
+                    u = self._control_inputs, 
+                    cfg = self._automaton_definition.get_configuration(),
+                    clk = self._runtime_clock # TODO: self._u, self._ctx
                 )
 
                 if not invariants_ok and self._mode._is_final:
                     print('automaton completed')
                     self._is_completed = True
                     self._active = False
+                elif not invariants_ok: 
+                    raise SystemError('Invairants failed to hold and not in final mode')
 
                 return Automaton.Runtime.StepResult(
                     q=self._mode, aux_x=self._auxilary_states, x=self._continous_state, ctx={}, 
@@ -444,32 +550,23 @@ class Automaton:
             """
 
             print (f"automaton '{self._automaton_definition.name}' evaluation loop worker starting.")
-            is_real_time = self._real_time_mode
+            is_real_time = self._runtime_clock.is_real_time()
             
             if is_real_time: 
-                self.start_timestamp = time.perf_counter()
-            else:
-                self.start_timestamp = 0.0 # simulation time starts at 0.0
+                clock_task = asyncio.create_task(self._runtime_clock.start())
 
             while self._active and not self._is_completed:
-                if is_real_time: 
-                    step_start_time = time.perf_counter()
-
                 step_result: Automaton.Runtime.StepResult = self._evaluation_step() # NOTE: not sure what to do with step result yet.
 
                 if is_real_time: 
-                    # real-time mode
-                    step_end_time = time.perf_counter()
-                    time_elapsed_in_step = step_end_time - step_start_time
-                    time_to_wait = self._dt - time_elapsed_in_step
-                    if time_to_wait > 0:
-                        await asyncio.sleep(time_to_wait)
+                    await self._runtime_clock.sleep_for_dt()
                 else:
-                    # simulation mode
-                    # Need to update timestamp for this
-                    # TOOD: Update time stamp here somehow
-                    self._time_elapsed_active += self._dt
-                    await asyncio.sleep(0.01) # yield control to event loop for short period to stop race conditions
+                    # NOTE: simulation mode
+                    self._runtime_clock.step_dt()
+                    await asyncio.sleep(0.001)
+            
+            if is_real_time: 
+                clock_task.cancel()
 
             print (f"automaton '{self._automaton_definition.name}' evaluation loop worker exiting.")
 
@@ -489,6 +586,7 @@ class Automaton:
         self, 
         name: str,
         states: List[State],  # Fixed: was Transition, should be State
+        configuration: Dict = {},
         on_entry: Optional[Callable] = None, 
         on_exit: Optional[Callable] = None,
         integration_function: Optional[Callable] = None
@@ -499,6 +597,7 @@ class Automaton:
         self._definition: Automaton.Definition = Automaton.Definition(
             name=name,
             states=states,
+            configuration=configuration,
             on_entry=on_entry,
             on_exit=on_exit
         )
@@ -516,6 +615,15 @@ class Automaton:
         return self._definition.id
 
     """ === getter for when active === """
+
+    def get_continous_state(self):
+        if not self._active:
+            raise SystemError(
+                "Attempted to get continous state 'x' but the automaton is not active. Call `activate()` first."
+            )
+
+        return self._runtime.get_continous_state()
+    
     def get_continous_dynamics(self): 
         """ 
         utilized for retrieving the current continous dynamics if there are any continous dynamics to get
@@ -527,9 +635,25 @@ class Automaton:
         
         return self._runtime.get_continous_dynamics()
     
+    def get_active_elapsed_time(self):
+        if not self._active:
+            raise SystemError(
+                "Attempted to get active elapsed time but the automaton is not active. Call `activate()` first."
+            )
+        
+        return self._runtime.get_active_elapsed_time()
+    
+    def get_activate_elapsed_time_since_last_transition(self):
+        if not self._active:
+            raise SystemError(
+                "Attempted to get active elapsed time since last transition but the automaton is not active. Call `activate` first."
+            )
+        
+        return self._runtime.get_active_elapsed_time_since_last_transition()
+
     """ === setter function for when active === """
 
-    def set_continous_state(self, x: Any): # NOTE: This setter should only be avialable if real_time hybrid automaton.
+    def set_continous_state(self, x: np.array): # NOTE: This setter should only be avialable if real_time hybrid automaton.
         """
         Explicit setter for the continuous state `x` of the automaton.
 
@@ -596,7 +720,7 @@ class Automaton:
                 f"Failed to set continuous state `x`: {str(e)}"
             ) from e
 
-    def set_auxilary_continous_states(self, aux_x: Any):
+    def set_auxilary_continous_states(self, aux_x: Dict[str, np.array]):
         """
         explicity auxilary continous state setter
 
@@ -633,7 +757,7 @@ class Automaton:
                 f"Failed to set auxiliary continuous state `aux_x`: {str(e)}"
             ) from e 
 
-    def set_control_input(self, u: Any): 
+    def set_control_input(self, u: Dict[str, np.array]): 
         """
         explicity setter for the internal control input value
         this is a value that effects flow functions, can be heading
@@ -672,9 +796,9 @@ class Automaton:
 
     async def activate(
         self,
-        x0: List,
-        aux_x0: Optional[Dict] = {},
-        u0: Optional[Dict] = {},
+        x0: np.array,
+        aux_x0: Optional[Dict[str, np.array]] = {},
+        u0: Optional[Dict[str, np.array]] = {},
         real_time_mode: Optional[bool] = False,
         dt: Optional[float] = 0.1
     ):
