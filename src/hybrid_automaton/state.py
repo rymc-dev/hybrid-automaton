@@ -101,7 +101,8 @@ class State:
         x: Any,
         aux_x: Any = None,
         u: Optional[Any] = None,
-        ctx: Optional[Any] = None
+        cfg: Optional[Any] = {},
+        clk: Optional[Any] = None
     ) -> List[Tuple[Transition, bool, Optional[Exception]]]:
         """
         Synchronously evaluate guards for each Transition.
@@ -121,7 +122,7 @@ class State:
         results = []
         for d in self._D:
             try:
-                enabled = bool(d.is_enabled(x, aux_x, u, ctx))
+                enabled = bool(d.is_enabled(x, aux_x, u, cfg, clk))
                 results.append((d, enabled, None))
             except Exception as e:
                 results.append((d, False, e))
@@ -145,13 +146,13 @@ class State:
             return x if x is not None else []
         return self.flow(x, aux_x, u, ctx)
 
-    def check_invariants(self, x, aux_x=None, u=None, ctx=None) -> bool:
+    def check_invariants(self, x, aux_x=None, u=None, cfg=None, clk=None) -> bool:
         if not self._Inv:
             return False if self._is_final else True
 
         for i in self._Inv:
             try:
-                if not bool(i(x, aux_x, u, ctx)):
+                if not bool(i(x, aux_x, u, cfg, clk)):
                     return False
             except Exception:
                 return False
