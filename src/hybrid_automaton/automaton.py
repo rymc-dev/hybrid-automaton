@@ -459,7 +459,7 @@ class Automaton:
                 # 1️⃣ Continuous dynamics
                 # ---------------------------------------------------------
                 self._xdot = self._mode.continuous_dynamics( # TODO: need to change this function to use new class attribute reprensetations instead of dicts
-                    x = self._continous_state.state, 
+                    x = self._continous_state, 
                     aux_x = self._auxilary_states, 
                     u = self._control_inputs, 
                     cfg = self._automaton_definition.get_configuration(), 
