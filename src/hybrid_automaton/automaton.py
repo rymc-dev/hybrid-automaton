@@ -2,6 +2,7 @@ from .transition import Transition
 from .state import State
 from typing import List, Optional, Callable, Any, Dict
 import time
+import numpy as np
 import asyncio
 
 
@@ -66,8 +67,13 @@ class Automaton:
         """
         _id_counter: int = 0
 
-        def __init__(self, name: str, states: List[State], 
-                     on_entry: Optional[Callable] = None, on_exit: Optional[Callable] = None): 
+        def __init__(
+            self, 
+            name: str, 
+            states: List[State], 
+            on_entry: Optional[Callable] = None, 
+            on_exit: Optional[Callable] = None
+        ): 
             self.name = name
             self.id = Automaton.Definition._id_counter
             Automaton.Definition._id_counter += 1
@@ -80,16 +86,20 @@ class Automaton:
             
             self.state_t0 = self.states[init_idx[0]]
 
-            self.on_entry = on_entry
-            self.on_exit = on_exit
+            self._on_entry = on_entry
+            self._on_exit = on_exit
 
-        # def to_dict(self):
-        #     return {
-        #         'name': self.name,
-        #         'id': self.id,
-        #         'states': self.states,
-        #         'on_entry': 
-        #     }
+        def on_entry(self):
+            if self._on_entry is not None:
+                return 
+            
+            self._on_entry()
+
+        def on_exit(self):
+            if self._on_exit is not None:
+                return
+            
+            self._on_exit()
 
         def to_mermaid(self):
             """Return a Mermaid stateDiagram-v2 representation of the automaton."""
@@ -121,7 +131,6 @@ class Automaton:
                     lines.append(f"    note right of {state.name}: invariant = {inv}")
 
             return "\n".join(lines)
-
 
         def __repr__(self):
             """string represnetaion for devs, this outputs the amdl format"""
@@ -227,7 +236,7 @@ class Automaton:
         #       in each state/mode are utilized to integrate for next state
 
         class AuxiliaryState: 
-            def __init__(self, name: str, state_t0: List, expected_dt: float = 0.1): 
+            def __init__(self, name: str, state_t0: np.array, expected_dt: float = 0.1): 
                 self.name = name
                 self.state_t0 = state_t0
                 self.state = self.state_t0
@@ -244,23 +253,23 @@ class Automaton:
             
             _integration_function: Optional[Callable] = None
 
-            def __init__(self, name: str, state_t0: Any, expected_dt: float = 0.1): 
+            def __init__(self, name: str, state_t0: np.array, expected_dt: float = 0.1): 
                 self.name = name
-                self.state_t0: Any = state_t0
-                self.state: Any = self.state_t0
+                self.state_t0: np.array = state_t0
+                self.state: np.array = self.state_t0
 
                 self.avg_dt: float = expected_dt
                 self.timestep: int = 0
 
-            def set_continous_state(self, x: Any):
+            def set_continous_state(self, x: np.array):
                 self.state = x
                 # TODO: Timestamp and calc avg dt
                 self.timestep += 1
 
-            def get_continous_state(self) -> List:
+            def get_continous_state(self) -> np.array:
                 return self.state
 
-            def integrate(self, xdot: Any, dt: float) -> Any: 
+            def integrate(self, xdot: np.array, dt: float): 
                 if self._integration_function is not None: 
                     self.state = self._integration_function(self.state, xdot, dt)
                 else: 
@@ -270,15 +279,15 @@ class Automaton:
 
         class ControlInput: 
             
-            def __init__(self, name: str, state_t0: Any): 
+            def __init__(self, name: str, state_t0: np.array): 
                 self.name = name
-                self.state_t0: Any = state_t0
-                self.state: Any = self.state_t0
+                self.state_t0: np.array = state_t0
+                self.state: np.array = self.state_t0
 
-            def set_control_input(self, u: Any): 
+            def set_control_input(self, u: np.array): 
                 self.state = u
             
-            def get_control_input(self) -> Any:
+            def get_control_input(self) -> np.array:
                 return self.state
 
         class StepResult:
@@ -306,9 +315,9 @@ class Automaton:
         def __init__(
                 self,
                 automaton_definition: 'Automaton.Definition',
-                x0: List,
-                aux_x0: Dict = None,
-                u0: Dict = None,
+                x0: np.array,
+                aux_x0: Dict[str, np.array] = {},
+                u0: Dict[str, np.array] = {},
                 real_time_mode: Optional[bool] = False,
                 dt: Optional[float] = 0.1
 
@@ -318,8 +327,8 @@ class Automaton:
             self._mode: State = automaton_definition.state_t0 
 
             self._continous_state: Automaton.Runtime.ContinousState = Automaton.Runtime.ContinousState(name='agent_state', state_t0=x0)
-            self._auxilary_states: List[Automaton.Runtime.AuxiliaryState] = [Automaton.Runtime.AuxiliaryState(name=k, state_t0=v) for k, v in aux_x0.items()] if aux_x0 is not None else []
-            self._control_inputs: List[Automaton.Runtime.ControlInput] = [Automaton.Runtime.ControlInput(name=k, state_t0=v) for k, v in u0.items()] if u0 is not None else []
+            self._auxilary_states: Dict[str, Automaton.Runtime.AuxiliaryState] = {k: Automaton.Runtime.AuxiliaryState(name=k, state_t0=v) for k, v in aux_x0.items()} if aux_x0 is not None else {}
+            self._control_inputs: Dict[str, Automaton.Runtime.ControlInput] = {k: Automaton.Runtime.ControlInput(name=k, state_t0=v) for k, v in u0.items()} if u0 is not None else []
 
             self._time_elapsed_active: float = 0.0
             self._time_elapsed_since_last_transition: float = 0.0
@@ -344,18 +353,25 @@ class Automaton:
         def get_control_input(self) -> List['Automaton.Runtime.ControlInput']:
             return self._control_inputs
 
-        def set_continous_state(self, x: List): 
-            # setting the continous state directly means we pass in the list of values 
-            self._continous_state = x
+        def get_active_elapsed_time(self) -> float: 
+            return self._time_elapsed_active
+        
+        def get_active_elapsed_time_since_last_transition(self) -> float:
+            return self._time_elapsed_since_last_transition
 
-        def set_auxilary_state(self, aux_x: Dict):
-            # setting the auxilary state directly means we pass in the dict of values 
-            self.set_auxilary_state = aux_x
+        def set_continous_state(self, x: np.array): 
+            """updates the current continous state"""
+            self._continous_state.set_continous_state(x)
 
-        def set_control_input(self, u: Dict):
-            # setting the control input directly means we pass in the dict of values
-            # TODO: Need to do validation on input
-            self.set_control_input = u
+        def set_auxilary_state(self, aux_x: Dict[str, np.array]):
+            """updates the current auxilary state"""
+            for key, value in aux_x.items():
+                self._auxilary_states[key].set_auxiliary_state(value)
+
+        def set_control_input(self, u: Dict[str, np.array]):
+            """updates the control input"""
+            for key, value in u.items():
+                self._control_inputs[key].set_control_input(value)
 
         def _evaluation_step(self) -> StepResult:
             """
@@ -516,6 +532,15 @@ class Automaton:
         return self._definition.id
 
     """ === getter for when active === """
+
+    def get_continous_state(self):
+        if not self._active:
+            raise SystemError(
+                "Attempted to get continous state 'x' but the automaton is not active. Call `activate()` first."
+            )
+
+        return self._runtime.get_continous_state()
+    
     def get_continous_dynamics(self): 
         """ 
         utilized for retrieving the current continous dynamics if there are any continous dynamics to get
@@ -527,9 +552,25 @@ class Automaton:
         
         return self._runtime.get_continous_dynamics()
     
+    def get_active_elapsed_time(self):
+        if not self._active:
+            raise SystemError(
+                "Attempted to get active elapsed time but the automaton is not active. Call `activate()` first."
+            )
+        
+        return self._runtime.get_active_elapsed_time()
+    
+    def get_activate_elapsed_time_since_last_transition(self):
+        if not self._active:
+            raise SystemError(
+                "Attempted to get active elapsed time since last transition but the automaton is not active. Call `activate` first."
+            )
+        
+        return self._runtime.get_active_elapsed_time_since_last_transition()
+
     """ === setter function for when active === """
 
-    def set_continous_state(self, x: Any): # NOTE: This setter should only be avialable if real_time hybrid automaton.
+    def set_continous_state(self, x: np.array): # NOTE: This setter should only be avialable if real_time hybrid automaton.
         """
         Explicit setter for the continuous state `x` of the automaton.
 
@@ -596,7 +637,7 @@ class Automaton:
                 f"Failed to set continuous state `x`: {str(e)}"
             ) from e
 
-    def set_auxilary_continous_states(self, aux_x: Any):
+    def set_auxilary_continous_states(self, aux_x: Dict[str, np.array]):
         """
         explicity auxilary continous state setter
 
@@ -633,7 +674,7 @@ class Automaton:
                 f"Failed to set auxiliary continuous state `aux_x`: {str(e)}"
             ) from e 
 
-    def set_control_input(self, u: Any): 
+    def set_control_input(self, u: Dict[str, np.array]): 
         """
         explicity setter for the internal control input value
         this is a value that effects flow functions, can be heading
@@ -672,9 +713,9 @@ class Automaton:
 
     async def activate(
         self,
-        x0: List,
-        aux_x0: Optional[Dict] = {},
-        u0: Optional[Dict] = {},
+        x0: np.array,
+        aux_x0: Optional[Dict[str, np.array]] = {},
+        u0: Optional[Dict[str, np.array]] = {},
         real_time_mode: Optional[bool] = False,
         dt: Optional[float] = 0.1
     ):
