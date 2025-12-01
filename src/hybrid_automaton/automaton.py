@@ -351,7 +351,7 @@ class Automaton:
                 return self._time_elapsed_since_last_transition
             
             def is_real_time(self): 
-                return self.is_real_time
+                return self._real_time_mode
 
             def ping_transition(self):
                 """

@@ -129,7 +129,7 @@ class State:
 
         return results
 
-    def continuous_dynamics(self, x: Any, aux_x: Optional[Any] = None, u: Optional[Any] = None,  ctx: Optional[Any] = None) -> Any:
+    def continuous_dynamics(self, x: Any, aux_x: Optional[Any] = None, u: Optional[Any] = None,  cfg: Optional[Any] = None, clk: Optional[Any] = None) -> Any:
         """
         Process continuous dynamics using current state and context.
         Synchronous function.
@@ -144,7 +144,7 @@ class State:
         """
         if self.flow is None:
             return x if x is not None else []
-        return self.flow(x, aux_x, u, ctx)
+        return self.flow(x, aux_x, u, cfg, clk)
 
     def check_invariants(self, x, aux_x=None, u=None, cfg=None, clk=None) -> bool:
         if not self._Inv:
