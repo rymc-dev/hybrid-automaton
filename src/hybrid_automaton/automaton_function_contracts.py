@@ -1,5 +1,4 @@
-from typing import Protocol, Dict
-from typing import Tuple, Any
+from typing import Protocol, Dict, Tuple
 from .automaton import Automaton
 import numpy as np
 

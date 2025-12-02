@@ -2,10 +2,9 @@ import sys
 import os
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'src'))
 
-from hybrid_automaton import Automaton, State, Transition
-from typing import Dict, Tuple
 import numpy as np
 from hybrid_automatons import bouncing_ball
+from hybrid_automaton_evaluation.figure_generator import generate_mode_timeseries_figure
 import asyncio
 
 
@@ -86,6 +85,8 @@ async def runner():
 
     times = np.array([row[0] for row in x])
     mode_ids = np.array([row[1]['mode'][0] for row in automaton_state])
+    
+    fig = generate_mode_timeseries_figure()
 
     plt.figure(figsize=(12, 6))
 

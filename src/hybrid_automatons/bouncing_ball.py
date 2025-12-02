@@ -1,6 +1,5 @@
 """
 sample implementation using v0.0.4 of the hybrid automaton package for a bouncing ball
-
 """
 
 from hybrid_automaton import Automaton, State, Transition

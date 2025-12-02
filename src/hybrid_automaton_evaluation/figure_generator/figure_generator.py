@@ -23,12 +23,12 @@ def generate_mode_timeseries_figure(mode_data: List[Tuple[float, int]]):
     ax.set_ylabel("Mode (q)", fontsize=12)
     ax.grid(True, alpha=0.3)
     # Create a mapping from mode int values to string labels for the legend
-    mode_ids = sorted(set(mode_values))
-    # Example mapping, replace with your actual mapping if available
-    mode_labels = {0: "Idle", 1: "Running", 2: "Paused", 3: "Stopped"}
-    legend_labels = [f"{mode_id}: {mode_labels.get(mode_id, 'Unknown')}" for mode_id in mode_ids]
+    # mode_ids = sorted(set(mode_values))
+    # # Example mapping, replace with your actual mapping if available
+    # mode_labels = {0: "Idle", 1: "Running", 2: "Paused", 3: "Stopped"}
+    # legend_labels = [f"{mode_id}: {mode_labels.get(mode_id, 'Unknown')}" for mode_id in mode_ids]
     # Show the mapping in the legend
-    ax.legend([', '.join(legend_labels)], title="Mode Mapping")
+    # ax.legend([', '.join(legend_labels)], title="Mode Mapping")
     fig.tight_layout()
     
     return fig
