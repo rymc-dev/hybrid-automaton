@@ -1,4 +1,7 @@
-def cruise_control():
+import numpy as np
+from hybrid_automaton import State, Transition, Automaton
+
+def cruise_control() -> Automaton:
     TARGET_SPEED = 30.0  # m/s (108 km/h)
     SAFE_DISTANCE = 50.0  # meters
     CAR_AHEAD_SPEED = 20.0  # m/s
@@ -74,4 +77,6 @@ def cruise_control():
     
     # Create automaton
     car = Automaton(name="Cruise Control", states=[accelerate, cruise, brake, emergency], dt=0.1)
+
+    return car
     
