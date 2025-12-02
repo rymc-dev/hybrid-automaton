@@ -38,10 +38,20 @@ pip install hybrid-automaton
 
 ## Collaborators
 This project was created in collaboration with:
-    - **[Ryan McKee](https://github.com/rymc-dev)
+- **[Ryan McKee](https://github.com/rymc-dev)**
 
-## References
-Hybrid Automaton Implementation was inspired by several sources including: 
+You can cite this package as described below:
+
+```bibtex
+@misc{hybrid_automaton_2025,
+  author       = {Ryan McKee},
+  title        = {hybrid-automaton v0.0.4},
+  howpublished = {GitHub repository},
+  year         = {2025},
+  note         = {Accessed: Dec. 2, 2025},
+  url          = {https://github.com/rymc-dev/hybrid-automaton}
+}
+```
 
 ## License
 
