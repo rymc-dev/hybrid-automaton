@@ -26,7 +26,8 @@ classifiers = [
 ]
 dependencies = [
   "numpy",
-  "asyncio"
+  "asyncio",
+  "matplotlib"
 ]
 
 [project.urls]
