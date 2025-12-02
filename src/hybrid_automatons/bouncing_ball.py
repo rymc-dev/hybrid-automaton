@@ -6,11 +6,19 @@ sample implementation using v0.0.4 of the hybrid automaton package for a bouncin
 from hybrid_automaton import Automaton, State, Transition
 import numpy as np
 
-def bouncing_ball():
-    # Physical constants
-    GRAVITY = -9.81
-    RESTITUTION = 0.8  # Velocity loss on bounce
+def bouncing_ball(gravity: float = -9.81, restitution: float = 0.8):
+    """ 
+    sample bouncing_ball hybrid automaton
 
+    Args: 
+        gravity: float
+            gravity force applied to ball
+        restitution: float
+            velocity loss on bounce
+
+    Output: 
+        Automaton
+    """
 
     # ============================
     #   Continuous dynamics
@@ -19,7 +27,7 @@ def bouncing_ball():
     def flying_flow(x, aux_x, u, cfg, clk):
         """Free fall: x = [y, v], dx/dt = [v, g]."""
         y, v = x.get_continous_state()
-        return np.array([v, GRAVITY])
+        return np.array([v, cfg['gravity']])
 
 
     def ground_flow(x, aux_x, u, cfg, clk):
@@ -56,7 +64,7 @@ def bouncing_ball():
     def bounce_reset(x, aux_x, u, cfg, clk):
         """Apply bounce: set y=0, reverse velocity with restitution."""
         y, v = x.get_continous_state()
-        new_state = np.array([0.0, -v * RESTITUTION])
+        new_state = np.array([0.0, -v * cfg['restitution']])
         x.set_continous_state(new_state)
         return x, aux_x, u
 
@@ -131,7 +139,10 @@ def bouncing_ball():
     return Automaton(
         name="Bouncing Ball",
         states=[flying, ground],
-        integration_function=None,
+        configuration= {
+            'gravity': gravity,
+            'restitution': restitution 
+        },
         on_entry=lambda: print(">>> Starting bouncing ball"),
         on_exit=lambda: print(">>> Ending bouncing ball"),
     )

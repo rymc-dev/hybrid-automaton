@@ -9,7 +9,7 @@ description = "Python framework for real-time and simulation hybrid automata, ea
 readme = "README.md"
 requires-python = ">=3.8"
 license = "MIT"
-keywords = []
+keywords = ['hybrid_automaton', 'autonomy', 'navigation']
 authors = [
   { name = "Ryan McKee", email = "ryanmckee47@icloud.com" },
 ]
@@ -24,7 +24,10 @@ classifiers = [
   "Programming Language :: Python :: Implementation :: CPython",
   "Programming Language :: Python :: Implementation :: PyPy",
 ]
-dependencies = []
+dependencies = [
+  "numpy",
+  "asyncio"
+]
 
 [project.urls]
 Documentation = "https://github.com/Ryan McKee/hybrid-automaton#readme"
@@ -32,7 +35,7 @@ Issues = "https://github.com/Ryan McKee/hybrid-automaton/issues"
 Source = "https://github.com/Ryan McKee/hybrid-automaton"
 
 [tool.hatch.version]
-path = "src/hybrid_automaton/__init__.py"
+path = "src/hybrid_automaton/__about__.py"
 
 [tool.hatch.envs.types]
 extra-dependencies = [
@@ -51,6 +54,7 @@ omit = [
 
 [tool.coverage.paths]
 hybrid_automaton = ["src/hybrid_automaton", "*/hybrid-automaton/src/hybrid_automaton"]
+hybrid_automatons = ["src/hybrid_automatons", "*hybrid-automaton/src/hybrid_automatons"]
 tests = ["tests", "*/hybrid-automaton/tests"]
 
 [tool.coverage.report]
