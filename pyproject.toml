@@ -24,10 +24,11 @@ classifiers = [
   "Programming Language :: Python :: Implementation :: CPython",
   "Programming Language :: Python :: Implementation :: PyPy",
 ]
+
+# IMPORTANT FIXES HERE:
 dependencies = [
-  "numpy",
-  "asyncio",
-  "matplotlib"
+  "numpy<1.28",
+  "matplotlib",
 ]
 
 [project.urls]
@@ -43,15 +44,30 @@ extra-dependencies = [
   "mypy>=1.0.0",
 ]
 [tool.hatch.envs.types.scripts]
-check = "mypy --install-types --non-interactive {args:src/hybrid_automaton tests}"
+check = "mypy --install-types --non-interactive {args:src/hybrid_automaton src/hybrid_automatons src/hybrid_automaton_evaluation src/hybrid_automaton_runner tests}"
 
 [tool.coverage.run]
-source_pkgs = ["hybrid_automaton", "tests"]
+source_pkgs = ["hybrid_automaton", "hybrid_automatons", "hybrid_automaton_runner", "hybrid_autoamton_evaluation", "tests"]
 branch = true
 parallel = true
 omit = [
   "src/hybrid_automaton/__about__.py",
 ]
+
+# FIXED: Hatch packages listed by IMPORT NAME, not path
+[tool.hatch.build]
+packages = [
+"src/hybrid_automaton",
+"src/hybrid_automatons",
+"src/hybrid_automaton_evaluation",
+"src/hybrid_automaton_runner",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/hybrid_automaton", "src/hybrid_automatons", "src/hybrid_automaton_evaluation", "src/hybrid_automaton_runner"]
+
+[tool.hatch.build.targets.sdist]
+packages = ["src/hybrid_automaton", "src/hybrid_automatons", "src/hybrid_automaton_evaluation", "src/hybrid_automaton_runner"]
 
 [tool.coverage.paths]
 hybrid_automaton = ["src/hybrid_automaton", "*/hybrid-automaton/src/hybrid_automaton"]

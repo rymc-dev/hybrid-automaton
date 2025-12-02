@@ -487,7 +487,7 @@ class Automaton:
                 # if not self._runtime_clock.is_real_time() and (self._xdot is not None):
                 #     self._continous_state.integrate(self._xdot, self._runtime_clock.get_dt()) 
 
-                if self._integrate and (self._xdot is not None):
+                if self._integrate and (self._xdot is not None) and (self._continous_state.state_t0 is not None):
                     self._continous_state.integrate(self._xdot, self._runtime_clock.get_dt()) 
                 
                 # ---------------------------------------------------------
@@ -517,6 +517,7 @@ class Automaton:
                         cfg=self._automaton_definition.get_configuration(), 
                         clk=self._runtime_clock
                     )
+                    self._runtime_clock.ping_transition()
 
                     if self._mode.on_exit:
                         self._mode.on_exit()
@@ -591,7 +592,7 @@ class Automaton:
                 else:
                     # NOTE: simulation mode
                     self._runtime_clock.step_dt()
-                    await asyncio.sleep(0.01)
+                    await asyncio.sleep(0.001)
             
             if is_real_time: 
                 clock_task.cancel()

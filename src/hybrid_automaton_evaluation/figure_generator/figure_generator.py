@@ -1,5 +1,6 @@
 import matplotlib.pyplot as plt
 from typing import List, Tuple
+import numpy as np
 
 def generate_mode_timeseries_figure(mode_data: List[Tuple[float, int]]):
     """  
@@ -31,4 +32,15 @@ def generate_mode_timeseries_figure(mode_data: List[Tuple[float, int]]):
     # ax.legend([', '.join(legend_labels)], title="Mode Mapping")
     fig.tight_layout()
     
+    return fig
+
+def generate_time_since_last_transition_over_time(time: np.array, time_since_last_transition: np.array):
+    fig, ax = plt.subplots(figsize=(12, 6))
+    ax.plot(time, [time[1] for time in time_since_last_transition], label='Time Since Last Transition (s)')
+    ax.set_title('Hybrid Automaton (v0.0.4) - Automaton Time Since last Transition Plot')
+    ax.set_xlabel("Time (s)", fontsize=12)
+    ax.set_ylabel("Time Since Last Transition (s)", fontsize=12)  # Fixed label
+    ax.legend()
+    ax.grid(True, alpha=0.3)
+    fig.tight_layout()
     return fig

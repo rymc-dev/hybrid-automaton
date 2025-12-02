@@ -22,17 +22,17 @@ automaton_state = []
 
 async def runner(): 
     async def store_continous_state_data(): 
-        asyncio.sleep(0.01)
+        asyncio.sleep(0.001)
         while True:
             try: 
                 x.append([ball.get_active_elapsed_time(), ball.get_continous_state()])
             except Exception as e: 
                 print (e)
 
-            await asyncio.sleep(0.01)
+            await asyncio.sleep(0.001)
 
     async def store_automaton_state(): 
-        asyncio.sleep(0.01)
+        asyncio.sleep(0.001)
         while True:
             try: 
                 automaton_state.append(
@@ -41,17 +41,17 @@ async def runner():
             except Exception as e: 
                 print (str(e))
         
-            await asyncio.sleep(0.01)
+            await asyncio.sleep(0.001)
 
     async def deactivate_after_10_seconds(*tasks): 
-        await asyncio.sleep(10.0)
+        await asyncio.sleep(3.0)
         for t in tasks:
             t.cancel()
 
         await asyncio.gather(*tasks, return_exceptions=True)
         print ('tasks completed')
 
-    t1 = asyncio.create_task(ball.activate(x0=x0, real_time_mode=True, integrate=True, dt=0.01))
+    t1 = asyncio.create_task(ball.activate(x0=x0, real_time_mode=False, integrate=True, dt=0.01))
     t2 = asyncio.create_task(store_continous_state_data())
     t3 = asyncio.create_task(store_automaton_state())
 
@@ -86,7 +86,7 @@ async def runner():
     times = np.array([row[0] for row in x])
     mode_ids = np.array([row[1]['mode'][0] for row in automaton_state])
     
-    fig = generate_mode_timeseries_figure()
+    # fig = generate_mode_timeseries_figure()
 
     plt.figure(figsize=(12, 6))
 
