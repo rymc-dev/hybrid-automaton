@@ -56,6 +56,9 @@ omit = [
 [tool.coverage.paths]
 hybrid_automaton = ["src/hybrid_automaton", "*/hybrid-automaton/src/hybrid_automaton"]
 hybrid_automatons = ["src/hybrid_automatons", "*hybrid-automaton/src/hybrid_automatons"]
+hybrid_automaton_evaluation = ["src/hybrid_automaton_evaluation", "*hybrid-automaton/src/hybrid_automaton_evaluation]
+hybrid_automaton_runner = ["src/hybrid_automaton_runner", "*hybrid-automaton/src/hybrid_automaton_runner]
+
 tests = ["tests", "*/hybrid-automaton/tests"]
 
 [tool.coverage.report]
