@@ -117,7 +117,7 @@ class Transition:
             Tuple[x, aux_x]: represents new continous states and continous auxielary states
         """
         if self._R is None: 
-            return x, aux_x # pass through, reset just returns the x and ctx
+            return x, aux_x, u # pass through, reset just returns the x and ctx
         return self._R(x, aux_x, u, cfg, clk)
     
     def execute(self, x: np.array, aux_x: Optional[Any] = None, u: Optional[Any] = None, 

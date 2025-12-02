@@ -1,4 +1,4 @@
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional, Tuple
 import asyncio
 import time
 import numpy as np
@@ -275,11 +275,9 @@ class Automaton:
 
             def integrate(self, xdot: np.array, dt: float): 
                 if self._integration_function is not None: 
-                    self.state = self._integration_function(self.state, xdot, dt)
+                    self.set_continous_state(self._integration_function(self.state, xdot, dt))
                 else: 
-                    self.state = self.state + xdot * dt
-                
-                self.set_continous_state(self.state)
+                    self.set_continous_state(self.state + xdot * dt)
 
         class ControlInput: 
             
@@ -394,11 +392,13 @@ class Automaton:
                 aux_x0: Dict[str, np.array] = {},
                 u0: Dict[str, np.array] = {},
                 real_time_mode: Optional[bool] = False,
+                integrate: Optional[bool] = True,
                 dt: Optional[float] = 0.1
 
         ): 
             self._active: bool = False
             self._is_completed: bool = False
+            self._integrate: bool = integrate
 
             self._automaton_definition: Automaton.Definition = automaton_definition
             self._mode: State = automaton_definition.state_t0 
@@ -412,6 +412,10 @@ class Automaton:
             self._xdot: List = None
 
 
+        def get_active_mode(self) -> Tuple[int, str]: 
+            return (self._mode.get_state_id(), self._mode.name) 
+
+
         def get_continous_dynamics(self) -> List:
             # returns a vector representing the continous dynamics 
             return self._xdot
@@ -423,12 +427,25 @@ class Automaton:
             return self._auxilary_states
         
         def get_control_input(self) -> Dict[str, 'Automaton.Runtime.ControlInput']:
+            if self._runtime_clock is None: 
+                raise SystemError(
+                    "Attempted to get control input but automaton is not active. Call `activate() first."
+                )
+
             return self._control_inputs
 
-        def get_active_elapsed_time(self) -> float: 
+        def get_active_elapsed_time(self):
+            if self._runtime_clock is None: 
+                raise SystemError( 
+                    "Attempted to get runtime clock is not there"
+                )
+
             return self._runtime_clock.get_time_elapsed_active()
-        
+                
         def get_active_elapsed_time_since_last_transition(self) -> float:
+            if self._runtime_clock is None: 
+                raise SystemError()
+
             return self._runtime_clock.get_time_elapsed_since_last_transition()
 
         def set_continous_state(self, x: np.array): 
@@ -467,7 +484,10 @@ class Automaton:
                 )
 
                 # NOTE: Integrate `x` continous state if in simulation mode.
-                if not self._runtime_clock.is_real_time() and (self._xdot is not None):
+                # if not self._runtime_clock.is_real_time() and (self._xdot is not None):
+                #     self._continous_state.integrate(self._xdot, self._runtime_clock.get_dt()) 
+
+                if self._integrate and (self._xdot is not None):
                     self._continous_state.integrate(self._xdot, self._runtime_clock.get_dt()) 
                 
                 # ---------------------------------------------------------
@@ -503,7 +523,7 @@ class Automaton:
 
                     # Update state
                     self._mode = new_mode
-                    self._continous_state.set_continous_state(new_states[0]) 
+                    self._continous_state = new_states[0] 
                     self._auxilary_states = new_states[1]
                     self._control_inputs = new_states[2]
 
@@ -624,13 +644,22 @@ class Automaton:
 
     """ === getter for when active === """
 
-    def get_continous_state(self):
-        if not self._active:
+    def get_active_mode(self) -> Tuple[int, str]: 
+        if self._runtime is None: 
+            raise SystemError(
+                "Attempted to get current mode `q` but the automaton is not active. Call `activate()` first."
+            )
+
+        return self._runtime.get_active_mode()
+
+
+    def get_continous_state(self) -> np.array:
+        if self._runtime is None:
             raise SystemError(
                 "Attempted to get continous state 'x' but the automaton is not active. Call `activate()` first."
             )
 
-        return self._runtime.get_continous_state()
+        return self._runtime.get_continous_state().get_continous_state()
     
     def get_continous_dynamics(self): 
         """ 
@@ -644,19 +673,19 @@ class Automaton:
         return self._runtime.get_continous_dynamics()
     
     def get_active_elapsed_time(self):
-        if not self._active:
+        if self._runtime is None:
             raise SystemError(
-                "Attempted to get active elapsed time but the automaton is not active. Call `activate()` first."
+                "Attempted to get active elapsed time but the automaton is active. is not None Call `activate()` first."
             )
-        
+   
         return self._runtime.get_active_elapsed_time()
     
     def get_activate_elapsed_time_since_last_transition(self):
-        if not self._active:
+        if self._runtime is None:
             raise SystemError(
                 "Attempted to get active elapsed time since last transition but the automaton is not active. Call `activate` first."
             )
-        
+
         return self._runtime.get_active_elapsed_time_since_last_transition()
 
     """ === setter function for when active === """
@@ -808,6 +837,7 @@ class Automaton:
         aux_x0: Optional[Dict[str, np.array]] = {},
         u0: Optional[Dict[str, np.array]] = {},
         real_time_mode: Optional[bool] = False,
+        integrate: Optional[bool] = True,
         dt: Optional[float] = 0.1
     ):
         """
@@ -884,6 +914,7 @@ class Automaton:
             aux_x0=aux_x0,
             u0=u0,
             real_time_mode=real_time_mode,
+            integrate=integrate,
             dt=dt
         )
         self._active = True
