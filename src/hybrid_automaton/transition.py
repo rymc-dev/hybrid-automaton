@@ -1,4 +1,5 @@
 from typing import Optional, List, Callable, Any, Tuple
+import numpy as np
 
 class Transition:
     """ 
@@ -55,12 +56,12 @@ class Transition:
         return self._name
 
     @property
+    def id(self): 
+        return self._id
+
+    @property
     def priority(self): 
         return self._priority
-    
-    @property
-    def value(self): 
-        return self._value
     
     @property
     def to_state(self):
@@ -86,7 +87,7 @@ class Transition:
                 continous state information representation
             u: Optional[Any]
                 control input
-            ctx: Optional[Any]
+            cfg: Optional[Any]
                 auxilary information for the hybrid automaton model
 
         Outputs: 
@@ -98,7 +99,7 @@ class Transition:
         return all(g(x, aux_x, u, cfg, clk) for g in self._G)
     
     def apply_reset(self, x: Any, aux_x: Optional[Any] = None, 
-        u: Optional[Any] = None, cfg: Optional[Any] = {}, clk: Optional[Any] = None) ->  Tuple[Any, Any]: 
+        u: Optional[Any] = None, cfg: Optional[Any] = {}, clk: Optional[Any] = None) ->  Tuple[Any, Any, Any]: 
         """
         apply reset to continous states and/or auxielary context information 
         for the hybrid automaton model
@@ -116,11 +117,11 @@ class Transition:
             Tuple[x, aux_x]: represents new continous states and continous auxielary states
         """
         if self._R is None: 
-            return x, aux_x # pass through, reset just returns the x and ctx
+            return x, aux_x, u # pass through, reset just returns the x and ctx
         return self._R(x, aux_x, u, cfg, clk)
     
-    def execute(self, x: Any, aux_x: Optional[Any] = None, u: Optional[Any] = None, 
-                cfg: Optional[Any] = None, clk: Optional[Any] = None) -> Tuple[Any, Any, Any]:
+    def execute(self, x: np.array, aux_x: Optional[Any] = None, u: Optional[Any] = None, 
+                cfg: Optional[Any] = None, clk: Optional[Any] = None) -> Tuple[Any, Tuple[Any, Any, Any]]:
         """ 
         execute applies resets to the current contious and auxielary states
         utilzing information regarding the automaton and also return the next state
@@ -132,11 +133,23 @@ class Transition:
                 auxialary continous state information
             u: Optional[Any]
                 external inputs
-            ctx: Optional[Any]
+            cfg: Optional[Any]
                 auxiarly context of automaton
+            clk: Optional[Any]
+                system clock
+
+        Outputs: 
+            Tuple(
+                new_mode: State,
+                Tuple( 
+                    new_x,
+                    new_aux_x,
+                    new_u
+                )
+            )
         """
-        new_x, new_aux_x = self.apply_reset(x, aux_x, u, cfg, clk)
-        return self._to_q, new_x, new_aux_x
+        new_x, new_aux_x, new_u = self.apply_reset(x, aux_x, u, cfg, clk)
+        return self._to_q, (new_x, new_aux_x, new_u)
     
     def __repr__(self): 
         """Developer representation: unambiguous string useful for debugging."""

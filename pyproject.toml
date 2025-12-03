@@ -9,7 +9,7 @@ description = "Python framework for real-time and simulation hybrid automata, ea
 readme = "README.md"
 requires-python = ">=3.8"
 license = "MIT"
-keywords = []
+keywords = ['hybrid_automaton', 'autonomy', 'navigation']
 authors = [
   { name = "Ryan McKee", email = "ryanmckee47@icloud.com" },
 ]
@@ -24,7 +24,12 @@ classifiers = [
   "Programming Language :: Python :: Implementation :: CPython",
   "Programming Language :: Python :: Implementation :: PyPy",
 ]
-dependencies = []
+
+# IMPORTANT FIXES HERE:
+dependencies = [
+  "numpy<1.28",
+  "matplotlib",
+]
 
 [project.urls]
 Documentation = "https://github.com/Ryan McKee/hybrid-automaton#readme"
@@ -32,25 +37,44 @@ Issues = "https://github.com/Ryan McKee/hybrid-automaton/issues"
 Source = "https://github.com/Ryan McKee/hybrid-automaton"
 
 [tool.hatch.version]
-path = "src/hybrid_automaton/__init__.py"
+path = "src/hybrid_automaton/__about__.py"
 
 [tool.hatch.envs.types]
 extra-dependencies = [
   "mypy>=1.0.0",
 ]
 [tool.hatch.envs.types.scripts]
-check = "mypy --install-types --non-interactive {args:src/hybrid_automaton tests}"
+check = "mypy --install-types --non-interactive {args:src/hybrid_automaton src/hybrid_automatons src/hybrid_automaton_evaluation src/hybrid_automaton_runner tests}"
 
 [tool.coverage.run]
-source_pkgs = ["hybrid_automaton", "tests"]
+source_pkgs = ["hybrid_automaton", "hybrid_automatons", "hybrid_automaton_runner", "hybrid_autoamton_evaluation", "tests"]
 branch = true
 parallel = true
 omit = [
   "src/hybrid_automaton/__about__.py",
 ]
 
+# FIXED: Hatch packages listed by IMPORT NAME, not path
+[tool.hatch.build]
+packages = [
+"src/hybrid_automaton",
+"src/hybrid_automatons",
+"src/hybrid_automaton_evaluation",
+"src/hybrid_automaton_runner",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/hybrid_automaton", "src/hybrid_automatons", "src/hybrid_automaton_evaluation", "src/hybrid_automaton_runner"]
+
+[tool.hatch.build.targets.sdist]
+packages = ["src/hybrid_automaton", "src/hybrid_automatons", "src/hybrid_automaton_evaluation", "src/hybrid_automaton_runner"]
+
 [tool.coverage.paths]
 hybrid_automaton = ["src/hybrid_automaton", "*/hybrid-automaton/src/hybrid_automaton"]
+hybrid_automatons = ["src/hybrid_automatons", "*hybrid-automaton/src/hybrid_automatons"]
+hybrid_automaton_evaluation = ["src/hybrid_automaton_evaluation", "*hybrid-automaton/src/hybrid_automaton_evaluation"]
+hybrid_automaton_runner = ["src/hybrid_automaton_runner", "*hybrid-automaton/src/hybrid_automaton_runner"]
+
 tests = ["tests", "*/hybrid-automaton/tests"]
 
 [tool.coverage.report]

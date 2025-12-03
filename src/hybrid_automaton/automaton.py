@@ -1,10 +1,9 @@
-from .transition import Transition
-from .state import State
-from typing import List, Optional, Callable, Any, Dict
+from typing import Any, Callable, Dict, List, Optional, Tuple
+import asyncio
 import time
 import numpy as np
-import asyncio
 
+from .state import State
 
 
 class Automaton: 
@@ -276,11 +275,9 @@ class Automaton:
 
             def integrate(self, xdot: np.array, dt: float): 
                 if self._integration_function is not None: 
-                    self.state = self._integration_function(self.state, xdot, dt)
+                    self.set_continous_state(self._integration_function(self.state, xdot, dt))
                 else: 
-                    self.state = self.state + xdot * dt
-                
-                self.set_continous_state(self.state)
+                    self.set_continous_state(self.state + xdot * dt)
 
         class ControlInput: 
             
@@ -395,11 +392,13 @@ class Automaton:
                 aux_x0: Dict[str, np.array] = {},
                 u0: Dict[str, np.array] = {},
                 real_time_mode: Optional[bool] = False,
+                integrate: Optional[bool] = True,
                 dt: Optional[float] = 0.1
 
         ): 
             self._active: bool = False
             self._is_completed: bool = False
+            self._integrate: bool = integrate
 
             self._automaton_definition: Automaton.Definition = automaton_definition
             self._mode: State = automaton_definition.state_t0 
@@ -413,6 +412,10 @@ class Automaton:
             self._xdot: List = None
 
 
+        def get_active_mode(self) -> Tuple[int, str]: 
+            return (self._mode.get_state_id(), self._mode.name) 
+
+
         def get_continous_dynamics(self) -> List:
             # returns a vector representing the continous dynamics 
             return self._xdot
@@ -424,12 +427,25 @@ class Automaton:
             return self._auxilary_states
         
         def get_control_input(self) -> Dict[str, 'Automaton.Runtime.ControlInput']:
+            if self._runtime_clock is None: 
+                raise SystemError(
+                    "Attempted to get control input but automaton is not active. Call `activate() first."
+                )
+
             return self._control_inputs
 
-        def get_active_elapsed_time(self) -> float: 
+        def get_active_elapsed_time(self):
+            if self._runtime_clock is None: 
+                raise SystemError( 
+                    "Attempted to get runtime clock is not there"
+                )
+
             return self._runtime_clock.get_time_elapsed_active()
-        
+                
         def get_active_elapsed_time_since_last_transition(self) -> float:
+            if self._runtime_clock is None: 
+                raise SystemError()
+
             return self._runtime_clock.get_time_elapsed_since_last_transition()
 
         def set_continous_state(self, x: np.array): 
@@ -448,9 +464,8 @@ class Automaton:
 
         def _evaluation_step(self) -> StepResult:
             """
-            Perform one hybrid automaton evaluation step the current state 
-            of the hybrid automaton.
-            This is pure logic — no loops, no sleeping.
+            Perform one timestep evaluation of the hybrid automaton.
+            this is a purely syncronis function.
             """
             if not self._active:
                 print(f"can't step, automaton '{self._automaton_definition.name}' is not active.")
@@ -460,26 +475,33 @@ class Automaton:
                 # ---------------------------------------------------------
                 # 1️⃣ Continuous dynamics
                 # ---------------------------------------------------------
-                xdot = self._mode.continuous_dynamics( # TODO: need to change this function to use new class attribute reprensetations instead of dicts
-                    self._continous_state.state, self._auxilary_states, self._control_inputs, {}# self._u, self._ctx
+                self._xdot = self._mode.continuous_dynamics( # TODO: need to change this function to use new class attribute reprensetations instead of dicts
+                    x = self._continous_state, 
+                    aux_x = self._auxilary_states, 
+                    u = self._control_inputs, 
+                    cfg = self._automaton_definition.get_configuration(), 
+                    clk = self._runtime_clock
                 )
-                self._xdot = xdot
 
-                # Integrate if in simulation mode
-                if not self._runtime_clock.is_real_time() and (xdot is not None):
-                    self._continous_state.integrate(xdot, self._runtime_clock.get_dt()) 
+                # NOTE: Integrate `x` continous state if in simulation mode.
+                # if not self._runtime_clock.is_real_time() and (self._xdot is not None):
+                #     self._continous_state.integrate(self._xdot, self._runtime_clock.get_dt()) 
+
+                if self._integrate and (self._xdot is not None) and (self._continous_state.state_t0 is not None):
+                    self._continous_state.integrate(self._xdot, self._runtime_clock.get_dt()) 
+                
                 # ---------------------------------------------------------
-                # 2️⃣ Guard transitions
+                # 2️⃣ Guard transitions - (Evaluate and Execute discrete
+                #  Transition if 1 guard or more are active)
                 # ---------------------------------------------------------
-                D_eval = self._mode.evaluate_transitions(
-                    x=self._continous_state.state, 
+                self._guard_evaluations = self._mode.evaluate_transitions(
+                    x=self._continous_state, 
                     aux_x=self._auxilary_states, 
                     u=self._control_inputs, 
                     cfg=self._automaton_definition.get_configuration(), 
                     clk=self._runtime_clock
                 )
-
-                active_guards = [item[0] for item in D_eval if item[1] is True]
+                active_guards = [item[0] for item in self._guard_evaluations if item[1] is True]
 
                 if active_guards:
                     if len(active_guards) == 1:
@@ -488,57 +510,63 @@ class Automaton:
                         d = min(active_guards, key=lambda t: t.priority)
 
                     # Execute transition
-                    new_mode, new_x, new_aux_x = d.execute(
-                        x=self._continous_state.get_continous_state(), 
+                    new_mode, new_states = d.execute(
+                        x=self._continous_state, 
                         aux_x=self._auxilary_states, 
                         u=self._control_inputs, 
                         cfg=self._automaton_definition.get_configuration(), 
-                        clk=self._runtime_clock #TODO:  self._u, self._ctx
+                        clk=self._runtime_clock
                     )
+                    self._runtime_clock.ping_transition()
 
                     if self._mode.on_exit:
                         self._mode.on_exit()
 
                     # Update state
                     self._mode = new_mode
-                    self._continous_state.set_continous_state(new_x) 
-                    self._auxilary_states = new_aux_x
+                    self._continous_state = new_states[0] 
+                    self._auxilary_states = new_states[1]
+                    self._control_inputs = new_states[2]
 
                     # State entry callback
                     if self._mode.on_enter:
                         self._mode.on_enter()
 
-                    return Automaton.Runtime.StepResult(
-                        q=new_mode, aux_x=self._auxilary_states, x=new_x, ctx={},
-                        transition_taken=d,
-                        invariants_ok=True
-                    )
+                    return None
+
+                    # return Automaton.Runtime.StepResult(
+                    #     q=new_mode, aux_x=self._auxilary_states, x=new_states[0], ctx={},
+                    #     transition_taken=d,
+                    #     invariants_ok=True
+                    # )
 
                 # ---------------------------------------------------------
                 # 3️⃣ No transition → invariant check
                 # ---------------------------------------------------------
-                invariants_ok = self._mode.check_invariants(
-                    x=self._continous_state.state, 
+                invariant_holds = self._mode.check_invariants(
+                    x = self._continous_state, 
                     aux_x = self._auxilary_states, 
                     u = self._control_inputs, 
                     cfg = self._automaton_definition.get_configuration(),
-                    clk = self._runtime_clock # TODO: self._u, self._ctx
+                    clk = self._runtime_clock
                 )
 
-                if not invariants_ok and self._mode._is_final:
+                if not invariant_holds and self._mode._is_final:
                     print('automaton completed')
                     self._is_completed = True
                     self._active = False
-                elif not invariants_ok: 
+                elif not invariant_holds: 
                     raise SystemError('Invairants failed to hold and not in final mode')
-
-                return Automaton.Runtime.StepResult(
-                    q=self._mode, aux_x=self._auxilary_states, x=self._continous_state, ctx={}, 
-                    transition_taken=None,
-                    invariants_ok=invariants_ok
-                )
+                
+                return None
+                # return Automaton.Runtime.StepResult(
+                #     q=self._mode, aux_x=self._auxilary_states, x=self._continous_state, ctx={}, 
+                #     transition_taken=None,
+                #     invariants_ok=invariant_holds
+                # )
             else: 
-                print("automaton completed, can't step")
+                print(f"{self._automaton_definition.name} has completed attemped an evaluation step but can't as we "
+                      "have discretely completed")
                 return None
 
         async def _automaton_loop_worker(self):
@@ -556,7 +584,8 @@ class Automaton:
                 clock_task = asyncio.create_task(self._runtime_clock.start())
 
             while self._active and not self._is_completed:
-                step_result: Automaton.Runtime.StepResult = self._evaluation_step() # NOTE: not sure what to do with step result yet.
+                # step_result: Automaton.Runtime.StepResult = self._evaluation_step() # TODO: Need to determine if I need a return from this evaluation_step 
+                _ = self._evaluation_step()
 
                 if is_real_time: 
                     await self._runtime_clock.sleep_for_dt()
@@ -616,13 +645,22 @@ class Automaton:
 
     """ === getter for when active === """
 
-    def get_continous_state(self):
-        if not self._active:
+    def get_active_mode(self) -> Tuple[int, str]: 
+        if self._runtime is None: 
+            raise SystemError(
+                "Attempted to get current mode `q` but the automaton is not active. Call `activate()` first."
+            )
+
+        return self._runtime.get_active_mode()
+
+
+    def get_continous_state(self) -> np.array:
+        if self._runtime is None:
             raise SystemError(
                 "Attempted to get continous state 'x' but the automaton is not active. Call `activate()` first."
             )
 
-        return self._runtime.get_continous_state()
+        return self._runtime.get_continous_state().get_continous_state()
     
     def get_continous_dynamics(self): 
         """ 
@@ -636,19 +674,19 @@ class Automaton:
         return self._runtime.get_continous_dynamics()
     
     def get_active_elapsed_time(self):
-        if not self._active:
+        if self._runtime is None:
             raise SystemError(
-                "Attempted to get active elapsed time but the automaton is not active. Call `activate()` first."
+                "Attempted to get active elapsed time but the automaton is active. is not None Call `activate()` first."
             )
-        
+   
         return self._runtime.get_active_elapsed_time()
     
     def get_activate_elapsed_time_since_last_transition(self):
-        if not self._active:
+        if self._runtime is None:
             raise SystemError(
                 "Attempted to get active elapsed time since last transition but the automaton is not active. Call `activate` first."
             )
-        
+
         return self._runtime.get_active_elapsed_time_since_last_transition()
 
     """ === setter function for when active === """
@@ -800,6 +838,7 @@ class Automaton:
         aux_x0: Optional[Dict[str, np.array]] = {},
         u0: Optional[Dict[str, np.array]] = {},
         real_time_mode: Optional[bool] = False,
+        integrate: Optional[bool] = True,
         dt: Optional[float] = 0.1
     ):
         """
@@ -874,7 +913,9 @@ class Automaton:
             automaton_definition=self._definition,
             x0=x0,
             aux_x0=aux_x0,
+            u0=u0,
             real_time_mode=real_time_mode,
+            integrate=integrate,
             dt=dt
         )
         self._active = True
