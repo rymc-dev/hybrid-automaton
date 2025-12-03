@@ -1,4 +1,3 @@
 # Notebooks
 
-These demos were made with hybrid_automaton (v0.0.1), these show use cases for this package, examples for how to utilize them for generating custom hybrid automaton
-on simulation time.
+In this directory we have several jupyter notebooks showing examples of several different automatons running with different structures.
