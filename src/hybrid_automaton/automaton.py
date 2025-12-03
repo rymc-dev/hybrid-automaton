@@ -691,7 +691,7 @@ class Automaton:
 
     """ === setter function for when active === """
 
-    def set_continous_state(self, x: np.array): # NOTE: This setter should only be avialable if real_time hybrid automaton.
+    def set_continous_state(self, x: np.array):
         """
         Explicit setter for the continuous state `x` of the automaton.
 
@@ -702,10 +702,6 @@ class Automaton:
         sensors rather than simulation-based integration.
 
         This function may **only** be called while the automaton is active.
-
-        Docs: 
-            flowchart: 
-                ...
 
         Args:
             x (Any):
@@ -721,37 +717,37 @@ class Automaton:
             ValueError:
                 If the provided value `x` does not match the format/structure of
                 the initial continuous state defined at activation time.
-
-        Examples:
-            >>> ha = Automaton(name="vessel_controller", states=[q1, q2], dt=0.1)
-            >>> ha.activate(x0={"heading": float(np.deg2rad(100))})
-            >>> 
-            >>> # Simulate sensor updates
-            >>> ha.set_continous_state({"heading": float(np.deg2rad(101))})
-            >>> time.sleep(0.1)
-            >>> ha.set_continous_state({"heading": float(np.deg2rad(102))})
         """
 
         # -------------------------------
-        # 1. Must be in active and real-time mode
+        # 1. Must be active
         # -------------------------------
         if self._runtime is None:
             raise SystemError(
                 "Automaton runtime is not initialized. Ensure the automaton is activated."
             )
-        else: 
-            if not self._runtime._active: 
-                raise SystemError(
-                    "Attempted to update continuous state `x` but the automaton "
-                    "is not active. Call `activate()` first."
-                )
-            if self._runtime._real_time_mode is False: 
-                raise SystemError(
-                    "Attempted to manually update continuous state while in simulation mode. "
-                    "In simulation mode, `x` must be advanced only by the integration method."
-                )
+        
+        if not self._runtime._active:
+            raise SystemError(
+                "Attempted to update continuous state `x` but the automaton "
+                "is not active. Call `activate()` first."
+            )
+        
+        # -------------------------------
+        # 2. Check real-time mode (optional warning, but don't block)
+        # -------------------------------
+        # FIX: Access real_time_mode through the clock
+        if not self._runtime._runtime_clock.is_real_time():
+            # This is just a warning - we allow it for open-loop injection
+            # in simulation mode (integrate=False)
+            if self._runtime._integrate:
+                print("Warning: Setting continuous state while integrate=True. "
+                    "This may cause conflicts. Consider integrate=False for open-loop.")
 
-        try: 
+        # -------------------------------
+        # 3. Set the state
+        # -------------------------------
+        try:
             self._runtime.set_continous_state(x)
         except Exception as e:
             raise ValueError(

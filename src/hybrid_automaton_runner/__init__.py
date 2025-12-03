@@ -6,6 +6,11 @@ from .collectors import (
     AutomatonStateCollector,
     TransitionTimeCollector
 )
+from .injectors import (
+    ContinuousStateInjector,
+    AuxiliaryStateInjector,
+    ControlInputInjector
+)
 from .runner import AutomatonRunner
 from .utils import deactivate_after_timeout, run_with_timeout
 
@@ -21,5 +26,8 @@ __all__ = [
     'TransitionTimeCollector',
     'AutomatonRunner',
     'deactivate_after_timeout',
-    'run_with_timeout'
+    'run_with_timeout',
+    'ContinuousStateInjector',
+    'AuxiliaryStateInjector',
+    'ControlInputInjector'
 ]
