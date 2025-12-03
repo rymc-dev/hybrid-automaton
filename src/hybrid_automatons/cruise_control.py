@@ -33,7 +33,7 @@ def cruise_control(target_speed: float = 30.0, safe_distance: float = 50.0,
     def brake_flow(x: Automaton.Runtime.ContinousState, aux_x, u, cfg, clk):
         """Gentle braking at -1.5 m/s²"""
         v_dot = -1.5 if x.get_continous_state()[0] > 0 else 0.0
-        return np.array([v_dot, -(x[0] - cfg['car_ahead_speed'])])
+        return np.array([v_dot, -(x.get_continous_state()[0] - cfg['car_ahead_speed'])])
     
     def emergency_brake_flow(x: Automaton.Runtime.ContinousState, aux_x, u, cfg, clk):
         """Hard braking at -5 m/s²"""
@@ -50,13 +50,13 @@ def cruise_control(target_speed: float = 30.0, safe_distance: float = 50.0,
         return x.get_continous_state()[0] < cfg['target_speed'] - 1.0 and x.get_continous_state()[1] > cfg['safe_distance']
     
     def too_close(x: Automaton.Runtime.ContinousState, aux_x, u, cfg, clk):
-        return x[1] < cfg['safe_distance']
+        return x.get_continous_state()[1] < cfg['safe_distance']
     
     def dangerously_close(x, aux_x, u, cfg, clk):
-        return x[1] < cfg['danger_close']
+        return x.get_continous_state()[1] < cfg['danger_close']
     
     def safe_distance_restored(x, aux_x, u, cfg, clk):
-        return x[1] > cfg['safe_distance'] + 10.0
+        return x.get_continous_state()[1] > cfg['safe_distance'] + 10.0
     
     # Callbacks
     def on_accelerate():

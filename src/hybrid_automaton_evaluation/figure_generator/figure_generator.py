@@ -1,46 +1,97 @@
 import matplotlib.pyplot as plt
 from typing import List, Tuple
 import numpy as np
+from typing import List
 
-def generate_mode_timeseries_figure(mode_data: List[Tuple[float, int]]):
+
+def continuous_states_over_time_fig(continuous_states: List[Tuple[float, np.array]]): 
     """  
-    users time series and mode data from a hybrid automaton run 
-    to plot mode over time.
-
+    
     Args: 
-        mode_data: List[Tuple[float, int]]
-            float timestamp to mode id values over time
-
-    Returns:
-        matplotlib.figure.Figure: The created matplotlib figure.
-    """ 
-    timestamps = [mode_state[0] for mode_state in mode_data]
-    mode_values = [mode_state[1] for mode_state in mode_data]
+        continous_states: 
+            ...
+            
+    Output:
+        pyplot.figure
+    """
+    timestamps = [continuous_state[0] for continuous_state in continuous_states]
+    continuous_state_values = np.array([continuous_state[1] for continuous_state in continuous_states])
+    
     fig, ax = plt.subplots(figsize=(12, 6))
-    ax.plot(timestamps, mode_values, label='mode ID `q`')
-
-    ax.set_title('Hybrid Automaton (v0.0.4- Automaton State Time Series Plot', fontsize=16, y=1.02)
-    ax.set_xlabel("Time Activate (s)", fontsize=12)
-    ax.set_ylabel("Mode (q)", fontsize=12)
+    
+    # Plot each dimension separately
+    num_dimensions = continuous_state_values.shape[1]
+    for i in range(num_dimensions):
+        ax.plot(timestamps, continuous_state_values[:, i], label=f'x[{i}]')
+    
+    ax.set_title('Hybrid Automaton <v0.0.4> - Continuous State Over Time', fontsize=16, y=1.02)
+    ax.set_xlabel("Time Active Elapsed (s)", fontsize=12)
+    ax.set_ylabel("Continuous State Values", fontsize=12)
+    ax.legend()
     ax.grid(True, alpha=0.3)
-    # Create a mapping from mode int values to string labels for the legend
-    # mode_ids = sorted(set(mode_values))
-    # # Example mapping, replace with your actual mapping if available
-    # mode_labels = {0: "Idle", 1: "Running", 2: "Paused", 3: "Stopped"}
-    # legend_labels = [f"{mode_id}: {mode_labels.get(mode_id, 'Unknown')}" for mode_id in mode_ids]
-    # Show the mapping in the legend
-    # ax.legend([', '.join(legend_labels)], title="Mode Mapping")
     fig.tight_layout()
     
     return fig
 
-def generate_time_since_last_transition_over_time(time: np.array, time_since_last_transition: np.array):
+def transitions_times_over_time_fig(transition_times: List[Tuple[float, float]]):
+    """
+    
+    Args: 
+        transition_times: 
+            ...
+    """
+    timestamps = [transition_time[0] for transition_time in transition_times]
+    transition_times = [transition_time[1] for transition_time in transition_times]
+    
     fig, ax = plt.subplots(figsize=(12, 6))
-    ax.plot(time, [time[1] for time in time_since_last_transition], label='Time Since Last Transition (s)')
-    ax.set_title('Hybrid Automaton (v0.0.4) - Automaton Time Since last Transition Plot')
-    ax.set_xlabel("Time (s)", fontsize=12)
-    ax.set_ylabel("Time Since Last Transition (s)", fontsize=12)  # Fixed label
+    
+    ax.plot(timestamps, transition_times, label=f'transition_time (s)')
+    
+    ax.set_title('Hybrid Automaton <v0.0.4> - transition times over time active elapsed', fontsize=16, y=1.02)
+    ax.set_xlabel("time active elapsed (s)", fontsize=12)
+    ax.set_ylabel("transition times (s)", fontsize=12)
     ax.legend()
     ax.grid(True, alpha=0.3)
     fig.tight_layout()
+    
+    return fig
+
+def auxiliary_states_over_time_fig(auxilary_states: List):
+    """  
+    
+    Args: 
+        auxilary_states: 
+            ...
+    """
+    ...
+    
+def control_inputs_over_time_fig(control_inputs: List):
+    """   
+    Args: 
+        control_inputs: 
+            ...
+    """
+    ...
+
+def automaton_states_over_time(automaton_states: List[Tuple[float, str]]):
+    """  
+    
+    Args: 
+        automaton_states: 
+            List[Tuple[float, str]]
+    """
+    timestamps = [automaton_state[0] for automaton_state in automaton_states]
+    states = [automaton_state[1] for automaton_state in automaton_states]
+    
+    fig, ax = plt.subplots(figsize=(12, 6))
+    
+    ax.plot(timestamps, states, label=f'automaton state (q)')
+    
+    ax.set_title('Hybrid Automaton <v0.0.4> - automaton states over time active elapsed', fontsize=16, y=1.02)
+    ax.set_xlabel("time active elapsed (s)", fontsize=12)
+    ax.set_ylabel("Automaton State (q)", fontsize=12)
+    ax.legend()
+    ax.grid(True, alpha=0.3)
+    fig.tight_layout()
+    
     return fig

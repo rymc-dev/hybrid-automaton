@@ -1,7 +1,18 @@
-from .figure_generator import generate_mode_timeseries_figure
-from .figure_generator import generate_time_since_last_transition_over_time
+from .figure_generator import (
+    continuous_states_over_time_fig,
+    transitions_times_over_time_fig,
+    auxiliary_states_over_time_fig,
+    control_inputs_over_time_fig,
+    automaton_states_over_time
+)
+
+__author__ = "Ryan Mckee"
+__version__ = "v0.0.1"
 
 __all__ = [
-    'generate_mode_timeseries_figure',
-    'generate_time_since_last_transition_over_time'
+    'continuous_states_over_time_fig',
+    'transitions_times_over_time_fig',
+    'auxiliary_states_over_time_fig',
+    'control_inputs_over_time_fig',
+    'automaton_states_over_time'
 ]
