@@ -7,7 +7,7 @@
 
 | Field         | Value        |
 |---------------|--------------|
-| Last Updated  | 2025-12-01   |
+| Last Updated  | 2025-12-03   |
 | Version       | 0.0.4        |
 
 ## Overview
@@ -18,11 +18,13 @@ how to improve this pkg please reach out and become a collaborator.
 
 ## Table of Contents
 
-- [Installation](#installation)
-- [Usage](#usage)
-- [Collaborators](#collaborators)
-- [References](#references)
-- [License](#license)
+- [hybrid-automaton](#hybrid-automaton)
+  - [Overview](#overview)
+  - [Table of Contents](#table-of-contents)
+  - [Installation](#installation)
+  - [Usage](#usage)
+  - [Collaborators](#collaborators)
+  - [License](#license)
 
 ## Installation
 
