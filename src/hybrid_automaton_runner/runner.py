@@ -9,7 +9,6 @@ from .collectors import (
     AutomatonStateCollector,
     TransitionTimeCollector
 )
-from .utils import deactivate_after_timeout
 from hybrid_automaton import Automaton
 
 
@@ -35,6 +34,7 @@ class AutomatonRunner:
         self.transition_collector = TransitionTimeCollector(sampling_rate)
         
         self._tasks = []
+        self._stop_requested = False
     
     async def run(
         self,
@@ -50,9 +50,9 @@ class AutomatonRunner:
         collect_control: bool = False,
         collect_automaton: bool = True,
         collect_transitions: bool = True,
-        inject_continuous: bool = False,  # NEW
-        inject_auxiliary: bool = False,   # NEW
-        inject_control: bool = False,     # NEW
+        inject_continuous: bool = False,
+        inject_auxiliary: bool = False,
+        inject_control: bool = False,
         continuous_state_fn: Optional[callable] = None,
         auxiliary_fn: Optional[callable] = None,
         control_fn: Optional[callable] = None,
@@ -65,7 +65,7 @@ class AutomatonRunner:
             x0: Initial continuous state
             aux_x0: Initial auxiliary continuous state
             u0: Initial control input state 
-            duration: Simulation duration in seconds
+            duration: Simulation duration in seconds (np.inf = run forever until stop() is called)
             real_time_mode: Whether to run in real-time
             integrate: Whether to integrate continuous dynamics
             dt: Integration time step
@@ -84,22 +84,17 @@ class AutomatonRunner:
             
             # Functions (dual-purpose: collection OR injection)
             continuous_state_fn: Function to get/provide continuous state
-                                - For collection: () -> Any (samples external state)
-                                - For injection: () -> np.ndarray (provides state to automaton)
             auxiliary_fn: Function to get/provide auxiliary state
-                        - For collection: () -> Any
-                        - For injection: () -> Dict[str, np.ndarray]
             control_fn: Function to get/provide control input
-                    - For collection: () -> Any
-                    - For injection: () -> Dict[str, np.ndarray]
             
             injector_update_rate: Update rate for injectors (seconds)
         
         Returns:
             Dictionary containing collected data
         """
-        # Clear previous data
+        # Clear previous data and reset stop flag
         self.clear_all_data()
+        self._stop_requested = False
         
         # Create tasks
         self._tasks = []
@@ -175,11 +170,49 @@ class AutomatonRunner:
                 asyncio.create_task(injector.inject(self.ha))
             )
         
-        # Run with timeout
-        await deactivate_after_timeout(duration, *self._tasks)
+        # Add stop monitor task
+        stop_monitor = asyncio.create_task(self._monitor_stop())
+        
+        # Run with timeout AND stop monitoring (whichever happens first)
+        try:
+            if np.isfinite(duration):
+                # Run with timeout, but also listen for stop requests
+                await asyncio.wait(
+                    [*self._tasks, stop_monitor],
+                    timeout=duration,
+                    return_when=asyncio.FIRST_COMPLETED
+                )
+            else:
+                # Run indefinitely until stop is requested
+                await asyncio.wait(
+                    [*self._tasks, stop_monitor],
+                    return_when=asyncio.FIRST_COMPLETED
+                )
+        finally:
+            # Cancel all remaining tasks
+            for task in [*self._tasks, stop_monitor]:
+                if not task.done():
+                    task.cancel()
+            
+            # Wait for all tasks to finish cancelling
+            await asyncio.gather(*self._tasks, stop_monitor, return_exceptions=True)
         
         # Return collected data
         return self.get_results()
+    
+    async def _monitor_stop(self):
+        """Monitor for stop request and cancel all tasks when requested."""
+        while not self._stop_requested:
+            await asyncio.sleep(0.01)  # Check every 10ms
+        
+        # Cancel all tasks
+        for task in self._tasks:
+            if not task.done():
+                task.cancel()
+        
+    def stop(self):
+        """Request the simulation to stop."""
+        self._stop_requested = True
         
     def get_results(self) -> Dict[str, Any]:
         """Get all collected data."""
