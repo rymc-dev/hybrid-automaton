@@ -1,6 +1,6 @@
 from typing import Optional, Callable, List, Any, Tuple
 import asyncio
-from .transition import Transition
+from .automaton_transition import Transition
 
 class State:
     """ 

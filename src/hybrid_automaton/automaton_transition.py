@@ -1,5 +1,6 @@
 from typing import Optional, List, Callable, Any, Tuple
-import numpy as np
+from .automaton_runtime_context import Context
+from .automaton_state import State
 
 class Transition:
     """ 
@@ -75,9 +76,7 @@ class Transition:
     def reset(self):
         return self._R
 
-    def is_enabled(self, x: Any, aux_x: Optional[Any] = None, 
-        u: Optional[Any] = None, cfg: Optional[Any] = {},
-        clk: Optional[Any] = None) -> bool:
+    def is_enabled(self, ctx: Context) -> bool:
         """
         apply guard to continous state and/or auxielary context 
         to see if transition is enabled or not
@@ -96,10 +95,9 @@ class Transition:
         if self._G is None:
             return True # pass through guard, always true if guard not given
         
-        return all(g(x, aux_x, u, cfg, clk) for g in self._G)
+        return all(g(ctx) for g in self._G)
     
-    def apply_reset(self, x: Any, aux_x: Optional[Any] = None, 
-        u: Optional[Any] = None, cfg: Optional[Any] = {}, clk: Optional[Any] = None) ->  Tuple[Any, Any, Any]: 
+    def apply_reset(self, ctx: Context) -> Context: 
         """
         apply reset to continous states and/or auxielary context information 
         for the hybrid automaton model
@@ -117,11 +115,10 @@ class Transition:
             Tuple[x, aux_x]: represents new continous states and continous auxielary states
         """
         if self._R is None: 
-            return x, aux_x, u # pass through, reset just returns the x and ctx
-        return self._R(x, aux_x, u, cfg, clk)
+            return ctx # pass through, reset just returns the x and ctx
+        return self._R(ctx)
     
-    def execute(self, x: np.array, aux_x: Optional[Any] = None, u: Optional[Any] = None, 
-                cfg: Optional[Any] = None, clk: Optional[Any] = None) -> Tuple[Any, Tuple[Any, Any, Any]]:
+    def execute(self, ctx: Context) -> Tuple[State, Context]:
         """ 
         execute applies resets to the current contious and auxielary states
         utilzing information regarding the automaton and also return the next state
@@ -148,8 +145,8 @@ class Transition:
                 )
             )
         """
-        new_x, new_aux_x, new_u = self.apply_reset(x, aux_x, u, cfg, clk)
-        return self._to_q, (new_x, new_aux_x, new_u)
+        ctx = self.apply_reset(ctx)
+        return self._to_q, ctx
     
     def __repr__(self): 
         """Developer representation: unambiguous string useful for debugging."""

@@ -1,7 +1,8 @@
-from hybrid_automaton import Automaton, State, Transition
+from hybrid_automaton import Automaton, State, Transition, guard
 
-def traffic_lights(time_in_green: float = 8.0, time_in_red: float = 5.0, time_in_yellow:float = 3.0) -> Automaton: 
-    def red_to_green_guard(x, aux_x, u, cfg, clk: Automaton.Runtime.Clock): 
+def traffic_lights(time_in_green: float = 8.0, time_in_red: float = 5.0, time_in_yellow:float = 3.0) -> Automaton:
+    @guard(name="red_to_green", priority=0, description="guard that moves us from red to green") 
+    def red_to_green_guard(ctx: ) -> bool: 
         return clk.get_time_elapsed_since_last_transition() >= cfg['time_in_red']
 
     def green_to_yellow_guard(x, aux_x, u, cfg, clk):

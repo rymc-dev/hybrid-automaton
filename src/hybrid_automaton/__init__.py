@@ -3,10 +3,10 @@
 # SPDX-License-Identifier: MIT
 
 from .automaton import Automaton
-from .automaton_function_contracts import GuardFunction, ResetFunction, InvariantFunction, IntegrationFunction, ContinousDynamicsFunction
-from .integration import IntegrationMethods
-from .state import State
-from .transition import Transition
+from .automaton_integration import IntegrationMethods
+from .automaton_state import State
+from .automaton_transition import Transition
+from .automaton_conditions import guard, reset, invariant
 
 __author__ = "Ryan McKee <R.McKee@liverpool.ac.uk>"
 __version__ = "0.0.4"
@@ -20,5 +20,8 @@ __all__ = [
     "InvariantFunction",
     "IntegrationMethods",
     "IntegrationFunction",
-    "ContinousDynamicsFunction"
+    "ContinousDynamicsFunction",
+    'guard',
+    'reset',
+    'invariant'
 ]
