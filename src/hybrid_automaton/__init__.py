@@ -6,7 +6,7 @@ from .automaton import Automaton
 from .automaton_integration import IntegrationMethods
 from .automaton_state import State
 from .automaton_transition import Transition
-from .automaton_conditions import guard, reset, invariant
+from .automaton_annotations import guard, reset, invariant
 
 __author__ = "Ryan McKee <R.McKee@liverpool.ac.uk>"
 __version__ = "0.0.4"
