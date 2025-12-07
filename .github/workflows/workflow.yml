@@ -1,0 +1,62 @@
+name: hybrid-automaton CI/CD
+run-name: ${{ github.actor }} triggered CI/CD run.
+
+on: 
+  push: 
+    branches: [stable]
+  pull_request: 
+    branches: [stable]
+
+jobs: 
+  build: 
+    if: github.event_name == 'push'
+    name: Build Package
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set Up Python
+        uses: actions/setup-python@v4 
+        with: 
+          python-version: "3.12"
+
+      - name: Install Build Tools
+        run: |
+          pip install --upgrade pip
+          pip install hatch
+      
+      - name: Build hybrid-automaton whl
+        run: hatch build
+
+      - name: Upload Build Artifacts
+        uses: actions/upload-artifact@v4 
+        with:
+          name: dist-files
+          path: dist/
+      
+  test: 
+    name: Run Tests 
+    needs: build 
+    runs-on: ubuntu-latest
+
+    steps: 
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set Up Python
+        uses: actions/setup-python@v4 
+        with: 
+          python-version: "3.12"
+
+      - name: Download Build Artifacts
+        uses: actions/download-artifact@v4 
+        with: 
+          name: dist-files 
+          path: dist/ 
+
+      - name: Run Tests 
+        run: |
+          cd dist
+          hatch test
