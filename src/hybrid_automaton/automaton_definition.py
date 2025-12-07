@@ -1,6 +1,5 @@
 from typing import List, Optional, Any, Dict, Callable
 from .automaton_state import State
-from .automaton_definition import Definition
 
 class Definition: 
     """ 

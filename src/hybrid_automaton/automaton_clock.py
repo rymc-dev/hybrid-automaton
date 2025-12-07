@@ -10,7 +10,7 @@ class Clock:
 
         self._global_time: float = 0.0
         self._global_time_start: float = 0.0
-        self._time_elapsed_active: float = 0.0
+        self._elapsed_time_active: float = 0.0
         self._time_elapsed_since_last_transition: float = 0.0
         self._last_transition_time: float = 0.0
 
@@ -21,7 +21,7 @@ class Clock:
             raise SystemError(
             "trying to step `dt` when we are in real time mode."
             )
-        self._time_elapsed_active += self._dt
+        self._elapsed_time_active += self._dt
         self._time_elapsed_since_last_transition += self._dt
 
     async def sleep_for_dt(self):
@@ -30,10 +30,10 @@ class Clock:
     def get_dt(self) -> float: 
         return self._dt
     
-    def get_time_elapsed_active(self): 
-        return self._time_elapsed_active
+    def get_elapsed_time_active(self): 
+        return self._elapsed_time_active
     
-    def get_time_elapsed_since_last_transition(self):
+    def get_time_elapsed_since_transition(self):
         return self._time_elapsed_since_last_transition
     
     def is_real_time(self): 
@@ -58,7 +58,7 @@ class Clock:
             )
 
         self._global_time_start = time.perf_counter()
-        self._time_elapsed_active = 0.0
+        self._elapsed_time_active = 0.0
         self._time_elapsed_since_last_transition = 0.0
         self._last_transition_time = self._global_time_start
 

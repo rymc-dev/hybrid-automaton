@@ -1,6 +1,6 @@
 from typing import Optional, List, Callable, Any, Tuple
 from .automaton_runtime_context import Context
-from .automaton_state import State
+# from .automaton_state import State
 
 class Transition:
     """ 
@@ -118,7 +118,7 @@ class Transition:
             return ctx # pass through, reset just returns the x and ctx
         return self._R(ctx)
     
-    def execute(self, ctx: Context) -> Tuple[State, Context]:
+    def execute(self, ctx: Context) -> Tuple[Any, Context]:
         """ 
         execute applies resets to the current contious and auxielary states
         utilzing information regarding the automaton and also return the next state

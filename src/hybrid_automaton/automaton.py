@@ -19,7 +19,7 @@ import numpy as np
 from .automaton_definition import Definition
 from .automaton_runtime import Runtime
 from .automaton_state import State
-from .automaton_runtime_context import ContinousState
+from .automaton_runtime_context import ContinuousState
 
 class Automaton: 
     """ 
@@ -85,7 +85,7 @@ class Automaton:
             on_exit=on_exit
         )
         self._runtime: Runtime = None 
-        ContinousState._integration_function = integration_function
+        # ContinuousState._integration_function = integration_function
 
     """ === property getters === """
     def get_automaton_name(self) -> str: 

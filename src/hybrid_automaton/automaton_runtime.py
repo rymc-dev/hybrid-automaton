@@ -2,7 +2,7 @@ import asyncio
 import numpy as np
 from typing import Optional, Dict, List, Tuple
 from .automaton_clock import Clock
-from .automaton_runtime_context import Context, AuxiliaryState, ContinousState, ControlInput
+from .automaton_runtime_context import Context, AuxiliaryState, ContinuousState, ControlInput
 from .automaton_definition import Definition
 from .automaton_state import State
 from .automaton_transition import Transition
@@ -76,7 +76,7 @@ class Runtime:
     def __init__(
             self,
             automaton_definition: Definition,
-            x0: Optional[np.array] = np.array(),
+            x0: Optional[np.array] = np.array([]),
             aux0: Optional[Dict[str, np.array]] = {},
             u0: Optional[Dict[str, np.array]] = {},
             real_time_mode: bool = True,
@@ -105,7 +105,7 @@ class Runtime:
     def get_previous_transition_name(self) -> str: 
         ...
     
-    def get_continuous_state(self) -> ContinousState:
+    def get_continuous_state(self) -> ContinuousState:
         return self._ctx.x
 
     def get_auxiliary_states(self) -> Dict[str, AuxiliaryState]: 
