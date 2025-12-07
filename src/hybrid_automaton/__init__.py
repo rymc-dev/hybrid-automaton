@@ -3,7 +3,6 @@
 # SPDX-License-Identifier: MIT
 
 from .automaton import Automaton
-from .automaton_integration import IntegrationMethods
 from .automaton_state import State
 from .automaton_transition import Transition
 from .automaton_annotations import guard, reset, invariant
@@ -19,7 +18,6 @@ __all__ = [
     "ResetFunction",
     "InvariantFunction",
     "IntegrationMethods",
-    "IntegrationFunction",
     "ContinousDynamicsFunction",
     'guard',
     'reset',
