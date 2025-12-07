@@ -67,7 +67,7 @@ class Clock:
             await asyncio.sleep(0.001)
             now = time.perf_counter()
             self._global_time = now
-            self._time_elapsed_active = now - self._global_time_start
+            self._elapsed_time_active = now - self._global_time_start
             self._time_elapsed_since_last_transition = now - self._last_transition_time
 
     def deactivate(self):
