@@ -12,14 +12,12 @@ invariants and so on.
 """
 
 from typing import Any, Callable, Dict, List, Optional, Tuple
-import asyncio
-import time
 import numpy as np
 
 from .automaton_definition import Definition
 from .automaton_runtime import Runtime
 from .automaton_state import State
-from .automaton_runtime_context import ContinuousState
+
 
 class Automaton: 
     """ 
@@ -144,7 +142,7 @@ class Automaton:
                 "Attempted to get active elapsed time but the automaton is not active. Call `activate()` first."
             )
    
-        return self._runtime.get_active_elapsed_time()
+        return self._runtime.get_elapsed_time()
     
     def get_runtime_previous_transition_name(self) -> str: 
         if self._runtime is None: 
@@ -157,7 +155,7 @@ class Automaton:
                 "Attempted to get active elapsed time since last transition but the automaton is not active. Call `activate` first."
             )
 
-        return self._runtime.get_elapsed_time()
+        return self._runtime.get_elapsed_time_since_transition()
 
     """ === setter function for when active === """
 
@@ -207,7 +205,7 @@ class Automaton:
         # 2. Check real-time mode (optional warning, but don't block)
         # -------------------------------
         # FIX: Access real_time_mode through the clock
-        if not self._runtime._runtime_clock.is_real_time():
+        if not self._runtime._ctx.clk.is_real_time():
             # This is just a warning - we allow it for open-loop injection
             # in simulation mode (integrate=False)
             if self._runtime._integrate:
