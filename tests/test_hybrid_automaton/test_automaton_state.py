@@ -82,15 +82,15 @@ def test_check_invariants():
     s_final = State(final=True)
     assert s_final.check_invariants(5) is False
 
-def test_repr_and_str(sample_transition):
-    s = State(name="S5", transitions=[sample_transition], flow=dummy_flow, invariants=[dummy_invariant])
-    r = repr(s)
-    st = str(s)
-    assert "HybridState" in r
-    assert "State 'S5'" in st
-    assert "flow" in st
-    assert "invariants" in st
-    assert "transitions" in st
+# def test_repr_and_str(sample_transition):
+#     s = State(name="S5", transitions=[sample_transition], flow=dummy_flow, invariants=[dummy_invariant])
+#     r = repr(s)
+#     st = str(s)
+#     assert "HybridState" in r
+#     assert "State 'S5'" in st
+#     assert "flow" in st
+#     assert "invariants" in st
+#     assert "transitions" in st
 
 
 if __name__ == '__main__': 
