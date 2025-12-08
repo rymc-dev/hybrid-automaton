@@ -47,13 +47,13 @@ class Definition:
         self._on_exit = on_exit
 
     def on_entry(self):
-        if self._on_entry is not None:
+        if self._on_entry is None:
             return 
         
         self._on_entry()
 
     def on_exit(self):
-        if self._on_exit is not None:
+        if self._on_exit is None:
             return
         
         self._on_exit()
