@@ -102,7 +102,7 @@ class Automaton:
 
         return self._runtime.get_active_discrete_state()
 
-    def get_runtime_continous_state(self) -> np.array:
+    def get_runtime_continuous_state(self) -> np.array:
         """"""
         if self._runtime is None:
             raise SystemError(
@@ -372,7 +372,7 @@ class Automaton:
         self._runtime: Runtime = Runtime(
             automaton_definition=self._definition,
             x0=x0,
-            aux_x0=aux_x0,
+            aux0=aux_x0,
             u0=u0,
             real_time_mode=real_time_mode,
             integrate=integrate,

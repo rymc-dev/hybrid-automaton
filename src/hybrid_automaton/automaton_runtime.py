@@ -155,7 +155,7 @@ class Runtime:
             # if not self._runtime_clock.is_real_time() and (self._xdot is not None):
             #     self._continous_state.integrate(self._xdot, self._runtime_clock.get_dt()) 
 
-            if self._integrate and (self._xdot is not None) and (self._ctx.x.state_t0 is not None):
+            if self._integrate and (self._xdot is not None) and (self._ctx.x.x0 is not None):
                 self._ctx.x.integrate(self._xdot, self._ctx.clk.get_dt()) 
             
             # ---------------------------------------------------------
@@ -174,7 +174,7 @@ class Runtime:
                     d: Transition = min(active_guards, key=lambda t: t.priority)
 
                 # Execute transition
-                new_mode, new_states = d.execute(
+                new_mode, new_ctx = d.execute(
                     ctx = self._ctx
                 )
                 self._ctx.clk.ping_transition()
@@ -184,9 +184,7 @@ class Runtime:
 
                 # Update state
                 self._mode = new_mode
-                self._ctx.x = new_states[0] 
-                self._ctx.aux = new_states[1]
-                self._ctx.u = new_states[2]
+                self._ctx = new_ctx
 
                 # State entry callback
                 if self._discrete_state.on_enter:

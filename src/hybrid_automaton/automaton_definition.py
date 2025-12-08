@@ -134,7 +134,7 @@ class Definition:
                     guard_lines.append(f"\t\t{t.name}: <none>")
                     continue
 
-                guard_list = ", ".join(g.__name__ for g in t.guards)
+                guard_list = ", ".join(g.name for g in t.guards)
                 guard_lines.append(f"\t\t{t.name}: [{guard_list}]")
 
         guards_block = "\n".join(guard_lines) if guard_lines else "\t\t<none>"
@@ -156,7 +156,7 @@ class Definition:
         invariant_lines = []
 
         for state in self.states:
-            invariants_list = ", ".join(g.__name__ for g in t.guards)
+            invariants_list = ", ".join(i.__name__ for i in state.get_invariants()) if state.get_invariants() is not None else "<none>"
             invariant_lines.append(f"\t\t{state.name}: [{invariants_list}]")
 
         invariants_block = "\n".join(invariant_lines) if invariant_lines else "\t\t<none>"

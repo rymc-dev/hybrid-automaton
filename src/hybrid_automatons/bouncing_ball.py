@@ -2,7 +2,14 @@
 sample implementation using v0.0.4 of the hybrid automaton package for a bouncing ball
 """
 
+import os 
+import sys
+
+sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
+
 from hybrid_automaton import Automaton, State, Transition
+from hybrid_automaton.automaton_runtime import Context
+from hybrid_automaton.automaton_annotations import guard, reset, invariant, continuous_dynamics
 import numpy as np
 
 def bouncing_ball(gravity: float = -9.81, restitution: float = 0.8):
@@ -22,14 +29,14 @@ def bouncing_ball(gravity: float = -9.81, restitution: float = 0.8):
     # ============================
     #   Continuous dynamics
     # ============================
-
-    def flying_flow(x, aux_x, u, cfg, clk):
+    @continuous_dynamics
+    def flying_flow(ctx: Context) -> np.ndarray:
         """Free fall: x = [y, v], dx/dt = [v, g]."""
-        y, v = x.get_continous_state()
-        return np.array([v, cfg['gravity']])
+        y, v = ctx.x.latest()
+        return np.array([v, ctx.cfg['gravity']])
 
-
-    def ground_flow(x, aux_x, u, cfg, clk):
+    @continuous_dynamics
+    def ground_flow(ctx: Context) -> np.ndarray:
         """Ball resting on the ground."""
         return np.array([0.0, 0.0])
 
@@ -38,40 +45,41 @@ def bouncing_ball(gravity: float = -9.81, restitution: float = 0.8):
     #   Guards
     # ============================
 
-    def hits_ground(x, aux_x, u, cfg, clk):
+    @guard
+    def hits_ground(ctx: Context) -> bool:
         """Ball contacts ground while moving downward."""
-        y, v = x.get_continous_state()
+        y, v = ctx.x.latest()
         return y <= 0.0 and v < 0
 
-
-    def bounce_possible(x, aux_x, u, cfg, clk):
+    @guard
+    def bounce_possible(ctx: Context) -> bool:
         """Ball has upward rebound velocity after impact."""
-        y, v = x.get_continous_state()
+        y, v = ctx.x.latest()
         return abs(v) > 0.1  # threshold to determine if bounce energy remains
 
-
-    def no_more_bounce(x, aux_x, u, cfg, clk):
+    @guard
+    def no_more_bounce(ctx: Context) -> bool:
         """Ball has lost all bounce energy."""
-        y, v = x.get_continous_state()
+        y, v = ctx.x.latest()
         return abs(v) <= 0.1   # small velocity → stop bouncing
 
 
     # ============================
     #   Reset maps
     # ============================
-
-    def bounce_reset(x, aux_x, u, cfg, clk):
+    @reset
+    def bounce_reset(ctx: Context) -> Context:
         """Apply bounce: set y=0, reverse velocity with restitution."""
-        y, v = x.get_continous_state()
-        new_state = np.array([0.0, -v * cfg['restitution']])
-        x.set_continous_state(new_state)
-        return x, aux_x, u
+        y, v = ctx.x.latest()
+        new_state = np.array([0.0, -v * ctx.cfg['restitution']])
+        ctx.x.set_continuous_state(new_state)
+        return ctx
 
-
-    def stop_reset(x, aux_x, u, cfg, clk):
+    @reset
+    def stop_reset(ctx: Context) -> Context:
         """Final rest: position 0, velocity 0."""
-        x.set_continous_state(np.array([0.0, 0.0]))
-        return x, aux_x, u
+        ctx.x.set_continuous_state(np.array([0.0, 0.0]))
+        return ctx
 
 
     # ============================
@@ -145,3 +153,21 @@ def bouncing_ball(gravity: float = -9.81, restitution: float = 0.8):
         on_entry=lambda: print(">>> Starting bouncing ball"),
         on_exit=lambda: print(">>> Ending bouncing ball"),
     )
+    
+if __name__ == '__main__': 
+    ha = bouncing_ball()
+    
+    print (ha)
+    print (repr(ha))
+    from hybrid_automaton_runner import AutomatonRunner
+    import asyncio
+    # ha_runner: AutomatonRunner = AutomatonRunner(hybrid_automaton=ha, sampling_rate=0.001)
+    async def main(): 
+        # await ha_runner.run(
+        #     x0=np.array([5.0, 0.0]), collect_automaton=False, collect_transitions=False, collect_continuous=False, collect_auxiliary=False, collect_control=False, real_time_mode=True, integrate=True, duration=10.0, dt=0.001
+        # )
+        # ha_runner.print_summary()
+        await ha.activate(
+            x0=np.array([5.0, 0.0])
+        )
+    asyncio.run(main())

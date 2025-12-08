@@ -24,7 +24,7 @@ class ContinuousStateInjector:
         while ha._runtime and ha._runtime._active:
             try:
                 new_state = self.state_fn()
-                ha.set_continous_state(new_state)
+                ha.set_runtime_continuous_state(new_state)
             except Exception as e:
                 print(f"State injection error: {e}")
                 break
@@ -51,7 +51,7 @@ class AuxiliaryStateInjector:
         while ha._runtime and ha._runtime._active:
             try:
                 new_aux_state = self.aux_state_fn()
-                ha.set_auxilary_continous_states(new_aux_state)
+                ha.set_runtime_auxiliary_continuous_states(new_aux_state)
             except Exception as e:
                 print(f"Auxiliary state injection error: {e}")
                 break
@@ -78,7 +78,7 @@ class ControlInputInjector:
         while ha._runtime and ha._runtime._active:
             try:
                 new_control = self.control_fn()
-                ha.set_control_input(new_control)
+                ha.set_runtime_control_inputs(new_control)
             except Exception as e:
                 print(f"Control input injection error: {e}")
                 break
