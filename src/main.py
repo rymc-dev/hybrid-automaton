@@ -13,7 +13,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from hybrid_automaton import Automaton
 from hybrid_automaton_runner import AutomatonRunner
-from hybrid_automaton_evaluation.figure_generator import (
+from hybrid_automaton_evaluation.visualization import (
     continuous_states_over_time_fig, 
     transitions_times_over_time_fig, 
     automaton_states_over_time

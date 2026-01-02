@@ -1,3 +1,9 @@
+import sys
+import os
+
+sys.path.append(os.path.join(os.path.dirname(__file__), './../../src/'))
+
+
 import pytest
 import numpy as np
 from hybrid_automaton.automaton_annotations import guard, invariant, reset, continuous_dynamics, integration

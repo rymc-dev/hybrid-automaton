@@ -1,3 +1,7 @@
+import os 
+import sys
+sys.path.append(os.path.join(os.path.dirname(__file__), './../../src/'))
+
 import pytest
 import numpy as np
 from unittest.mock import MagicMock, AsyncMock, patch
@@ -71,7 +75,7 @@ def test_runtime_getters(automaton):
     ha._runtime = mock_runtime_instance  # assign mock runtime
 
     assert ha.get_runtime_active_discrete_state() == (0, "initial")
-    np.testing.assert_array_equal(ha.get_runtime_continous_state(), np.array([1.0, 2.0]))
+    np.testing.assert_array_equal(ha.get_runtime_continuous_state(), np.array([1.0, 2.0]))
     assert ha.get_runtime_auxiliary_state() == {'aux': 5}
     assert ha.get_runtime_control_input() == {'u': 10}
     np.testing.assert_array_equal(ha.get_runtime_continous_dynamics(), np.array([0.1, 0.2]))

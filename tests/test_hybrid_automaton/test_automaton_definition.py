@@ -1,5 +1,10 @@
-from hybrid_automaton.automaton_definition import Definition
+import sys
+import os
 
+sys.path.append(os.path.join(os.path.dirname(__file__), './../../src/'))
+
+
+from hybrid_automaton.automaton_definition import Definition
 
 import pytest
 from unittest.mock import Mock

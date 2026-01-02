@@ -1,6 +1,9 @@
+import os 
+import sys
+sys.path.append(os.path.join(os.path.dirname(__file__), './../../src/'))
+
+
 import pytest
-import numpy as np
-from typing import Callable
 from hybrid_automaton.automaton_runtime_context import Context
 from hybrid_automaton.automaton_transition import Transition
 
@@ -26,7 +29,7 @@ def reset_modify(ctx: Context) -> Context:
 
 # Mock Context
 class MockContext(Context):
-    def __init__(self, x=0, aux=None, cfg=None):
+    def __init__(self, x=0, aux=None, cfg=None):    
         self.x = x
         self.aux = aux or {}
         self.cfg = cfg or {}

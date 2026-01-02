@@ -1,3 +1,9 @@
+import sys
+import os
+
+sys.path.append(os.path.join(os.path.dirname(__file__), './../../src/'))
+
+
 import numpy as np
 from collections import deque
 from hybrid_automaton.automaton_runtime_context import (

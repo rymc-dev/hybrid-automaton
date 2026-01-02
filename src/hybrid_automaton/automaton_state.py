@@ -147,7 +147,8 @@ class State:
     def check_invariants(self, ctx: Context) -> bool:
         if not self._Inv:
             return False if self._is_final else True
-
+        # TODO: IMprove through dynamic programming
+        # try: return not any([i(ctx) for i in self.Inv]); except Exception: return False
         for i in self._Inv:
             try:
                 if not bool(i(ctx)):

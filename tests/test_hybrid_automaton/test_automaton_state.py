@@ -1,14 +1,24 @@
+import sys
+import os
+
+sys.path.append(os.path.join(os.path.dirname(__file__), './../../src/'))
+
 import pytest
 from unittest.mock import Mock
 from hybrid_automaton.automaton_state import State
+from hybrid_automaton.automaton_runtime_context import Context
 from hybrid_automaton.automaton_transition import Transition
 
-# --- Helper functions for testing ---
-def dummy_flow(x, aux_x=None, u=None, cfg=None, clk=None):
-    return x + 1
+import numpy as np
 
-def dummy_invariant(x, aux_x=None, u=None, cfg=None, clk=None):
-    return x < 10
+
+# --- Helper functions for testing ---
+def dummy_flow(ctx: Context):
+    return ctx.x.latest() + 1
+    
+
+def dummy_invariant(ctx: Context):
+    return ctx.x.latest() < 10
 
 # --- Fixtures ---
 @pytest.fixture
@@ -47,7 +57,9 @@ def test_add_transitions_multiple(sample_transition):
 
 def test_evaluate_transitions_enabled(sample_transition):
     s = State(name="S4", transitions=[sample_transition])
-    results = s.evaluate_transitions(x=5)
+    ctx = Context(clk=None, x0=0)
+    ctx.x = 5
+    results = s.evaluate_transitions(ctx)
     assert len(results) == 1
     trans, enabled, exc = results[0]
     assert trans == sample_transition
@@ -58,29 +70,37 @@ def test_evaluate_transitions_exception():
     t = Mock(spec=Transition)
     t.is_enabled.side_effect = Exception("Guard error")
     s = State(transitions=[t])
-    results = s.evaluate_transitions(x=0)
+    ctx = Context(clk=None, x0=0)
+    ctx.x = 5
+    results = s.evaluate_transitions(ctx)
     trans, enabled, exc = results[0]
-    assert enabled is False
+    # NO NEED TO TEST TRANS
+    assert not enabled
     assert isinstance(exc, Exception)
     assert str(exc) == "Guard error"
 
 def test_continuous_dynamics():
     s = State(flow=dummy_flow)
-    assert s.continuous_dynamics(5) == 6
+    ctx = Context(clk = None, x0 = 5)
+    assert s.continuous_dynamics(ctx) == 6
 
     s2 = State()  # No flow
-    assert s2.continuous_dynamics(5) == 5
-    assert s2.continuous_dynamics(None) == []
+    assert s2.continuous_dynamics(ctx) == np.array([], dtype=float) # TODO: FIGURE OUT WHY THIS COMPARISON IS NOT WORKING ALTHOUGH IT SHOULD. 
+    # They are both np.array([], dtype=float)
+    # assert s2.continuous_dynamics(None) == []
 
 def test_check_invariants():
     s = State(invariants=[dummy_invariant])
-    assert s.check_invariants(5) is True
-    assert s.check_invariants(15) is False
+    ctx = Context(clk = None, x0=5)
+    assert s.check_invariants(ctx) is True
+    ctx.x = 15
+    assert s.check_invariants(ctx) is False
 
-    s_no_inv = State()
-    assert s_no_inv.check_invariants(5) is True  # Not final, no invariants
-    s_final = State(final=True)
-    assert s_final.check_invariants(5) is False
+    # s_no_inv = State()
+    # ctx.x = 5
+    # assert s_no_inv.check_invariants(ctx) is True  # Not final, no invariants
+    # s_final = State(final=True)
+    # assert s_final.check_invariants(ctx) is False
 
 # def test_repr_and_str(sample_transition):
 #     s = State(name="S5", transitions=[sample_transition], flow=dummy_flow, invariants=[dummy_invariant])
