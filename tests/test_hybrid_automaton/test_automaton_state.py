@@ -85,7 +85,7 @@ def test_continuous_dynamics():
     assert s.continuous_dynamics(ctx) == 6
 
     s2 = State()  # No flow
-    assert s2.continuous_dynamics(ctx) == np.array([], dtype=float) # TODO: FIGURE OUT WHY THIS COMPARISON IS NOT WORKING ALTHOUGH IT SHOULD. 
+    assert np.array_equal(s2.continuous_dynamics(ctx), np.array([], dtype=float)) # TODO: FIGURE OUT WHY THIS COMPARISON IS NOT WORKING ALTHOUGH IT SHOULD. 
     # They are both np.array([], dtype=float)
     # assert s2.continuous_dynamics(None) == []
 
@@ -95,23 +95,6 @@ def test_check_invariants():
     assert s.check_invariants(ctx) is True
     ctx.x = 15
     assert s.check_invariants(ctx) is False
-
-    # s_no_inv = State()
-    # ctx.x = 5
-    # assert s_no_inv.check_invariants(ctx) is True  # Not final, no invariants
-    # s_final = State(final=True)
-    # assert s_final.check_invariants(ctx) is False
-
-# def test_repr_and_str(sample_transition):
-#     s = State(name="S5", transitions=[sample_transition], flow=dummy_flow, invariants=[dummy_invariant])
-#     r = repr(s)
-#     st = str(s)
-#     assert "HybridState" in r
-#     assert "State 'S5'" in st
-#     assert "flow" in st
-#     assert "invariants" in st
-#     assert "transitions" in st
-
 
 if __name__ == '__main__': 
     pytest.main([__file__])
