@@ -112,7 +112,7 @@ class Automaton:
         return self._runtime.get_continuous_state()
     
     def get_runtime_auxiliary_state(self) -> Dict: 
-        if self._runtime in None: 
+        if self._runtime is None: 
             raise SystemError(
                 "Attempted to get auxiliary state 'aux_x' but the automaton is not active. Call `activate()` first."
             )
@@ -125,11 +125,11 @@ class Automaton:
             )
         return self._runtime.get_control_inputs()
     
-    def get_runtime_continous_dynamics(self) -> Dict[str, 'Automaton.Runtime.ContinousDynamics']: 
+    def get_runtime_continuous_dynamics(self) -> Dict[str, 'Automaton.Runtime.ContinousDynamics']: 
         """ 
         utilized for retrieving the current continous dynamics if there are any continous dynamics to get
         """
-        if not self._active: 
+        if self._runtime is None: 
             raise SystemError(
                 "Attempted to get continous dynamics `xdot` but the automaton is not active. Call `activate()` first."
             )
@@ -205,7 +205,7 @@ class Automaton:
         # 2. Check real-time mode (optional warning, but don't block)
         # -------------------------------
         # FIX: Access real_time_mode through the clock
-        if not self._runtime._ctx.clk.is_real_time():
+        if self._runtime._ctx.clk.is_real_time():
             # This is just a warning - we allow it for open-loop injection
             # in simulation mode (integrate=False)
             if self._runtime._integrate:
