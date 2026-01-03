@@ -14,6 +14,9 @@ class StateCollector:
         """
         self.sampling_rate = sampling_rate
         self.data: List[List[Any]] = []
+        
+    async def collect(self, ha: Automaton): 
+        raise NotImplementedError("Collect method must be implemented by subclasses.")
     
     def clear(self):
         """Clear collected data."""
