@@ -35,7 +35,6 @@ class ContinuousStateInjector(Injector):
             
             await asyncio.sleep(self.update_rate)
 
-
 class AuxiliaryStateInjector(Injector):
     """Injects auxiliary state updates for open-loop operation."""
    
@@ -50,7 +49,6 @@ class AuxiliaryStateInjector(Injector):
                 break
             
             await asyncio.sleep(self.update_rate)
-
 
 class ControlInputInjector(Injector):
     """Injects control input updates for open-loop operation."""
