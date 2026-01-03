@@ -5,19 +5,23 @@ import numpy as np
 from hybrid_automaton import Automaton
 
 
-class ContinuousStateInjector:
-    """Injects continuous state updates for open-loop operation."""
-    
-    def __init__(self, state_fn: Callable[[], np.ndarray], update_rate: float = 0.001):
+class Injector: 
+    def __init__(self, aux_state_fn: Callable[[], Dict[str, np.ndarray]], update_rate: float = 0.001):
         """
-        Initialize injector.
+        Initialize auxiliary state injector.
         
         Args:
-            state_fn: Function that returns updated continuous state
-            update_rate: Rate at which to inject state updates (seconds)
+            aux_state_fn: Function that returns updated auxiliary states as dict
+            update_rate: Rate at which to inject updates (seconds)
         """
-        self.state_fn = state_fn
+        self.aux_state_fn = aux_state_fn
         self.update_rate = update_rate
+
+    async def inject(self, ha: Automaton):
+        raise NotImplementedError("Inject method must be implemented by subclasses.")
+
+class ContinuousStateInjector(Injector):
+    """Injects continuous state updates for open-loop operation."""
     
     async def inject(self, ha: Automaton):
         """Continuously inject state updates while automaton is active."""
@@ -32,20 +36,9 @@ class ContinuousStateInjector:
             await asyncio.sleep(self.update_rate)
 
 
-class AuxiliaryStateInjector:
+class AuxiliaryStateInjector(Injector):
     """Injects auxiliary state updates for open-loop operation."""
-    
-    def __init__(self, aux_state_fn: Callable[[], Dict[str, np.ndarray]], update_rate: float = 0.001):
-        """
-        Initialize auxiliary state injector.
-        
-        Args:
-            aux_state_fn: Function that returns updated auxiliary states as dict
-            update_rate: Rate at which to inject updates (seconds)
-        """
-        self.aux_state_fn = aux_state_fn
-        self.update_rate = update_rate
-    
+   
     async def inject(self, ha: Automaton):
         """Continuously inject auxiliary state updates while automaton is active."""
         while ha._runtime and ha._runtime._active:
@@ -59,20 +52,9 @@ class AuxiliaryStateInjector:
             await asyncio.sleep(self.update_rate)
 
 
-class ControlInputInjector:
+class ControlInputInjector(Injector):
     """Injects control input updates for open-loop operation."""
-    
-    def __init__(self, control_fn: Callable[[], Dict[str, np.ndarray]], update_rate: float = 0.001):
-        """
-        Initialize control input injector.
-        
-        Args:
-            control_fn: Function that returns updated control inputs as dict
-            update_rate: Rate at which to inject updates (seconds)
-        """
-        self.control_fn = control_fn
-        self.update_rate = update_rate
-    
+
     async def inject(self, ha: Automaton):
         """Continuously inject control input updates while automaton is active."""
         while ha._runtime and ha._runtime._active:
