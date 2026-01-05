@@ -6,15 +6,15 @@ from hybrid_automaton import Automaton
 
 
 class Injector: 
-    def __init__(self, aux_state_fn: Callable[[], Dict[str, np.ndarray]], update_rate: float = 0.001):
+    def __init__(self, fn: Callable[[], Dict[str, np.ndarray]], update_rate: float = 0.001):
         """
         Initialize auxiliary state injector.
         
         Args:
-            aux_state_fn: Function that returns updated auxiliary states as dict
+            fn: Function that returns the updated state for injectable.
             update_rate: Rate at which to inject updates (seconds)
         """
-        self.aux_state_fn = aux_state_fn
+        self.fn = fn
         self.update_rate = update_rate
 
     async def inject(self, ha: Automaton):
@@ -27,7 +27,7 @@ class ContinuousStateInjector(Injector):
         """Continuously inject state updates while automaton is active."""
         while ha._runtime and ha._runtime._active:
             try:
-                new_state = self.state_fn()
+                new_state = self.fn()
                 ha.set_runtime_continuous_state(new_state)
             except Exception as e:
                 print(f"State injection error: {e}")
@@ -42,7 +42,7 @@ class AuxiliaryStateInjector(Injector):
         """Continuously inject auxiliary state updates while automaton is active."""
         while ha._runtime and ha._runtime._active:
             try:
-                new_aux_state = self.aux_state_fn()
+                new_aux_state = self.fn()
                 ha.set_runtime_auxiliary_continuous_states(new_aux_state)
             except Exception as e:
                 print(f"Auxiliary state injection error: {e}")
@@ -57,7 +57,7 @@ class ControlInputInjector(Injector):
         """Continuously inject control input updates while automaton is active."""
         while ha._runtime and ha._runtime._active:
             try:
-                new_control = self.control_fn()
+                new_control = self.fn()
                 ha.set_runtime_control_inputs(new_control)
             except Exception as e:
                 print(f"Control input injection error: {e}")
