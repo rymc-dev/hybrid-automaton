@@ -119,10 +119,10 @@ class Runtime:
         return self._xdot
 
     def get_elapsed_time(self):
-        return self._ctx.clk.get_time_elapsed_active()
+        return self._ctx.clk.get_elapsed_time_active()
             
     def get_elapsed_time_since_transition(self) -> float:
-        return self._ctx.clk.get_time_elapsed_since_last_transition()
+        return self._ctx.clk.get_time_elapsed_since_transition()
 
     def set_continuous_state(self, x: np.array): 
         """updates the current continous state"""
