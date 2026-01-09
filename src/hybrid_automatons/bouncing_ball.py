@@ -164,10 +164,8 @@ if __name__ == '__main__':
     ha_runner: AutomatonRunner = AutomatonRunner(hybrid_automaton=ha, sampling_rate=0.001)
     async def main(): 
         await ha_runner.run(
-            x0=np.array([5.0, 0.0]), collect_automaton=False, collect_transitions=False, collect_continuous=False, collect_auxiliary=False, collect_control=False, real_time_mode=True, integrate=True, duration=10.0, dt=0.001
+            x0=np.array([5.0, 0.0]), collect_automaton=False, collect_transitions=False, collect_continuous=False, collect_auxiliary=False, collect_control=False, real_time_mode=False, integrate=True, duration=30.0, dt=0.01
         )
         ha_runner.print_summary()
-        # await ha.activate(
-        #     x0=np.array([5.0, 0.0])
-        # )
+
     asyncio.run(main())
