@@ -187,8 +187,8 @@ class Runtime:
                 self._ctx = new_ctx
 
                 # State entry callback
-                if self._discrete_state.on_enter:
-                    self._discrete_state.on_enter()
+                if self._mode.on_enter:
+                    self._mode.on_enter()
                 return
 
             # ---------------------------------------------------------
