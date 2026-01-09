@@ -35,7 +35,7 @@ class ContinuousStateCollector(StateCollector):
         while True:
             await asyncio.sleep(self.sampling_rate)
             try:
-                self.data.append([ha.get_runtime_time_elapsed(), ha.get_runtime_continuous_state()])
+                self.data.append([ha.get_runtime_time_elapsed(), ha.get_runtime_continuous_state().latest()])
             except asyncio.CancelledError:
                 break
             except Exception as e:

@@ -4,7 +4,7 @@ import numpy as np
 from typing import List
 
 
-def continuous_states_over_time_fig(continuous_states: List[Tuple[float, np.array]]): 
+def continuous_states_over_time_fig(continuous_states: List[Tuple[float, np.array]], state_labels: List[str] = None): 
     """  
     
     Args: 
@@ -27,7 +27,10 @@ def continuous_states_over_time_fig(continuous_states: List[Tuple[float, np.arra
     ax.set_title('Hybrid Automaton <v0.0.4> - Continuous State Over Time', fontsize=16, y=1.02)
     ax.set_xlabel("Time Active Elapsed (s)", fontsize=12)
     ax.set_ylabel("Continuous State Values", fontsize=12)
-    ax.legend()
+    if state_labels is not None:
+        ax.legend(state_labels)
+    else:
+        ax.legend() 
     ax.grid(True, alpha=0.3)
     fig.tight_layout()
     

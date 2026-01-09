@@ -86,7 +86,7 @@ class Definition:
         # Invariants (optional annotation)
         # ---------------------------------------------------------
         for state in self.states:
-            inv = ", ".join(g.__name__ for g in state.get_invariants()) if state.get_invariants() else ""
+            inv = ", ".join(i.name for i in state.get_invariants()) if state.get_invariants() else ""
             if inv:
                 lines.append(f"    note right of {state.name}: invariant = {inv}")
 
@@ -156,7 +156,7 @@ class Definition:
         invariant_lines = []
 
         for state in self.states:
-            invariants_list = ", ".join(i.__name__ for i in state.get_invariants()) if state.get_invariants() is not None else "<none>"
+            invariants_list = ", ".join(i.name for i in state.get_invariants()) if state.get_invariants() is not None else "<none>"
             invariant_lines.append(f"\t\t{state.name}: [{invariants_list}]")
 
         invariants_block = "\n".join(invariant_lines) if invariant_lines else "\t\t<none>"

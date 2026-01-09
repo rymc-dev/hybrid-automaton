@@ -255,8 +255,16 @@ class AutomatonRunner:
     
     def print_summary(self):
         """Print summary of collected data."""
-        print(f"Collected {len(self.continuous_collector.data)} continuous state samples")
-        print(f"Collected {len(self.auxiliary_collector.data)} auxiliary state samples")
-        print(f"Collected {len(self.control_collector.data)} control input samples")
-        print(f"Collected {len(self.automaton_collector.data)} automaton state samples")
-        print(f"Collected {len(self.transition_collector.data)} transition time samples")
+        print (f"{self.ha.get_automaton_name()} Run Summary:")
+        print (f"\tTime Elapsed: {self.ha.get_runtime_time_elapsed()}")
+        
+        if self.continuous_collector.data:
+            print(f"\tCollected {len(self.continuous_collector.data)} continuous state samples")
+        if self.auxiliary_collector.data:
+            print(f"\tCollected {len(self.auxiliary_collector.data)} auxiliary state samples")
+        if self.control_collector.data:
+            print(f"\tCollected {len(self.control_collector.data)} control input samples")
+        if self.automaton_collector.data:
+            print(f"\tCollected {len(self.automaton_collector.data)} automaton state samples")
+        if self.transition_collector.data:
+            print(f"\tCollected {len(self.transition_collector.data)} transition time samples")
