@@ -170,7 +170,17 @@ class AutomatonRunner:
                 asyncio.create_task(injector.inject(self.ha))
             )
         
-        # Add stop monitor task
+        # ============================================================
+        # TIMEOUT / STOP MONITORING TASK
+        # ============================================================
+        if np.isfinite(duration) and duration > 0: 
+            self._tasks.append(
+                asyncio.create_task(self._stop_request_after_time_elapsed(duration))
+            )
+
+        # ===========================================================
+        # STOP MONITORING TASK
+        # ===========================================================
         stop_monitor = asyncio.create_task(self._monitor_stop())
         
         # Run with timeout AND stop monitoring (whichever happens first)
@@ -209,6 +219,17 @@ class AutomatonRunner:
         for task in self._tasks:
             if not task.done():
                 task.cancel()
+                await asyncio.gather(task, return_exceptions=True)
+            
+    async def _stop_request_after_time_elapsed(self, timeout_sec: float): 
+        """"""
+        async def waiter(): 
+            while self.ha.get_runtime_time_elapsed() < timeout_sec:
+                await asyncio.sleep(0.1)  # Sleep briefly to avoid busy waiting
+        
+        await waiter()
+        self.stop()
+        print (f"AutomatonRunner: Duration {timeout_sec} seconds elapsed, stopping simulation.")
         
     def stop(self):
         """Request the simulation to stop."""
