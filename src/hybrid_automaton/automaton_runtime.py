@@ -183,12 +183,12 @@ class Runtime:
                     self._discrete_state.on_exit()
 
                 # Update state
-                self._mode = new_mode
+                self._discrete_state = new_mode
                 self._ctx = new_ctx
 
                 # State entry callback
-                if self._mode.on_enter:
-                    self._mode.on_enter()
+                if self._discrete_state.on_enter:
+                    self._discrete_state.on_enter()
                 return
 
             # ---------------------------------------------------------
