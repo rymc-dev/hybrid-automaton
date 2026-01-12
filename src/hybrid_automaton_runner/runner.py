@@ -93,6 +93,9 @@ class AutomatonRunner:
             Dictionary containing collected data
         """
         # Clear previous data and reset stop flag
+        if self.ha._runtime is not None: 
+            self.ha.reset()
+        
         self.clear_all_data()
         self._stop_requested = False
         
@@ -215,7 +218,10 @@ class AutomatonRunner:
         while not self._stop_requested:
             await asyncio.sleep(0.01)  # Check every 10ms
         
-        # Cancel all tasks
+        # deactivate the automaton runner
+        self.ha.deactivate()
+        
+        # Cancel all the remaining tasks
         for task in self._tasks:
             if not task.done():
                 task.cancel()

@@ -129,5 +129,25 @@ if __name__ == '__main__':
         # fig2 = transitions_times_over_time_fig(results['transition_times']) # TODO: Need to fix this
         fig5 = automaton_states_over_time(results['automaton_states'])
         plt.show()
+        
+        await ha_runner.run(
+            x0 = np.array([15.0]), 
+            real_time_mode=False, 
+            integrate=True, 
+            duration=30.0, 
+            dt=0.01, 
+            collect_automaton=True,
+            collect_continuous=True,
+            collect_transitions=True,
+            collect_control=False, 
+            collect_auxiliary=False
+        )
+        ha_runner.print_summary()
+        results = ha_runner.get_results()
+        
+        fig10 = continuous_states_over_time_fig(results['continuous_states'], state_labels=['temperature (c)'])
+        fig11 = automaton_states_over_time(results['automaton_states'])
+        plt.show()
+        
 
     asyncio.run(main())

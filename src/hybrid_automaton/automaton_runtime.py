@@ -230,13 +230,19 @@ class Runtime:
 
         print (f"automaton '{self._automaton_definition.name}' evaluation loop worker exiting.")
 
+    def _on_deactivate(self): 
+        """internal deactivation hook"""
+        self._automaton_definition.on_exit()    
+
     async def activate(self): 
         """interface for activation of the automaton"""
+        #TODO: add proper excpetion raising for coro
+        
         self._automaton_definition.on_entry()
         main_runner_task = asyncio.create_task(self._run_automaton_loop())
         self._active = True
         await main_runner_task
-        self._automaton_definition.on_exit()
+        self._on_deactivate()
 
     def deactivate(self): 
         self._active = False

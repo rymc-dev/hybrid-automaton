@@ -296,6 +296,10 @@ class Automaton:
 
     """ === toggle active / deactive functions === """
 
+    def _on_deactivate(self):
+        """automaton deactivation hook"""
+        self._runtime = None
+
     async def activate(
         self,
         x0: np.array,
@@ -378,8 +382,9 @@ class Automaton:
             integrate=integrate,
             dt=dt
         )
-        self._active = True
         await self._runtime.activate()
+        
+        self._on_deactivate()
         
     def deactivate(self): 
         """deactives the automaton"""
@@ -387,6 +392,10 @@ class Automaton:
             raise SystemError(f"can't deactivate automaton '{self._definition.name}', it's not active.")
 
         self._runtime.deactivate()
+        
+    def reset(self): 
+        if self._runtime is not None: 
+            self._runtime = None
 
     """ === string representations of the class === """
 
