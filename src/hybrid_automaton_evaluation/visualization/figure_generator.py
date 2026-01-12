@@ -14,6 +14,8 @@ def continuous_states_over_time_fig(continuous_states: List[Tuple[float, np.arra
     Output:
         pyplot.figure
     """
+    #TODO: Add checks for invalid contiuous_states input and state labels, currently
+    #      assumes valid logic, if no continuous states are provided exception will be thrown
     timestamps = [continuous_state[0] for continuous_state in continuous_states]
     continuous_state_values = np.array([continuous_state[1] for continuous_state in continuous_states])
     

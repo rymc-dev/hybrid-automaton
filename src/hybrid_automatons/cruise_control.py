@@ -27,27 +27,30 @@ def cruise_control(target_speed: float = 30.0, safe_distance: float = 50.0,
     @continuous_dynamics
     def accelerate_flow(ctx: Context):
         """Accelerate at 2 m/s² - x = [v, dist]"""
-        v_dot = 2.0 if ctx.x.get_continous_state()[0] < ctx.cfg['target_speed'] else 0.0
-        dist_dot = -(ctx.x.get_continous_state()[0] - ctx.cfg['car_ahead_speed'])
+        v = ctx.x.latest()[0]
+        v_dot = 2.0 if v < ctx.cfg['target_speed'] else 0.0
+        dist_dot = -(v - ctx.cfg['car_ahead_speed'])
         return np.array([v_dot, dist_dot])
     
     @continuous_dynamics
     def cruise_flow(ctx: Context) -> np.ndarray:
         """Maintain constant speed"""
-        return np.array([0.0, -(ctx.x.get_continous_state()[0] - ctx.cfg['car_ahead_speed'])])
+        return np.array([0.0, -(ctx.x.latest()[0] - ctx.cfg['car_ahead_speed'])])
     
     @continuous_dynamics
     def brake_flow(ctx: Context) -> np.ndarray:
         """Gentle braking at -1.5 m/s²"""
-        v_dot = -1.5 if x.get_continous_state()[0] > 0 else 0.0
-        return np.array([v_dot, -(x.get_continous_state()[0] - ctx.cfg['car_ahead_speed'])])
+        v = ctx.x.latest()[0]
+        v_dot = -1.5 if v > 0 else 0.0
+        return np.array([v_dot, -(v - ctx.cfg['car_ahead_speed'])])
     
     @continuous_dynamics
     def emergency_brake_flow(ctx: Context) -> np.ndarray:
         """Hard braking at -5 m/s²"""
-        v_dot = -5.0 if ctx.x.get_continous_state()[0] > 0 else 0.0
-        return np.array([v_dot, -(ctx.x.get_continuous_state()[0] - ctx.cfg['car_ahead_speed'])])
-    
+        v = ctx.x.latest()[0]
+        v_dot = -5.0 if v > 0 else 0.0
+        return np.array([v_dot, -(v - ctx.cfg['car_ahead_speed'])])
+
     # ==========================
     #   Guards
     # ==========================
@@ -137,3 +140,36 @@ def cruise_control(target_speed: float = 30.0, safe_distance: float = 50.0,
 #             x0=np.array([5.0, 0.0])
 #         )
 #     asyncio.run(main())
+
+if __name__ == '__main__': 
+    ha = cruise_control()
+    
+    print (ha)
+    print (repr(ha))
+    from hybrid_automaton_runner import AutomatonRunner
+    import asyncio
+    ha_runner: AutomatonRunner = AutomatonRunner(hybrid_automaton=ha, sampling_rate=0.001)
+    async def main(): 
+        await ha_runner.run(
+            x0=np.array([5.0, 0.0]), 
+            collect_automaton=True, 
+            collect_transitions=True, 
+            collect_continuous=True, 
+            collect_auxiliary=True, 
+            collect_control=False, 
+            real_time_mode=False, 
+            integrate=True, 
+            duration=100.0, 
+            dt=0.01
+        )
+        
+        ha_runner.print_summary()
+        results = ha_runner.get_results()
+        from matplotlib import pyplot as plt
+        from hybrid_automaton_evaluation.visualization import  automaton_states_over_time, continuous_states_over_time_fig, transitions_times_over_time_fig
+        fig1 = continuous_states_over_time_fig(results['continuous_states'], state_labels=['Velocity (m/s)', 'Distance to car in front (m)'])
+        # fig2 = transitions_times_over_time_fig(results['transition_times']) # TODO: Need to fix this
+        fig5 = automaton_states_over_time(results['automaton_states'])
+        plt.show()
+
+    asyncio.run(main())
