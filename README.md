@@ -46,7 +46,14 @@ from hybrid_automaton_runner import AutomatonRunner
 ha: Automaton = bouncing_ball(gravity=-9.81, restitution=0.8)
 ha_runner: AutomatonRunner = AutomatonRunner(hybrid_automaton=ha, sampling_rate=0.001)
 await ha_runner.run(
-    x0=np.array([5.0, 0.0]), collect_auxiliary=False, collect_control=False, real_time_mode=False, integrate=True, duration=10.0, dt=0.001
+    x0=np.array([5.0, 0.0]),
+    collect_continuous=True,
+    collect_auxiliary=False,
+    collect_control=False,
+    real_time_mode=False,
+    integrate=True,
+    duration=10.0,
+    dt=0.001
 )
 ha_runner.print_summary()
 ```
