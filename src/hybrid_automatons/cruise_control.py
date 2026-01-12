@@ -1,5 +1,13 @@
+import os
+import sys
+
+sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
+
 import numpy as np
 from hybrid_automaton import State, Transition, Automaton
+from hybrid_automaton.automaton_runtime_context import Context
+from hybrid_automaton.automaton_annotations import guard, continuous_dynamics, reset, invariant
+
 
 def cruise_control(target_speed: float = 30.0, safe_distance: float = 50.0,
                    danger_close: float = 20.0, car_ahead_speed: float = 20.0) -> Automaton:
@@ -12,51 +20,59 @@ def cruise_control(target_speed: float = 30.0, safe_distance: float = 50.0,
         car_ahead_speed: float
             m/s speed of car ahead
     """
-    TARGET_SPEED = 30.0  # m/s (108 km/h)
-    SAFE_DISTANCE = 50.0  # meters
-    CAR_AHEAD_SPEED = 20.0  # m/s
     
     # =========================
-    #   Continous Dynamics
+    #   Continuous Dynamics
     # =========================
-
-    def accelerate_flow(x: Automaton.Runtime.ContinousState, aux_x, u, cfg, clk):
+    @continuous_dynamics
+    def accelerate_flow(ctx: Context):
         """Accelerate at 2 m/s² - x = [v, dist]"""
-        v_dot = 2.0 if x.get_continous_state()[0] < cfg['target_speed'] else 0.0
-        dist_dot = -(x.get_continous_state()[0] - cfg['car_ahead_speed'])
+        v = ctx.x.latest()[0]
+        v_dot = 2.0 if v < ctx.cfg['target_speed'] else 0.0
+        dist_dot = -(v - ctx.cfg['car_ahead_speed'])
         return np.array([v_dot, dist_dot])
     
-    def cruise_flow(x: Automaton.Runtime.ContinousState, aux_x, u, cfg, clk):
+    @continuous_dynamics
+    def cruise_flow(ctx: Context) -> np.ndarray:
         """Maintain constant speed"""
-        return np.array([0.0, -(x.get_continous_state()[0] - cfg['car_ahead_speed'])])
+        return np.array([0.0, -(ctx.x.latest()[0] - ctx.cfg['car_ahead_speed'])])
     
-    def brake_flow(x: Automaton.Runtime.ContinousState, aux_x, u, cfg, clk):
+    @continuous_dynamics
+    def brake_flow(ctx: Context) -> np.ndarray:
         """Gentle braking at -1.5 m/s²"""
-        v_dot = -1.5 if x.get_continous_state()[0] > 0 else 0.0
-        return np.array([v_dot, -(x.get_continous_state()[0] - cfg['car_ahead_speed'])])
+        v = ctx.x.latest()[0]
+        v_dot = -1.5 if v > 0 else 0.0
+        return np.array([v_dot, -(v - ctx.cfg['car_ahead_speed'])])
     
-    def emergency_brake_flow(x: Automaton.Runtime.ContinousState, aux_x, u, cfg, clk):
+    @continuous_dynamics
+    def emergency_brake_flow(ctx: Context) -> np.ndarray:
         """Hard braking at -5 m/s²"""
-        v_dot = -5.0 if x.get_continous_state()[0] > 0 else 0.0
-        return np.array([v_dot, -(x.get_continous_state()[0] - cfg['car_ahead_speed'])])
-    
+        v = ctx.x.latest()[0]
+        v_dot = -5.0 if v > 0 else 0.0
+        return np.array([v_dot, -(v - ctx.cfg['car_ahead_speed'])])
+
     # ==========================
     #   Guards
     # ==========================
-    def reached_target_speed(x: Automaton.Runtime.ContinousState, aux_x, u, cfg, clk):
-        return abs(x.get_continous_state()[0] - cfg['target_speed']) < 0.5
+    @guard
+    def reached_target_speed(ctx: Context) -> bool:
+        return abs(ctx.x.latest()[0] - ctx.cfg['target_speed']) < 0.5
     
-    def below_target_speed(x: Automaton.Runtime.ContinousState, aux_x, u, cfg, clk):
-        return x.get_continous_state()[0] < cfg['target_speed'] - 1.0 and x.get_continous_state()[1] > cfg['safe_distance']
+    @guard    
+    def below_target_speed(ctx: Context) -> bool:
+        return ctx.x.latest()[0] < ctx.cfg['target_speed'] - 1.0 and ctx.x.latest()[1] > ctx.cfg['safe_distance']
     
-    def too_close(x: Automaton.Runtime.ContinousState, aux_x, u, cfg, clk):
-        return x.get_continous_state()[1] < cfg['safe_distance']
+    @guard    
+    def too_close(ctx: Context) -> bool:
+        return ctx.x.latest()[1] < ctx.cfg['safe_distance']
     
-    def dangerously_close(x, aux_x, u, cfg, clk):
-        return x.get_continous_state()[1] < cfg['danger_close']
+    @guard    
+    def dangerously_close(ctx: Context) -> bool:
+        return ctx.x.latest()[1] < ctx.cfg['danger_close']
     
-    def safe_distance_restored(x, aux_x, u, cfg, clk):
-        return x.get_continous_state()[1] > cfg['safe_distance'] + 10.0
+    @guard    
+    def safe_distance_restored(ctx: Context) -> bool:
+        return ctx.x.latest()[1] > ctx.cfg['safe_distance'] + 10.0
     
     # Callbacks
     def on_accelerate():
@@ -106,4 +122,36 @@ def cruise_control(target_speed: float = 30.0, safe_distance: float = 50.0,
     )
 
     return car
+
+if __name__ == '__main__': 
+    ha = cruise_control()
     
+    print (ha)
+    print (repr(ha))
+    from hybrid_automaton_runner import AutomatonRunner
+    import asyncio
+    ha_runner: AutomatonRunner = AutomatonRunner(hybrid_automaton=ha, sampling_rate=0.001)
+    async def main(): 
+        await ha_runner.run(
+            x0=np.array([5.0, 0.0]), 
+            collect_automaton=True, 
+            collect_transitions=True, 
+            collect_continuous=True, 
+            collect_auxiliary=True, 
+            collect_control=False, 
+            real_time_mode=False, 
+            integrate=True, 
+            duration=100.0, 
+            dt=0.01
+        )
+        
+        ha_runner.print_summary()
+        results = ha_runner.get_results()
+        from matplotlib import pyplot as plt
+        from hybrid_automaton_evaluation.visualization import  automaton_states_over_time, continuous_states_over_time_fig, transitions_times_over_time_fig
+        fig1 = continuous_states_over_time_fig(results['continuous_states'], state_labels=['Velocity (m/s)', 'Distance to car in front (m)'])
+        # fig2 = transitions_times_over_time_fig(results['transition_times']) # TODO: Need to fix this
+        fig5 = automaton_states_over_time(results['automaton_states'])
+        plt.show()
+
+    asyncio.run(main())

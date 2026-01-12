@@ -14,6 +14,9 @@ class StateCollector:
         """
         self.sampling_rate = sampling_rate
         self.data: List[List[Any]] = []
+        
+    async def collect(self, ha: Automaton): 
+        raise NotImplementedError("Collect method must be implemented by subclasses.")
     
     def clear(self):
         """Clear collected data."""
@@ -32,7 +35,7 @@ class ContinuousStateCollector(StateCollector):
         while True:
             await asyncio.sleep(self.sampling_rate)
             try:
-                self.data.append([ha.get_active_elapsed_time(), ha.get_continous_state()])
+                self.data.append([ha.get_runtime_time_elapsed(), ha.get_runtime_continuous_state().latest()])
             except asyncio.CancelledError:
                 break
             except Exception as e:
@@ -54,7 +57,7 @@ class AuxiliaryStateCollector(StateCollector):
             await asyncio.sleep(self.sampling_rate)
             try:
                 aux_value = get_auxiliary_fn() if get_auxiliary_fn else None
-                self.data.append([ha.get_active_elapsed_time(), aux_value])
+                self.data.append([ha.get_runtime_time_elapsed(), aux_value])
             except asyncio.CancelledError:
                 break
             except Exception as e:
@@ -76,7 +79,7 @@ class ControlInputCollector(StateCollector):
             await asyncio.sleep(self.sampling_rate)
             try:
                 control_value = get_control_fn() if get_control_fn else None
-                self.data.append([ha.get_active_elapsed_time(), control_value])
+                self.data.append([ha.get_runtime_time_elapsed(), control_value])
             except asyncio.CancelledError:
                 break
             except Exception as e:
@@ -91,7 +94,7 @@ class AutomatonStateCollector(StateCollector):
         while True:
             await asyncio.sleep(self.sampling_rate)
             try:
-                self.data.append([ha.get_active_elapsed_time(), ha.get_active_mode()[1]])
+                self.data.append([ha.get_runtime_time_elapsed(), ha.get_runtime_active_discrete_state()[1]])
             except asyncio.CancelledError:
                 break
             except Exception as e:
@@ -107,8 +110,8 @@ class TransitionTimeCollector(StateCollector):
             await asyncio.sleep(self.sampling_rate)
             try:
                 self.data.append([
-                    ha.get_active_elapsed_time(),
-                    ha.get_activate_elapsed_time_since_last_transition()
+                    ha.get_runtime_active_discrete_state(),
+                    ha.get_runtime_time_elapsed_since_transition()
                 ])
             except asyncio.CancelledError:
                 break

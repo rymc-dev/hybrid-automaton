@@ -9,7 +9,6 @@ from .collectors import (
     AutomatonStateCollector,
     TransitionTimeCollector
 )
-from .utils import deactivate_after_timeout
 from hybrid_automaton import Automaton
 
 
@@ -35,6 +34,7 @@ class AutomatonRunner:
         self.transition_collector = TransitionTimeCollector(sampling_rate)
         
         self._tasks = []
+        self._stop_requested = False
     
     async def run(
         self,
@@ -50,71 +50,197 @@ class AutomatonRunner:
         collect_control: bool = False,
         collect_automaton: bool = True,
         collect_transitions: bool = True,
+        inject_continuous: bool = False,
+        inject_auxiliary: bool = False,
+        inject_control: bool = False,
+        continuous_state_fn: Optional[callable] = None,
         auxiliary_fn: Optional[callable] = None,
-        control_fn: Optional[callable] = None
+        control_fn: Optional[callable] = None,
+        injector_update_rate: float = 0.001,
     ) -> Dict[str, Any]:
         """
-        Run the hybrid automaton simulation with data collection.
+        Run the hybrid automaton simulation with data collection and/or injection.
         
         Args:
             x0: Initial continuous state
-            aux_x0: Initial auxiliary continous state
+            aux_x0: Initial auxiliary continuous state
             u0: Initial control input state 
-            duration: Simulation duration in seconds
+            duration: Simulation duration in seconds (np.inf = run forever until stop() is called)
             real_time_mode: Whether to run in real-time
             integrate: Whether to integrate continuous dynamics
             dt: Integration time step
+            
+            # Collection flags
             collect_continuous: Collect continuous states
             collect_auxiliary: Collect auxiliary states
             collect_control: Collect control inputs
             collect_automaton: Collect automaton discrete states
             collect_transitions: Collect time since transitions
-            auxiliary_fn: Optional function to get auxiliary state
-            control_fn: Optional function to get control input
+            
+            # Injection flags (for open-loop operation)
+            inject_continuous: Inject continuous state updates from continuous_state_fn
+            inject_auxiliary: Inject auxiliary state updates from auxiliary_fn
+            inject_control: Inject control input updates from control_fn
+            
+            # Functions (dual-purpose: collection OR injection)
+            continuous_state_fn: Function to get/provide continuous state
+            auxiliary_fn: Function to get/provide auxiliary state
+            control_fn: Function to get/provide control input
+            
+            injector_update_rate: Update rate for injectors (seconds)
         
         Returns:
             Dictionary containing collected data
         """
-        # Clear previous data
+        # Clear previous data and reset stop flag
+        if self.ha._runtime is not None: 
+            self.ha.reset()
+        
         self.clear_all_data()
+        self._stop_requested = False
         
         # Create tasks
         self._tasks = []
         
         # Main automaton task
         ha_task = asyncio.create_task(
-            self.ha.activate(x0=x0, aux_x0=aux_x0, u0=u0, real_time_mode=real_time_mode, integrate=integrate, dt=dt)
+            self.ha.activate(
+                x0=x0, 
+                aux_x0=aux_x0, 
+                u0=u0, 
+                real_time_mode=real_time_mode, 
+                integrate=integrate, 
+                dt=dt
+            )
         )
         self._tasks.append(ha_task)
         
-        # Data collection tasks
+        # ============================================================
+        # DATA COLLECTION TASKS (read from automaton)
+        # ============================================================
         if collect_continuous:
-            self._tasks.append(asyncio.create_task(self.continuous_collector.collect(self.ha)))
+            self._tasks.append(
+                asyncio.create_task(self.continuous_collector.collect(self.ha))
+            )
         
         if collect_auxiliary:
-            self._tasks.append(asyncio.create_task(
-                self.auxiliary_collector.collect(self.ha, auxiliary_fn)
-            ))
+            self._tasks.append(
+                asyncio.create_task(self.auxiliary_collector.collect(self.ha, auxiliary_fn))
+            )
         
         if collect_control:
-            self._tasks.append(asyncio.create_task(
-                self.control_collector.collect(self.ha, control_fn)
-            ))
+            self._tasks.append(
+                asyncio.create_task(self.control_collector.collect(self.ha, control_fn))
+            )
         
         if collect_automaton:
-            self._tasks.append(asyncio.create_task(self.automaton_collector.collect(self.ha)))
+            self._tasks.append(
+                asyncio.create_task(self.automaton_collector.collect(self.ha))
+            )
         
         if collect_transitions:
-            self._tasks.append(asyncio.create_task(self.transition_collector.collect(self.ha)))
+            self._tasks.append(
+                asyncio.create_task(self.transition_collector.collect(self.ha))
+            )
         
-        # Run with timeout
-        await deactivate_after_timeout(duration, *self._tasks)
+        # ============================================================
+        # DATA INJECTION TASKS (write to automaton)
+        # ============================================================
+        if inject_continuous:
+            if continuous_state_fn is None:
+                raise ValueError("inject_continuous=True requires continuous_state_fn")
+            from .injectors import ContinuousStateInjector
+            injector = ContinuousStateInjector(continuous_state_fn, injector_update_rate)
+            self._tasks.append(
+                asyncio.create_task(injector.inject(self.ha))
+            )
+        
+        if inject_auxiliary:
+            if auxiliary_fn is None:
+                raise ValueError("inject_auxiliary=True requires auxiliary_fn")
+            from .injectors import AuxiliaryStateInjector
+            injector = AuxiliaryStateInjector(auxiliary_fn, injector_update_rate)
+            self._tasks.append(
+                asyncio.create_task(injector.inject(self.ha))
+            )
+        
+        if inject_control:
+            if control_fn is None:
+                raise ValueError("inject_control=True requires control_fn")
+            from .injectors import ControlInputInjector
+            injector = ControlInputInjector(control_fn, injector_update_rate)
+            self._tasks.append(
+                asyncio.create_task(injector.inject(self.ha))
+            )
+        
+        # ============================================================
+        # TIMEOUT / STOP MONITORING TASK
+        # ============================================================
+        if np.isfinite(duration) and duration > 0: 
+            self._tasks.append(
+                asyncio.create_task(self._stop_request_after_time_elapsed(duration))
+            )
+
+        # ===========================================================
+        # STOP MONITORING TASK
+        # ===========================================================
+        stop_monitor = asyncio.create_task(self._monitor_stop())
+        
+        # Run with timeout AND stop monitoring (whichever happens first)
+        try:
+            if np.isfinite(duration):
+                # Run with timeout, but also listen for stop requests
+                await asyncio.wait(
+                    [*self._tasks, stop_monitor],
+                    timeout=duration,
+                    return_when=asyncio.FIRST_COMPLETED
+                )
+            else:
+                # Run indefinitely until stop is requested
+                await asyncio.wait(
+                    [*self._tasks, stop_monitor],
+                    return_when=asyncio.FIRST_COMPLETED
+                )
+        finally:
+            # Cancel all remaining tasks
+            for task in [*self._tasks, stop_monitor]:
+                if not task.done():
+                    task.cancel()
+            
+            # Wait for all tasks to finish cancelling
+            await asyncio.gather(*self._tasks, stop_monitor, return_exceptions=True)
         
         # Return collected data
         return self.get_results()
     
-    # def set_continous_state(self, x: )
-    
+    async def _monitor_stop(self):
+        """Monitor for stop request and cancel all tasks when requested."""
+        while not self._stop_requested:
+            await asyncio.sleep(0.01)  # Check every 10ms
+        
+        # deactivate the automaton runner
+        self.ha.deactivate()
+        
+        # Cancel all the remaining tasks
+        for task in self._tasks:
+            if not task.done():
+                task.cancel()
+                await asyncio.gather(task, return_exceptions=True)
+            
+    async def _stop_request_after_time_elapsed(self, timeout_sec: float): 
+        """"""
+        async def waiter(): 
+            while self.ha.get_runtime_time_elapsed() < timeout_sec:
+                await asyncio.sleep(0.1)  # Sleep briefly to avoid busy waiting
+        
+        await waiter()
+        self.stop()
+        print (f"AutomatonRunner: Duration {timeout_sec} seconds elapsed, stopping simulation.")
+        
+    def stop(self):
+        """Request the simulation to stop."""
+        self._stop_requested = True
+        
     def get_results(self) -> Dict[str, Any]:
         """Get all collected data."""
         return {
@@ -124,7 +250,7 @@ class AutomatonRunner:
             'automaton_states': self.automaton_collector.get_data(),
             'transition_times': self.transition_collector.get_data(),
         }
-    
+        
     def clear_all_data(self):
         """Clear all collected data."""
         self.continuous_collector.clear()
@@ -135,8 +261,16 @@ class AutomatonRunner:
     
     def print_summary(self):
         """Print summary of collected data."""
-        print(f"Collected {len(self.continuous_collector.data)} continuous state samples")
-        print(f"Collected {len(self.auxiliary_collector.data)} auxiliary state samples")
-        print(f"Collected {len(self.control_collector.data)} control input samples")
-        print(f"Collected {len(self.automaton_collector.data)} automaton state samples")
-        print(f"Collected {len(self.transition_collector.data)} transition time samples")
+        print (f"{self.ha.get_automaton_name()} Run Summary:")
+        print (f"\tTime Elapsed: {self.ha.get_runtime_time_elapsed()}")
+        
+        if self.continuous_collector.data:
+            print(f"\tCollected {len(self.continuous_collector.data)} continuous state samples")
+        if self.auxiliary_collector.data:
+            print(f"\tCollected {len(self.auxiliary_collector.data)} auxiliary state samples")
+        if self.control_collector.data:
+            print(f"\tCollected {len(self.control_collector.data)} control input samples")
+        if self.automaton_collector.data:
+            print(f"\tCollected {len(self.automaton_collector.data)} automaton state samples")
+        if self.transition_collector.data:
+            print(f"\tCollected {len(self.transition_collector.data)} transition time samples")

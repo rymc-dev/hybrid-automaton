@@ -1,6 +1,8 @@
 from typing import Optional, Callable, List, Any, Tuple
 import asyncio
-from .transition import Transition
+from .automaton_transition import Transition
+from .automaton_runtime_context import Context
+import numpy as np
 
 class State:
     """ 
@@ -98,11 +100,7 @@ class State:
 
     def evaluate_transitions(
         self,
-        x: Any,
-        aux_x: Any = None,
-        u: Optional[Any] = None,
-        cfg: Optional[Any] = {},
-        clk: Optional[Any] = None
+        ctx: Context
     ) -> List[Tuple[Transition, bool, Optional[Exception]]]:
         """
         Synchronously evaluate guards for each Transition.
@@ -122,14 +120,14 @@ class State:
         results = []
         for d in self._D:
             try:
-                enabled = bool(d.is_enabled(x, aux_x, u, cfg, clk))
+                enabled = bool(d.is_enabled(ctx))
                 results.append((d, enabled, None))
             except Exception as e:
                 results.append((d, False, e))
 
         return results
 
-    def continuous_dynamics(self, x: Any, aux_x: Optional[Any] = None, u: Optional[Any] = None,  cfg: Optional[Any] = None, clk: Optional[Any] = None) -> Any:
+    def continuous_dynamics(self, ctx: Context) -> np.array:
         """
         Process continuous dynamics using current state and context.
         Synchronous function.
@@ -143,16 +141,17 @@ class State:
                 auxielary contexts like goal waypoints, or some other params for the continous dynamics.
         """
         if self.flow is None:
-            return x if x is not None else []
-        return self.flow(x, aux_x, u, cfg, clk)
+            return np.array([])
+        return self.flow(ctx)
 
-    def check_invariants(self, x, aux_x=None, u=None, cfg=None, clk=None) -> bool:
+    def check_invariants(self, ctx: Context) -> bool:
         if not self._Inv:
             return False if self._is_final else True
-
+        # TODO: IMprove through dynamic programming
+        # try: return not any([i(ctx) for i in self.Inv]); except Exception: return False
         for i in self._Inv:
             try:
-                if not bool(i(x, aux_x, u, cfg, clk)):
+                if not bool(i(ctx)):
                     return False
             except Exception:
                 return False

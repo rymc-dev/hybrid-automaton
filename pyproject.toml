@@ -29,6 +29,9 @@ classifiers = [
 dependencies = [
   "numpy<1.28",
   "matplotlib",
+  "pyyaml",
+  "lark",
+  "pytest-asyncio"
 ]
 
 [project.urls]

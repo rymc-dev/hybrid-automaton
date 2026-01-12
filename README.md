@@ -7,8 +7,8 @@
 
 | Field         | Value        |
 |---------------|--------------|
-| Last Updated  | 2025-12-03   |
-| Version       | 0.0.4        |
+| Last Updated  | 2025-12-07   |
+| Version       | 0.0.5        |
 
 ## Overview
 Hybrid Automaton is a Python-based framework for simulating and running hybrid automata in both real-time and offline settings. It provides a lightweight, flexible foundation for defining custom automata, while remaining easily integrable into real-world technology stacks such as ROS2 or other systems. The design emphasizes simplicity, extensibility, and practical applicability for a wide range of use cases.
@@ -34,15 +34,28 @@ pip install hybrid-automaton
 
 ## Usage
 
-```python
+Below is a sample of one of the demonstration hybrid automaton implementations being ran in simulation mode,
+for custom hybrid-automaton definition and running please checkout our further documentation and 
+please read the source code. 
 
+```python
+from hybrid_automatons import bouncing_ball
+from hybrid_automaton import Automaton
+from hybrid_automaton_runner import AutomatonRunner
+
+ha: Automaton = bouncing_ball(gravity=-9.81, restitution=0.8)
+ha_runner: AutomatonRunner = AutomatonRunner(hybrid_automaton=ha, sampling_rate=0.001)
+await ha_runner.run(
+    x0=np.array([5.0, 0.0]), collect_auxiliary=False, collect_control=False, real_time_mode=False, integrate=True, duration=10.0, dt=0.001
+)
+ha_runner.print_summary()
 ```
 
 ## Collaborators
-This project was created in collaboration with:
+This project was created by:
 - **[Ryan McKee](https://github.com/rymc-dev)**
 
-You can cite this package as described below:
+Please cite this package as described below if used in research:
 
 ```bibtex
 @misc{hybrid_automaton_2025,
