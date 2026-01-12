@@ -123,24 +123,6 @@ def cruise_control(target_speed: float = 30.0, safe_distance: float = 50.0,
 
     return car
 
-# if __name__ == '__main__': 
-#     ha = cruise_control()
-    
-#     print (ha)
-#     print (repr(ha))
-#     from hybrid_automaton_runner import AutomatonRunner
-#     import asyncio
-#     # ha_runner: AutomatonRunner = AutomatonRunner(hybrid_automaton=ha, sampling_rate=0.001)
-#     async def main(): 
-#         # await ha_runner.run(
-#         #     x0=np.array([5.0, 0.0]), collect_automaton=False, collect_transitions=False, collect_continuous=False, collect_auxiliary=False, collect_control=False, real_time_mode=True, integrate=True, duration=10.0, dt=0.001
-#         # )
-#         # ha_runner.print_summary()
-#         await ha.activate(
-#             x0=np.array([5.0, 0.0])
-#         )
-#     asyncio.run(main())
-
 if __name__ == '__main__': 
     ha = cruise_control()
     
