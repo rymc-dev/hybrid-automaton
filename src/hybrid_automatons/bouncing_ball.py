@@ -186,18 +186,23 @@ if __name__ == '__main__':
     import asyncio
     ha_runner: AutomatonRunner = AutomatonRunner(hybrid_automaton=ha, sampling_rate=0.001)
     async def main(): 
-        await ha_runner.run(
-            x0=np.array([5.0, 0.0]), 
-            collect_automaton=True, 
-            collect_transitions=True, 
-            collect_continuous=True, 
-            collect_auxiliary=False, 
-            collect_control=False, 
-            real_time_mode=False, 
-            integrate=True, 
-            duration=30.0, 
-            dt=0.001
-        )
+        try: 
+            await ha_runner.run(
+                x0=np.array([5.0, 0.0]), 
+                collect_automaton=True, 
+                collect_transitions=True, 
+                collect_continuous=True, 
+                collect_auxiliary=False, 
+                collect_control=False, 
+                real_time_mode=False, 
+                integrate=True, 
+                duration=30.0, 
+                dt=0.001
+            )
+        except Exception as e:
+            print(f"Exception: Automaton execution terminated with exception: {e}")
+            sys.exit(1)
+            
         ha_runner.print_summary()
         results = ha_runner.get_results()
         from matplotlib import pyplot as plt
