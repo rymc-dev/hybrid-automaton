@@ -208,8 +208,14 @@ class AutomatonRunner:
                     task.cancel()
             
             # Wait for all tasks to finish cancelling
-            await asyncio.gather(*self._tasks, stop_monitor, return_exceptions=True)
-        
+            results = await asyncio.gather(
+                *self._tasks, 
+                stop_monitor, 
+                return_exceptions=True
+            )
+            if any(isinstance(r, Exception) for r in results): 
+                raise Exception(f"One or more tasks raised an exception during execution. {results}")
+
         # Return collected data
         return self.get_results()
     

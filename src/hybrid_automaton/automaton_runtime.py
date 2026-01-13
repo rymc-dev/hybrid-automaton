@@ -166,6 +166,13 @@ class Runtime:
                 ctx=self._ctx
             )
             active_guards = [item[0] for item in self._guard_evaluations if item[1] is True]
+            error_guards = [[item[0], item[2]] for item in self._guard_evaluations if item[2] is not None]
+            if error_guards and len(error_guards) >= len(active_guards):
+                raise Exception("No valid guard evaluations could be performed, automaton may be stuck, please check guard function implementation.")
+            if error_guards:
+                for g in error_guards:
+                    print (f"Warning, evaluating guard ended in exception could be critical: '{g[0].name}': {g[1]}")
+            
 
             if active_guards:
                 if len(active_guards) == 1:
