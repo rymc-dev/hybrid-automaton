@@ -103,7 +103,10 @@ class Transition:
         """
         if self._R is None: 
             return ctx # pass through, reset just returns the x and ctx
-        return self._R(ctx)
+        try:
+            return self._R(ctx)
+        except Exception as e:
+            raise RuntimeError(f"Error applying reset function '{self._R.__name__}' for transition '{self._name}': {e}") from e
     
     def execute(self, ctx: Context) -> Tuple["State", Context]:
         """ 

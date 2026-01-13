@@ -156,8 +156,8 @@ class State:
             try:
                 if not bool(i(ctx)):
                     return False
-            except Exception:
-                return False
+            except Exception as e:
+                raise Exception(f"Error in invariant check of state '{self.name}: {str(e)}") from e
 
         return True
     
