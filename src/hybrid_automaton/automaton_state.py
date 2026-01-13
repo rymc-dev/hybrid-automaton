@@ -142,7 +142,10 @@ class State:
         """
         if self.flow is None:
             return np.array([])
-        return self.flow(ctx)
+        try:
+            return self.flow(ctx)
+        except Exception as e:
+            raise Exception(f"Error in continuous dynamics of state '{self.name}': {str(e)}") from e
 
     def check_invariants(self, ctx: Context) -> bool:
         if not self._Inv:
