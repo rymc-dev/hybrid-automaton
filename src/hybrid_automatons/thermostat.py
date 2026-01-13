@@ -108,18 +108,22 @@ if __name__ == '__main__':
     import asyncio
     ha_runner: AutomatonRunner = AutomatonRunner(hybrid_automaton=ha, sampling_rate=0.001)
     async def main(): 
-        await ha_runner.run(
-            x0 = np.array([25.0]), 
-            real_time_mode=False, 
-            integrate=True, 
-            duration=30.0, 
-            dt=0.01, 
-            collect_automaton=True,
-            collect_continuous=True,
-            collect_transitions=True,
-            collect_control=False, 
-            collect_auxiliary=False
-        )
+        try:
+            await ha_runner.run(
+                x0 = np.array([25.0]), 
+                real_time_mode=False, 
+                integrate=True, 
+                duration=30.0, 
+                dt=0.01, 
+                collect_automaton=True,
+                collect_continuous=True,
+                collect_transitions=True,
+                collect_control=False, 
+                collect_auxiliary=False
+            )
+        except Exception as e:
+            print (f"Caught a critical Exception in automaton run: {str(e)}")
+            sys.exit(1)
         
         ha_runner.print_summary()
         results = ha_runner.get_results()
@@ -130,18 +134,23 @@ if __name__ == '__main__':
         fig5 = automaton_states_over_time(results['automaton_states'])
         plt.show()
         
-        await ha_runner.run(
-            x0 = np.array([15.0]), 
-            real_time_mode=False, 
-            integrate=True, 
-            duration=30.0, 
-            dt=0.01, 
-            collect_automaton=True,
-            collect_continuous=True,
-            collect_transitions=True,
-            collect_control=False, 
-            collect_auxiliary=False
-        )
+        try:
+            await ha_runner.run(
+                x0 = np.array([15.0]), 
+                real_time_mode=False, 
+                integrate=True, 
+                duration=30.0, 
+                dt=0.01, 
+                collect_automaton=True,
+                collect_continuous=True,
+                collect_transitions=True,
+                collect_control=False, 
+                collect_auxiliary=False
+            )
+        except Exception as e:
+            print (f"Caught a critical Exception in automaton run: {str(e)}")
+            sys.exit(1)
+            
         ha_runner.print_summary()
         results = ha_runner.get_results()
         
