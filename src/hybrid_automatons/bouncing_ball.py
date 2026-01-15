@@ -10,6 +10,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 from hybrid_automaton import Automaton, State, Transition
 from hybrid_automaton.automaton_runtime import Context
 from hybrid_automaton.automaton_annotations import guard, reset, invariant, continuous_dynamics
+from hybrid_automaton_runner.run_data import AutomatonRunData
 import time
 import numpy as np
 
@@ -120,6 +121,7 @@ def bouncing_ball(gravity: float = -9.81, restitution: float = 0.8):
     resting = State(
         name="RESTING",
         flow=resting_flow,
+        final=True,
         invariants=[failing_invariant],
         on_enter=lambda: print(f"[{time.time()}] [ENTER] RESTING (ball has stopped)"),
         on_exit=lambda: print(f"[{time.time()}] [EXIT] RESTING"),
@@ -184,10 +186,12 @@ if __name__ == '__main__':
     print (repr(ha))
     from hybrid_automaton_runner import AutomatonRunner
     import asyncio
+    from typing import Tuple, Optional
+    from hybrid_automaton.automaton_exit_codes import ExitCode
     ha_runner: AutomatonRunner = AutomatonRunner(hybrid_automaton=ha, sampling_rate=0.001)
     async def main(): 
         try: 
-            await ha_runner.run(
+            results: AutomatonRunData = await ha_runner.run(
                 x0=np.array([5.0, 0.0]), 
                 collect_automaton=True, 
                 collect_transitions=True, 
@@ -202,6 +206,7 @@ if __name__ == '__main__':
         except Exception as e:
             print(f"Exception: Automaton execution terminated with exception: {e}")
             sys.exit(1)
+            
             
         ha_runner.print_summary()
         results = ha_runner.get_results()

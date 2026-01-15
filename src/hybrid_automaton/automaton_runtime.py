@@ -6,6 +6,7 @@ from .automaton_runtime_context import Context, AuxiliaryState, ContinuousState,
 from .automaton_definition import Definition
 from .automaton_state import State
 from .automaton_transition import Transition
+from .automaton_exit_codes import ExitCode
 
 class Runtime: 
     """ 
@@ -147,9 +148,12 @@ class Runtime:
             # ---------------------------------------------------------
             # 1️⃣ Continuous dynamics
             # ---------------------------------------------------------
-            self._xdot = self._discrete_state.continuous_dynamics( # TODO: need to change this function to use new class attribute reprensetations instead of dicts
-                ctx=self._ctx
-            )
+            try:
+                self._xdot = self._discrete_state.continuous_dynamics( # TODO: need to change this function to use new class attribute reprensetations instead of dicts
+                    ctx=self._ctx
+                )
+            except Exception as e:
+                return ExitCode.CONTINUOUS_DYNAMICS_EXCEPTION, f"Continuous dynamics evaluation error: {str(e)}"
 
             # NOTE: Integrate `x` continous state if in simulation mode.
             # if not self._runtime_clock.is_real_time() and (self._xdot is not None):
@@ -162,94 +166,146 @@ class Runtime:
             # 2️⃣ Guard transitions - (Evaluate and Execute discrete
             #  Transition if 1 guard or more are active)
             # ---------------------------------------------------------
-            self._guard_evaluations = self._discrete_state.evaluate_transitions(
-                ctx=self._ctx
-            )
-            active_guards = [item[0] for item in self._guard_evaluations if item[1] is True]
-            error_guards = [[item[0], item[2]] for item in self._guard_evaluations if item[2] is not None]
-            if error_guards and len(error_guards) >= len(active_guards):
-                raise Exception("No valid guard evaluations could be performed, automaton may be stuck, please check guard function implementation.")
-            if error_guards:
-                for g in error_guards:
-                    print (f"Warning, evaluating guard ended in exception could be critical: '{g[0].name}': {g[1]}")
+            try:
+                self._guard_evaluations = self._discrete_state.evaluate_transitions(
+                    ctx=self._ctx
+                )
+                active_guards = [item[0] for item in self._guard_evaluations if item[1] is True]
+                error_guards = [[item[0], item[2]] for item in self._guard_evaluations if item[2] is not None]
+                if error_guards and len(error_guards) >= len(active_guards):
+                    raise Exception("No valid guard evaluations could be performed, automaton may be stuck, please check guard function implementation.")
+                if error_guards:
+                    for g in error_guards:
+                        print (f"Warning, evaluating guard ended in exception could be critical: '{g[0].name}': {g[1]}")
+            except Exception as e:
+                return ExitCode.GUARD_EVALUATION_EXCEPTION, f"Guard evaluation error: {str(e)}"
             
 
             if active_guards:
-                if len(active_guards) == 1:
-                    d = active_guards[0]
-                else:
-                    d: Transition = min(active_guards, key=lambda t: t.priority)
+                try:
+                    if len(active_guards) == 1:
+                        d = active_guards[0]
+                    else:
+                        d: Transition = min(active_guards, key=lambda t: t.priority)
 
-                # Execute transition
-                new_mode, new_ctx = d.execute(
-                    ctx = self._ctx
-                )
-                self._ctx.clk.ping_transition()
+                    # Execute transition
+                    new_mode, new_ctx = d.execute(
+                        ctx = self._ctx
+                    )
+                    self._ctx.clk.ping_transition()
 
-                if self._discrete_state.on_exit:
-                    self._discrete_state.on_exit()
+                    if self._discrete_state.on_exit:
+                        self._discrete_state.on_exit()
 
-                # Update state
-                self._discrete_state = new_mode
-                self._ctx = new_ctx
+                    # Update state
+                    self._discrete_state = new_mode
+                    self._ctx = new_ctx
 
-                # State entry callback
-                if self._discrete_state.on_enter:
-                    self._discrete_state.on_enter()
-                return
+                    # State entry callback
+                    if self._discrete_state.on_enter:
+                        self._discrete_state.on_enter()
+                    return ExitCode.EVL_STP_COMPLETION, None
+                except Exception as e: 
+                    return ExitCode.TRANSITION_EXCEPTION, f"Transition execution error: {str(e)}"
 
             # ---------------------------------------------------------
             # 3️⃣ No transition → invariant check
             # ---------------------------------------------------------
-            invariant_holds = self._discrete_state.check_invariants(
-                ctx=self._ctx
-            )
+            try:
+                invariant_holds = self._discrete_state.check_invariants(
+                    ctx=self._ctx
+                )
+            except Exception as e: 
+                return ExitCode.INVARIANT_EXCEPTION, f"Invariant evaluation error: {str(e)}"
 
-            if not invariant_holds and self._discrete_state._is_final:
+            if invariant_holds:
+                return ExitCode.EVL_STP_COMPLETION, None
+            elif not invariant_holds and self._discrete_state._is_final:
                 self._is_completed = True
                 self._active = False
+                return ExitCode.SUCCESS, "Automaton reached final state and completed successfully."
             elif not invariant_holds: 
-                raise SystemError('Invairants failed to hold and not in final mode')
+                return ExitCode.INVARIANT_FAILURE, "Invariants failed to hold and not in final mode"
+            else: 
+                return ExitCode.FAILURE, "Unknown evaluation step failure"
         
-    async def _run_automaton_loop(self):
+    async def _run_automaton_loop(self) -> Tuple[ExitCode, Optional[str]]:
         """ 
         async evaluation loop worker for running the automaton
         instance, either in real time mode or simulation mode.
         assumes that the automaton has already been activated
         and that there is no other current automaton loops running.
         """
+        exit_code: ExitCode = ExitCode.SUCCESS
+        error_message: Optional[str] = None
         is_real_time = self._ctx.clk.is_real_time()
-        
-        if is_real_time: 
+
+        clock_task = None
+        if is_real_time:
             clock_task = asyncio.create_task(self._ctx.clk.activate())
 
-        while self._active and not self._is_completed:
-            self._evaluation_step()
+        try:
+            while self._active and not self._is_completed:
+                try:
+                    results: Tuple[ExitCode, Optional[str]] = self._evaluation_step()
+                except Exception as eval_stp_exc:
+                    # Critical evaluation failure
+                    exit_code = ExitCode.FAILURE
+                    error_message = str(eval_stp_exc)
+                    break  # exit the loop
+                
+                match results[0]: 
+                    case ExitCode.EVL_STP_COMPLETION: pass # continue normal operation
+                    case ExitCode.SUCCESS: 
+                        exit_code = results[0]
+                        error_message = results[1]
+                        break 
+                    case _: 
+                        exit_code = results[0]
+                        error_message = results[1]
+                        break
+                        
+                
+                if is_real_time:
+                    await self._ctx.clk.sleep_for_dt()
+                else:
+                    self._ctx.clk.step_dt()
+                    await asyncio.sleep(0.001)
 
-            if is_real_time: 
-                await self._ctx.clk.sleep_for_dt()
-            else:
-                self._ctx.clk.step_dt()
-                await asyncio.sleep(0.001)
-        
-        if is_real_time: 
-            clock_task.cancel() # should maybe use deactivate here instead of cancel for the task? 
+        except Exception as e:
+            # Unexpected loop-level exception
+            exit_code = ExitCode.FAILURE
+            error_message = str(e)
 
-        print (f"automaton '{self._automaton_definition.name}' evaluation loop worker exiting.")
+        finally:
+            if clock_task and not clock_task.cancelled():
+                clock_task.cancel()
+                try:
+                    await clock_task
+                except Exception:
+                    pass
+
+        # .info("Automaton '%s' evaluation loop worker exiting.", self._automaton_definition.name)
+        return exit_code, error_message
 
     def _on_deactivate(self): 
         """internal deactivation hook"""
         self._automaton_definition.on_exit()    
 
-    async def activate(self): 
+    async def activate(self) -> Tuple[ExitCode, Optional[str]]: 
         """interface for activation of the automaton"""
         #TODO: add proper excpetion raising for coro
         
-        self._automaton_definition.on_entry()
-        main_runner_task = asyncio.create_task(self._run_automaton_loop())
-        self._active = True
-        await main_runner_task
-        self._on_deactivate()
+        try:
+            self._automaton_definition.on_entry()
+            main_runner_task = asyncio.create_task(self._run_automaton_loop())
+            self._active = True
+            results = await main_runner_task
+            # self._on_deactivate()
+            return results[0], results[1] 
+        except Exception as e: 
+            # self._on_deactivate()
+            return ExitCode.FAILURE, str(e)
 
     def deactivate(self): 
         self._active = False

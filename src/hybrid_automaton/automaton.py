@@ -17,6 +17,7 @@ import numpy as np
 from .automaton_definition import Definition
 from .automaton_runtime import Runtime
 from .automaton_state import State
+from hybrid_automaton.automaton_exit_codes import ExitCode
 
 
 class Automaton: 
@@ -308,7 +309,7 @@ class Automaton:
         real_time_mode: Optional[bool] = False,
         integrate: Optional[bool] = True,
         dt: Optional[float] = 0.1
-    ):
+    ) -> Tuple[ExitCode, Optional[str]]:
         """
         Activate the hybrid automaton.
 
@@ -382,9 +383,10 @@ class Automaton:
             integrate=integrate,
             dt=dt
         )
-        await self._runtime.activate()
+        results: Tuple[ExitCode, Optional[str]] = await self._runtime.activate()
         
         self._on_deactivate()
+        return results
         
     def deactivate(self): 
         """deactives the automaton"""
