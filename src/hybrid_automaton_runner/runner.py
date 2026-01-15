@@ -387,17 +387,17 @@ class AutomatonRunner:
             await asyncio.sleep(0.1)
         return f"{self.ha.get_automaton_name()} runtime timeout after specified period: '{timeout_sec}'"
 
-    """ === post run metadata utilities ==== """
+    # """ === post run metadata utilities ==== """
 
-    def get_results(self) -> Dict[str, Any]:
-        """Get all collected data."""
-        return {
-            'continuous_states': self.continuous_collector.get_data(),
-            'auxiliary_states': self.auxiliary_collector.get_data(),
-            'control_inputs': self.control_collector.get_data(),
-            'automaton_states': self.automaton_collector.get_data(),
-            'transition_times': self.transition_collector.get_data(),
-        }
+    # def get_results(self) -> Dict[str, Any]:
+    #     """Get all collected data."""
+    #     return {
+    #         'continuous_states': self.continuous_collector.get_data(),
+    #         'auxiliary_states': self.auxiliary_collector.get_data(),
+    #         'control_inputs': self.control_collector.get_data(),
+    #         'automaton_states': self.automaton_collector.get_data(),
+    #         'transition_times': self.transition_collector.get_data(),
+    #     }
 
     def clear_all_data(self):
         """Clear all collected data."""
@@ -407,18 +407,18 @@ class AutomatonRunner:
         self.automaton_collector.clear()
         self.transition_collector.clear()
 
-    def print_summary(self):
-        """Print summary of collected data."""
-        print(f"{self.ha.get_automaton_name()} Run Summary:")
-        print(f"\tTime Elapsed: {self.ha.get_runtime_time_elapsed()}")
+    # def print_summary(self):
+    #     """Print summary of collected data."""
+    #     print(f"{self.ha.get_automaton_name()} Run Summary:")
+    #     print(f"\tTime Elapsed: {self.ha.get_runtime_time_elapsed()}")
 
-        if getattr(self.continuous_collector, "data", None):
-            print(f"\tCollected {len(self.continuous_collector.data)} continuous state samples")
-        if getattr(self.auxiliary_collector, "data", None):
-            print(f"\tCollected {len(self.auxiliary_collector.data)} auxiliary state samples")
-        if getattr(self.control_collector, "data", None):
-            print(f"\tCollected {len(self.control_collector.data)} control input samples")
-        if getattr(self.automaton_collector, "data", None):
-            print(f"\tCollected {len(self.automaton_collector.data)} automaton state samples")
-        if getattr(self.transition_collector, "data", None):
-            print(f"\tCollected {len(self.transition_collector.data)} transition time samples")
+    #     if getattr(self.continuous_collector, "data", None):
+    #         print(f"\tCollected {len(self.continuous_collector.data)} continuous state samples")
+    #     if getattr(self.auxiliary_collector, "data", None):
+    #         print(f"\tCollected {len(self.auxiliary_collector.data)} auxiliary state samples")
+    #     if getattr(self.control_collector, "data", None):
+    #         print(f"\tCollected {len(self.control_collector.data)} control input samples")
+    #     if getattr(self.automaton_collector, "data", None):
+    #         print(f"\tCollected {len(self.automaton_collector.data)} automaton state samples")
+    #     if getattr(self.transition_collector, "data", None):
+    #         print(f"\tCollected {len(self.transition_collector.data)} transition time samples")
