@@ -2,31 +2,31 @@
 
 """
 
-from enum import Enum
+from enum import Enum, auto
 
 class ExitCode(Enum):
     """   
     automaton run exit codes.
     """
-    SUCCESS = 0
+    SUCCESS = auto()
     """ The automaton run completed successfully. """
     
     """ General Exception = 1 """
-    FAILURE = 1
+    FAILURE = auto()
     
     """ Runtime Exceptions = 2-99 """
-    INVARIANT_EXCEPTION = 2
-    GUARD_EVALUATION_EXCEPTION = 3
-    CONTINUOUS_DYNAMICS_EXCEPTION = 4
-    TRANSITION_EXCEPTION = 8
-    RESET_EXCEPTION = 5
+    INVARIANT_EXCEPTION = auto()
+    GUARD_EVALUATION_EXCEPTION = auto()
+    CONTINUOUS_DYNAMICS_EXCEPTION = auto()
+    TRANSITION_EXCEPTION = auto()
+    RESET_EXCEPTION = auto()
     
-    CONFIGURATION_EXCEPTION = 6
-    CLOCK_EXCEPTION = 7
+    CONFIGURATION_EXCEPTION = auto()
+    CLOCK_EXCEPTION = auto()
     
-    INVARIANT_FAILURE = 9
-    EVL_STP_COMPLETION = 10
+    INVARIANT_FAILURE = auto()
+    EVL_STP_COMPLETION = auto()
     
-    AUTOMATON_TIMEOUT = 11
+    AUTOMATON_TIMEOUT = auto()
     
     

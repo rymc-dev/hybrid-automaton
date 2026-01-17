@@ -4,6 +4,8 @@ hybrid_automaton_runner.exit_codes.py
 enumerations of exit codes associated with the 
 automaton runner run coro
 """
+# TODO: Probably rename this exit codes reserved for 
+#       automaton operating systems primarly 
 
 from enum import Enum, auto
 
