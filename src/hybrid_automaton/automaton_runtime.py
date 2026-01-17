@@ -6,7 +6,58 @@ from .automaton_runtime_context import Context, AuxiliaryState, ContinuousState,
 from .automaton_definition import Definition
 from .automaton_state import State
 from .automaton_transition import Transition
-from .automaton_exit_codes import ExitCode
+from .exit_codes import ExitCode
+from .automaton_exit import AutomatonExit
+from dataclasses import dataclass
+from enum import Enum, auto
+
+class StepResultCode(Enum): 
+    STEP_NORMAL = auto()
+    """standard operation inside a discrete mode, continuous dynamics evolve,
+    invariants hold, guards all evaluated as false"""
+    STEP_TRANSITION = auto()
+    """guard/(s) satisfied during evaluation, transition selected, reset(s) applied if there are any
+    for the transition new discrete mode entered  
+    """
+    # NOTE: ENABLED_TRANSITION_CONFLICT ignored, handled by automaton definition requirements of non conflicting 
+    # discrete mode priorities when defining discrete state transiitons
+    # TIME BLOCK should not occur either, we check transitions have destinations 
+    # on definition initialization, but as for the automaton flow, lack of flow may be a design
+    # choice so there s no way for me to validate this, it's up to designer to determine through the 
+    # automaton results if time blocks occur.  JUNMPS ALWAYS possible, 
+    # but no continuous flow of dynamic not a worry of framework as may be intentional  
+    STEP_INVARIANT_VIOLATION = auto()
+    """invariant(s) bitwise ~| evaluated as without valid transition from current 
+    discrete mode being available therefore leaving automaton in a semantically invalid state
+    in an invalid state so run should stop
+    """
+    
+    STEP_TERMINAL_REACHED = auto()
+    """Entered a designated terminal / accepting discrete mode
+       no further evolution intended therefore automaton run complete
+       auto deactivate. 
+       in this automaton final mode is declared, when invariant violation occurs
+       and we are in a designated definition final state this is returned
+    """  
+
+class StepSeverity(Enum): 
+    STEP_OK = auto()
+    """ step worked as expected, continue normal operation as expected
+    """
+    STEP_WARNING = auto()
+    """ a non critical issue during step, just need to prompt the end user of this
+    """
+    STEP_ERROR = auto()
+    """ error raised, these are typically critical, handle and raise exception to stop the run
+    """
+    
+
+@dataclass
+class StepResult:
+    result: StepResultCode
+    status: StepSeverity
+    message: str
+
 
 class Runtime: 
     """ 
@@ -84,6 +135,7 @@ class Runtime:
             integrate: bool = True,
             dt: float = 0.1
     ): 
+        # TODO: Make 'self._active' this a async event instead of just being a boolean  
         self._active: bool = False
         self._is_completed: bool = False
         self._integrate: bool = integrate
@@ -139,10 +191,13 @@ class Runtime:
         for key, value in u.items():
             self._ctx.u[key].set_control_input(value)
 
-    def _evaluation_step(self):
+    def _evaluation_step(self) -> StepResult:
         """
         Perform one timestep evaluation of the hybrid automaton.
         this is a purely syncronis function.
+        
+        return: 
+            StepResult: A step code and msg
         """
         if not self._is_completed and self._active: 
             # ---------------------------------------------------------
@@ -229,15 +284,14 @@ class Runtime:
             else: 
                 return ExitCode.FAILURE, "Unknown evaluation step failure"
         
-    async def _run_automaton_loop(self) -> Tuple[ExitCode, Optional[str]]:
+    async def _run_automaton_loop(self) -> AutomatonExit:
         """ 
         async evaluation loop worker for running the automaton
         instance, either in real time mode or simulation mode.
         assumes that the automaton has already been activated
         and that there is no other current automaton loops running.
         """
-        exit_code: ExitCode = ExitCode.SUCCESS
-        error_message: Optional[str] = None
+        automaton_exit: AutomatonExit = AutomatonExit(exit_code=ExitCode.SUCCESS, msg='')
         is_real_time = self._ctx.clk.is_real_time()
 
         clock_task = None
@@ -250,19 +304,19 @@ class Runtime:
                     results: Tuple[ExitCode, Optional[str]] = self._evaluation_step()
                 except Exception as eval_stp_exc:
                     # Critical evaluation failure
-                    exit_code = ExitCode.FAILURE
-                    error_message = str(eval_stp_exc)
+                    automaton_exit.exit_code = ExitCode.FAILURE
+                    automaton_exit.msg = str(eval_stp_exc)
                     break  # exit the loop
                 
                 match results[0]: 
                     case ExitCode.EVL_STP_COMPLETION: pass # continue normal operation
                     case ExitCode.SUCCESS: 
-                        exit_code = results[0]
-                        error_message = results[1]
+                        automaton_exit.exit_code = results[0]
+                        automaton_exit.msg = results[1]
                         break 
                     case _: 
-                        exit_code = results[0]
-                        error_message = results[1]
+                        automaton_exit.exit_code = results[0]
+                        automaton_exit.msg = results[1]
                         break
                         
                 
@@ -274,8 +328,8 @@ class Runtime:
 
         except Exception as e:
             # Unexpected loop-level exception
-            exit_code = ExitCode.FAILURE
-            error_message = str(e)
+            automaton_exit.exit_code = ExitCode.FAILURE
+            automaton_exit.msg = str(e)
 
         finally:
             if clock_task and not clock_task.cancelled():
@@ -285,27 +339,31 @@ class Runtime:
                 except Exception:
                     pass
 
-        # .info("Automaton '%s' evaluation loop worker exiting.", self._automaton_definition.name)
-        return exit_code, error_message
+        return automaton_exit
 
-    def _on_deactivate(self): 
-        """internal deactivation hook"""
-        self._automaton_definition.on_exit()    
+    # NOTE: Future hook option
+    # def _on_deactivate(self): 
+    #     """internal deactivation hook"""
+    #     self._automaton_definition.on_exit()    
 
-    async def activate(self) -> Tuple[ExitCode, Optional[str]]: 
+    async def activate(self) -> AutomatonExit: 
         """interface for activation of the automaton"""
-        #TODO: add proper excpetion raising for coro
-        
         try:
             self._automaton_definition.on_entry()
             main_runner_task = asyncio.create_task(self._run_automaton_loop())
             self._active = True
             results = await main_runner_task
-            # self._on_deactivate()
-            return results[0], results[1] 
+            self._automaton_definition.on_exit()
+            
+            return AutomatonExit(
+                exit_code=results[0], 
+                msg=results[1]
+            ) 
         except Exception as e: 
-            # self._on_deactivate()
-            return ExitCode.FAILURE, str(e)
+            return AutomatonExit(
+                exit_code=ExitCode.FAILURE, 
+                msg=str(e)
+            )
 
     def deactivate(self): 
         self._active = False

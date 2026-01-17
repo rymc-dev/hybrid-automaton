@@ -10,9 +10,12 @@ from .collectors import (
     TransitionTimeCollector
 )
 from hybrid_automaton import Automaton
-from hybrid_automaton.automaton_exit_codes import ExitCode as AutomatonExitCode
+from hybrid_automaton.exit_codes import ExitCode as AutomatonExitCode
 from .run_data import AutomatonRunData
-from .exit_codes import ExitCodes as RunnerExitCodes
+from .exit_codes import ExitCode as RunnerExitCode
+from .run_data import RunnerExit
+from hybrid_automaton.automaton_exit import AutomatonExit
+
 
 class TaskGroupExit(Exception):
     """
@@ -21,7 +24,7 @@ class TaskGroupExit(Exception):
     """
     def __init__(
         self,
-        runner_exit_code: RunnerExitCodes = None,
+        runner_exit_code: RunnerExitCode = None,
         runner_exit_msg: str = None,
         automaton_exit_code: AutomatonExitCode = None,
         automaton_exit_msg: str = None,
@@ -119,7 +122,7 @@ class AutomatonRunner:
                             dt=dt
                         ),
                         success_event=self._automaton_run_complete,
-                        event_runner_code=RunnerExitCodes.AUTOMATON_RUN_COMPLETE,
+                        event_runner_code=RunnerExitCode.AUTOMATON_RUN_COMPLETE,
                         source_name="automaton"
                     ),
                     name="automaton_runtime_task"
@@ -225,7 +228,7 @@ class AutomatonRunner:
                         self._wrapped_task(
                             coro=self._timeout_monitor(duration),
                             success_event=self._automaton_run_timeout,
-                            event_runner_code=RunnerExitCodes.AUTOMATON_RUN_TIMEOUT,
+                            event_runner_code=RunnerExitCode.AUTOMATON_RUN_TIMEOUT,
                             source_name="timeout_monitor"
                         ),
                         name="timeout_monitor_task"
@@ -248,7 +251,7 @@ class AutomatonRunner:
         except* Exception as e:
             # Unexpected error bubbled out of a task; mark as exception exit
             self._completion_result = {
-                'runner_exit_code': RunnerExitCodes.AUTOMATON_RUN_EXCEPTION,
+                'runner_exit_code': RunnerExitCode.AUTOMATON_RUN_EXCEPTION,
                 'runner_exit_msg': str(e),
                 'automaton_exit_code': None,
                 'automaton_exit_msg': None,
@@ -268,26 +271,23 @@ class AutomatonRunner:
 
             # If automaton provided a code/message, prefer that in the returned AutomatonRunData.
             return AutomatonRunData(
-                runner_exit_code=runner_code,
-                runner_exit_msg=runner_msg,
-                automaton_exit_code=automaton_code,
-                automaton_exit_msg=automaton_msg
+                runner_exit=RunnerExit(runner_code, runner_msg),
+                automaton_exit=AutomatonExit(automaton_code, automaton_msg),
             )
         else:
             # Fallback if nothing meaningful was captured
             return AutomatonRunData(
-                runner_exit_code=RunnerExitCodes.AUTOMATON_NO_RUN,
-                message="No completion result captured"
+                runner_exit=RunnerExit(RunnerExitCode.AUTOMATON_NO_RUN, "No completion result captured")
             )
 
-    async def _wrapped_task(self, coro, success_event: Optional[asyncio.Event], event_runner_code: RunnerExitCodes = None, source_name: str = "<task>"):
+    async def _wrapped_task(self, coro, success_event: Optional[asyncio.Event], event_runner_code: RunnerExitCode = None, source_name: str = "<task>"):
         """
         Wrapper for every spawned coroutine:
           - If the coroutine raises, sets the _automaton_run_exception event (so supervisor notices)
           - If it returns successfully and a success_event is supplied, record that as the canonical completion result
             (only the first such success is recorded)
         - success_event: if provided, indicates that normal completion of this task should trigger run termination.
-        - event_runner_code: RunnerExitCodes value to associate with that success_event (optional).
+        - event_runner_code: RunnerExitCode value to associate with that success_event (optional).
         """
         try:
             result = await coro
@@ -299,7 +299,7 @@ class AutomatonRunner:
             # Record the message (first exception wins).
             if not self._automaton_run_exception.is_set():
                 self._completion_result.update({
-                    'runner_exit_code': RunnerExitCodes.AUTOMATON_RUN_EXCEPTION,
+                    'runner_exit_code': RunnerExitCode.AUTOMATON_RUN_EXCEPTION,
                     'runner_exit_msg': f"{source_name} raised: {exc}",
                     'automaton_exit_code': None,
                     'automaton_exit_msg': None,
@@ -316,7 +316,7 @@ class AutomatonRunner:
                 not self._automaton_run_timeout.is_set():
 
             # Map runner code
-            runner_code = event_runner_code if event_runner_code is not None else RunnerExitCodes.AUTOMATON_RUN_COMPLETE
+            runner_code = event_runner_code if event_runner_code is not None else RunnerExitCode.AUTOMATON_RUN_COMPLETE
 
             # Attempt to extract automaton exit details if present on result (flexible)
             automaton_code = getattr(result, "exit_code", None)
@@ -350,12 +350,12 @@ class AutomatonRunner:
         Wait for the first of the run-level events and raise TaskGroupExit populated with the stored result.
         This runs inside the TaskGroup so raising TaskGroupExit will cancel sibling tasks and unwind the TaskGroup.
         """
-        # Create tasks mapped to their RunnerExitCodes for clarity.
+        # Create tasks mapped to their RunnerExitCode for clarity.
         wait_map = {
-            asyncio.create_task(self._automaton_run_complete.wait()): RunnerExitCodes.AUTOMATON_RUN_COMPLETE,
-            asyncio.create_task(self._automaton_run_timeout.wait()): RunnerExitCodes.AUTOMATON_RUN_TIMEOUT,
-            asyncio.create_task(self._automaton_run_exception.wait()): RunnerExitCodes.AUTOMATON_RUN_EXCEPTION,
-            asyncio.create_task(self._automaton_run_stop_requested.wait()): RunnerExitCodes.AUTOMATON_RUN_STOP_REQUESTED,
+            asyncio.create_task(self._automaton_run_complete.wait()): RunnerExitCode.AUTOMATON_RUN_COMPLETE,
+            asyncio.create_task(self._automaton_run_timeout.wait()): RunnerExitCode.AUTOMATON_RUN_TIMEOUT,
+            asyncio.create_task(self._automaton_run_exception.wait()): RunnerExitCode.AUTOMATON_RUN_EXCEPTION,
+            asyncio.create_task(self._automaton_run_stop_requested.wait()): RunnerExitCode.AUTOMATON_RUN_STOP_REQUESTED,
         }
 
         done, pending = await asyncio.wait(list(wait_map.keys()), return_when=asyncio.FIRST_COMPLETED)

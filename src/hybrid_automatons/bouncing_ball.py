@@ -187,7 +187,7 @@ if __name__ == '__main__':
     from hybrid_automaton_runner import AutomatonRunner
     import asyncio
     from typing import Tuple, Optional
-    from hybrid_automaton.automaton_exit_codes import ExitCode
+    from hybrid_automaton.exit_codes import ExitCode
     ha_runner: AutomatonRunner = AutomatonRunner(hybrid_automaton=ha, sampling_rate=0.001)
     async def main(): 
         try: 

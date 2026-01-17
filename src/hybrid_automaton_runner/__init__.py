@@ -13,6 +13,7 @@ from .injectors import (
 )
 from .runner import AutomatonRunner
 from .utils import deactivate_after_timeout, run_with_timeout
+from .exit_codes import ExitCode
 
 __author__ = "Ryan McKee"
 __version__ = "v0.0.1"
@@ -29,5 +30,6 @@ __all__ = [
     'run_with_timeout',
     'ContinuousStateInjector',
     'AuxiliaryStateInjector',
-    'ControlInputInjector'
+    'ControlInputInjector',
+    'ExitCode'
 ]
