@@ -19,6 +19,17 @@ class StepResultCode(Enum):
     """guard/(s) satisfied during evaluation, transition selected, reset(s) applied if there are any
     for the transition new discrete mode entered  
     """
+    CONTINUOUS_FLOW_EXCEPTION = auto()
+    """continuous flow exception evaluation raised during integration
+    """
+    
+    STEP_SELF_INTEGRATION_EXCEPTION = auto()
+    """exception occured integration continuous dynamics generated for step
+    """
+    
+    TRANSITION_EXCEPTION = auto()
+    """an exception occured while attempting a discrete state jump
+    """
     # NOTE: ENABLED_TRANSITION_CONFLICT ignored, handled by automaton definition requirements of non conflicting 
     # discrete mode priorities when defining discrete state transiitons
     # TIME BLOCK should not occur either, we check transitions have destinations 
@@ -48,16 +59,24 @@ class StepSeverity(Enum):
     """ a non critical issue during step, just need to prompt the end user of this
     """
     STEP_ERROR = auto()
-    """ error raised, these are typically critical, handle and raise exception to stop the run
+    """ error raised, these are typically critical related to the automaton definition being mishandled,
+    when raised should close automaton handle and raise exception to stop the run
+    """
+    STEP_FATAL = auto()
+    """ fatal raised, this is an unexpected exception most likely related to code implementations, 
+        when this occurs something has went fatally wrong with the code, for evaluation_step 
+        should contact the developer if this severity occurs
     """
     
-
 @dataclass
 class StepResult:
-    result: StepResultCode
+    """
+    a struct for returning information regarding evaluation steps
+    in the runtime.
+    """
+    result: StepResultCode = None
     status: StepSeverity
-    message: str
-
+    message: str = ""
 
 class Runtime: 
     """ 
@@ -179,7 +198,7 @@ class Runtime:
 
     def set_continuous_state(self, x: np.array): 
         """updates the current continous state"""
-        self._ctx.x.set_continous_state(x)
+        self._ctx.x.set_continuous_state(x)
 
     def set_auxiliary_states(self, aux_x: Dict[str, np.array]):
         """updates the current auxilary state"""
@@ -199,7 +218,7 @@ class Runtime:
         return: 
             StepResult: A step code and msg
         """
-        if not self._is_completed and self._active: 
+        try: 
             # ---------------------------------------------------------
             # 1️⃣ Continuous dynamics
             # ---------------------------------------------------------
@@ -208,14 +227,25 @@ class Runtime:
                     ctx=self._ctx
                 )
             except Exception as e:
-                return ExitCode.CONTINUOUS_DYNAMICS_EXCEPTION, f"Continuous dynamics evaluation error: {str(e)}"
+                return StepResult( 
+                    result=StepResultCode.CONTINUOUS_FLOW_EXCEPTION,
+                    status=StepSeverity.STEP_ERROR,
+                    message=f"'{self._automaton_definition.name}' exception occured duration continuous flow caused by: '{str(e)}'"
+                )
 
             # NOTE: Integrate `x` continous state if in simulation mode.
             # if not self._runtime_clock.is_real_time() and (self._xdot is not None):
             #     self._continous_state.integrate(self._xdot, self._runtime_clock.get_dt()) 
 
             if self._integrate and (self._xdot is not None) and (self._ctx.x.x0 is not None):
-                self._ctx.x.integrate(self._xdot, self._ctx.clk.get_dt()) 
+                try:
+                    self._ctx.x.integrate(self._xdot, self._ctx.clk.get_dt())
+                except Exception as e: 
+                    return StepResult(
+                        result=StepResultCode.STEP_SELF_INTEGRATION_EXCEPTION,
+                        status=StepSeverity.STEP_ERROR,
+                        message=f"'{self._automaton_definition.name}' exception occured during continuous dynamics integration caused by: '{str(e)}'"
+                    ) 
             
             # ---------------------------------------------------------
             # 2️⃣ Guard transitions - (Evaluate and Execute discrete
@@ -233,11 +263,16 @@ class Runtime:
                     for g in error_guards:
                         print (f"Warning, evaluating guard ended in exception could be critical: '{g[0].name}': {g[1]}")
             except Exception as e:
-                return ExitCode.GUARD_EVALUATION_EXCEPTION, f"Guard evaluation error: {str(e)}"
+                return StepResult( 
+                    result=StepResultCode.TRANSITION_EXCEPTION, 
+                    severity=StepSeverity.STEP_ERROR,
+                    message=f"'{self._automaton_definition.name}' Guard Evaluation error: {str(e)}"
+                )
             
 
             if active_guards:
                 try:
+                    old_mode = self._discrete_state.name
                     if len(active_guards) == 1:
                         d = active_guards[0]
                     else:
@@ -259,9 +294,18 @@ class Runtime:
                     # State entry callback
                     if self._discrete_state.on_enter:
                         self._discrete_state.on_enter()
-                    return ExitCode.EVL_STP_COMPLETION, None
+                    
+                    return StepResult(
+                        result=StepResultCode.STEP_NORMAL,
+                        status=StepSeverity.STEP_OK,
+                        message=f"'{self._automaton_definition.name}' transition '{d.name}' occured moving discrete state from: '{old_mode}' -> '{self._discrete_state.name}'"
+                    )
                 except Exception as e: 
-                    return ExitCode.TRANSITION_EXCEPTION, f"Transition execution error: {str(e)}"
+                    return StepResult( 
+                        StepResultCode.TRANSITION_EXCEPTION, 
+                        StepSeverity.STEP_ERROR,
+                        message=f"'{self._automaton_definition.name}' discrete state jump (transition) exception occured: {str(e)}"
+                    )
 
             # ---------------------------------------------------------
             # 3️⃣ No transition → invariant check
@@ -271,20 +315,39 @@ class Runtime:
                     ctx=self._ctx
                 )
             except Exception as e: 
-                return ExitCode.INVARIANT_EXCEPTION, f"Invariant evaluation error: {str(e)}"
+                return StepResult(
+                    results=StepResultCode.STEP_INVARIANT_VIOLATION,
+                    status=StepSeverity.STEP_ERROR, 
+                    message=f"'{self._automaton_definition.name}' has had an invariant violation caused by exception during evaluation check, this is a critical semantic error for the automaton which could lead to instability and false results therefore please fix: {str(e)}"
+                )
 
             if invariant_holds:
-                return ExitCode.EVL_STP_COMPLETION, None
+                return StepResult(
+                    result=StepResultCode.STEP_NORMAL,
+                    status=StepSeverity.STEP_OK
+                )
             elif not invariant_holds and self._discrete_state._is_final:
                 self._is_completed = True
                 self._active = False
-                return ExitCode.SUCCESS, "Automaton reached final state and completed successfully."
-            elif not invariant_holds: 
-                return ExitCode.INVARIANT_FAILURE, "Invariants failed to hold and not in final mode"
+                return StepResult(
+                    step_result=StepResultCode.STEP_TERMINAL_REACHED, 
+                    step_severity=StepSeverity.STEP_OK,
+                    message=f"'{self._automaton_definition.name}' has reached terminal state '{self._discrete_state.name}'."
+                )
             else: 
-                return ExitCode.FAILURE, "Unknown evaluation step failure"
+                    return StepResult(
+                        step_result=StepResultCode.STEP_INVARIANT_VIOLATION, 
+                        step_severity=StepSeverity.STEP_ERROR,
+                        message=f"'{self._automaton_definition.name}' invariant(s) bitwise 'or/~|' '{self._discrete_state._Inv}' \
+                            has been violated, this is a critical semantic error for you automaton definition semantic."
+                    )
+        except Exception as e: 
+            return StepResult(
+                status=StepSeverity.STEP_FATAL,
+                message=f"undefined fatal exception has occured during evaluation step, please raise issue in 'hybrid_automaton' github repo: {str(e)}"
+            )
         
-    async def _run_automaton_loop(self) -> AutomatonExit:
+    async def _run(self) -> AutomatonExit:
         """ 
         async evaluation loop worker for running the automaton
         instance, either in real time mode or simulation mode.
@@ -301,7 +364,7 @@ class Runtime:
         try:
             while self._active and not self._is_completed:
                 try:
-                    results: Tuple[ExitCode, Optional[str]] = self._evaluation_step()
+                    results: StepResult = self._evaluation_step()
                 except Exception as eval_stp_exc:
                     # Critical evaluation failure
                     automaton_exit.exit_code = ExitCode.FAILURE
@@ -319,7 +382,6 @@ class Runtime:
                         automaton_exit.msg = results[1]
                         break
                         
-                
                 if is_real_time:
                     await self._ctx.clk.sleep_for_dt()
                 else:
@@ -350,7 +412,7 @@ class Runtime:
         """interface for activation of the automaton"""
         try:
             self._automaton_definition.on_entry()
-            main_runner_task = asyncio.create_task(self._run_automaton_loop())
+            main_runner_task = asyncio.create_task(self._run())
             self._active = True
             results = await main_runner_task
             self._automaton_definition.on_exit()
