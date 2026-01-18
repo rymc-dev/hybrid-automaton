@@ -12,7 +12,6 @@ from .injectors import (
     ControlInputInjector
 )
 from .runner import AutomatonRunner
-from .utils import deactivate_after_timeout, run_with_timeout
 from .exit_codes import ExitCode
 
 __author__ = "Ryan McKee"

@@ -27,7 +27,7 @@ class StepResultCode(Enum):
     """exception occured integration continuous dynamics generated for step
     """
     
-    TRANSITION_EXCEPTION = auto()
+    STEP_TRANSITION_EXCEPTION = auto()
     """an exception occured while attempting a discrete state jump
     """
     # NOTE: ENABLED_TRANSITION_CONFLICT ignored, handled by automaton definition requirements of non conflicting 
@@ -74,8 +74,24 @@ class StepResult:
     a struct for returning information regarding evaluation steps
     in the runtime.
     """
+    
+    severity: StepSeverity
     result: StepResultCode = None
-    status: StepSeverity
+    message: str = ""
+
+class RunResultCode(Enum): 
+    SUCCESS = auto()
+    FAILURE = auto()
+
+
+
+@dataclass
+class RunResult:
+    """   
+    a return obj for showing results of the runtime
+    """ 
+    exit_result: RunResultCode = RunResultCode.SUCCESS
+    reason: StepResult = None # if failure then returns previous step result which caused
     message: str = ""
 
 class Runtime: 
@@ -156,7 +172,6 @@ class Runtime:
     ): 
         # TODO: Make 'self._active' this a async event instead of just being a boolean  
         self._active: bool = False
-        self._is_completed: bool = False
         self._integrate: bool = integrate
 
         self._automaton_definition: Definition = automaton_definition
@@ -229,7 +244,7 @@ class Runtime:
             except Exception as e:
                 return StepResult( 
                     result=StepResultCode.CONTINUOUS_FLOW_EXCEPTION,
-                    status=StepSeverity.STEP_ERROR,
+                    severity=StepSeverity.STEP_ERROR,
                     message=f"'{self._automaton_definition.name}' exception occured duration continuous flow caused by: '{str(e)}'"
                 )
 
@@ -243,7 +258,7 @@ class Runtime:
                 except Exception as e: 
                     return StepResult(
                         result=StepResultCode.STEP_SELF_INTEGRATION_EXCEPTION,
-                        status=StepSeverity.STEP_ERROR,
+                        severity=StepSeverity.STEP_ERROR,
                         message=f"'{self._automaton_definition.name}' exception occured during continuous dynamics integration caused by: '{str(e)}'"
                     ) 
             
@@ -264,7 +279,7 @@ class Runtime:
                         print (f"Warning, evaluating guard ended in exception could be critical: '{g[0].name}': {g[1]}")
             except Exception as e:
                 return StepResult( 
-                    result=StepResultCode.TRANSITION_EXCEPTION, 
+                    result=StepResultCode.STEP_TRANSITION_EXCEPTION, 
                     severity=StepSeverity.STEP_ERROR,
                     message=f"'{self._automaton_definition.name}' Guard Evaluation error: {str(e)}"
                 )
@@ -296,13 +311,13 @@ class Runtime:
                         self._discrete_state.on_enter()
                     
                     return StepResult(
-                        result=StepResultCode.STEP_NORMAL,
-                        status=StepSeverity.STEP_OK,
+                        result=StepResultCode.STEP_TRANSITION,
+                        severity=StepSeverity.STEP_OK,
                         message=f"'{self._automaton_definition.name}' transition '{d.name}' occured moving discrete state from: '{old_mode}' -> '{self._discrete_state.name}'"
                     )
                 except Exception as e: 
                     return StepResult( 
-                        StepResultCode.TRANSITION_EXCEPTION, 
+                        StepResultCode.STEP_TRANSITION_EXCEPTION, 
                         StepSeverity.STEP_ERROR,
                         message=f"'{self._automaton_definition.name}' discrete state jump (transition) exception occured: {str(e)}"
                     )
@@ -317,69 +332,88 @@ class Runtime:
             except Exception as e: 
                 return StepResult(
                     results=StepResultCode.STEP_INVARIANT_VIOLATION,
-                    status=StepSeverity.STEP_ERROR, 
+                    severity=StepSeverity.STEP_ERROR, 
                     message=f"'{self._automaton_definition.name}' has had an invariant violation caused by exception during evaluation check, this is a critical semantic error for the automaton which could lead to instability and false results therefore please fix: {str(e)}"
                 )
 
             if invariant_holds:
                 return StepResult(
                     result=StepResultCode.STEP_NORMAL,
-                    status=StepSeverity.STEP_OK
+                    severity=StepSeverity.STEP_OK
                 )
             elif not invariant_holds and self._discrete_state._is_final:
-                self._is_completed = True
-                self._active = False
                 return StepResult(
-                    step_result=StepResultCode.STEP_TERMINAL_REACHED, 
-                    step_severity=StepSeverity.STEP_OK,
+                    result=StepResultCode.STEP_TERMINAL_REACHED, 
+                    severity=StepSeverity.STEP_OK,
                     message=f"'{self._automaton_definition.name}' has reached terminal state '{self._discrete_state.name}'."
                 )
             else: 
-                    return StepResult(
-                        step_result=StepResultCode.STEP_INVARIANT_VIOLATION, 
-                        step_severity=StepSeverity.STEP_ERROR,
-                        message=f"'{self._automaton_definition.name}' invariant(s) bitwise 'or/~|' '{self._discrete_state._Inv}' \
-                            has been violated, this is a critical semantic error for you automaton definition semantic."
-                    )
+                return StepResult(
+                    result=StepResultCode.STEP_INVARIANT_VIOLATION, 
+                    severity=StepSeverity.STEP_ERROR,
+                    message=f"'{self._automaton_definition.name}' invariant(s) bitwise 'or/~|' '{self._discrete_state._Inv}' \
+                        has been violated, this is a critical semantic error for you automaton definition semantic."
+                )
         except Exception as e: 
             return StepResult(
-                status=StepSeverity.STEP_FATAL,
+                severity=StepSeverity.STEP_FATAL,
                 message=f"undefined fatal exception has occured during evaluation step, please raise issue in 'hybrid_automaton' github repo: {str(e)}"
             )
         
-    async def _run(self) -> AutomatonExit:
+    async def _run(self) -> RunResult:
         """ 
         async evaluation loop worker for running the automaton
         instance, either in real time mode or simulation mode.
         assumes that the automaton has already been activated
         and that there is no other current automaton loops running.
         """
-        automaton_exit: AutomatonExit = AutomatonExit(exit_code=ExitCode.SUCCESS, msg='')
+        run_result: RunResult = RunResult()
         is_real_time = self._ctx.clk.is_real_time()
+        self._active = True
 
         clock_task = None
         if is_real_time:
             clock_task = asyncio.create_task(self._ctx.clk.activate())
 
         try:
-            while self._active and not self._is_completed:
-                try:
-                    results: StepResult = self._evaluation_step()
-                except Exception as eval_stp_exc:
-                    # Critical evaluation failure
-                    automaton_exit.exit_code = ExitCode.FAILURE
-                    automaton_exit.msg = str(eval_stp_exc)
-                    break  # exit the loop
-                
-                match results[0]: 
-                    case ExitCode.EVL_STP_COMPLETION: pass # continue normal operation
-                    case ExitCode.SUCCESS: 
-                        automaton_exit.exit_code = results[0]
-                        automaton_exit.msg = results[1]
-                        break 
+            while self._active:
+                step_result: StepResult = self._evaluation_step()                
+                match step_result.severity:
+                    case StepSeverity.STEP_OK: 
+                        match step_result.result: 
+                            case StepResultCode.STEP_NORMAL: pass
+                            case StepResultCode.STEP_TRANSITION: print (f"{step_result.message}") # TODO add logging for transition
+                            case StepResultCode.STEP_TERMINAL_REACHED: 
+                                self._active = False
+                                print (f"{step_result.message}") # TODO: Add better logging
+                    case StepSeverity.STEP_WARNING:
+                        # TODO: Should log warning for now print
+                        # TODO: Should prob check if this warning is recurring so we don't spam the logs
+                        print (f"WARNING: {self._automaton_definition.name} warning: status: {step_result.result}, {step_result.message}")
+                    case StepSeverity.STEP_ERROR:
+                        # When an error occurs there is a defined symantic error that 
+                        # is arrived during automaton runtime.
+                        match step_result.result: 
+                            case StepResultCode.CONTINUOUS_FLOW_EXCEPTION: 
+                                print ("exception occured with the continuous dynamics function given")
+                                break
+                            case StepResultCode.STEP_SELF_INTEGRATION_EXCEPTION: 
+                                print ("exception occured performing continuous dynamic integration on continuous state.")
+                                break
+                            case StepResultCode.STEP_INVARIANT_VIOLATION: 
+                                print ("Invariant violation")
+                                break
+                            case StepResultCode.STEP_TRANSITION_EXCEPTION: 
+                                print ("exception occured during step transition")
+                                break
+                            case _:
+                                print ("undefined automaton error occured")
+                        break
+                    case StepSeverity.STEP_FATAL:
+                        print ("something has went fatally wrong during the automaton run")
+                        break
                     case _: 
-                        automaton_exit.exit_code = results[0]
-                        automaton_exit.msg = results[1]
+                        print ("a severity undefined occured")
                         break
                         
                 if is_real_time:
@@ -389,9 +423,10 @@ class Runtime:
                     await asyncio.sleep(0.001)
 
         except Exception as e:
-            # Unexpected loop-level exception
-            automaton_exit.exit_code = ExitCode.FAILURE
-            automaton_exit.msg = str(e)
+            # Unexpected loop-level exceptio
+            run_result.exit_result = RunResultCode.FAILURE
+            run_result.reason = -1
+            run_result.message = f"Fatal exception occured attempting runtime: {str(e)}"
 
         finally:
             if clock_task and not clock_task.cancelled():
@@ -401,31 +436,30 @@ class Runtime:
                 except Exception:
                     pass
 
-        return automaton_exit
+        return run_result
 
     # NOTE: Future hook option
     # def _on_deactivate(self): 
     #     """internal deactivation hook"""
     #     self._automaton_definition.on_exit()    
 
-    async def activate(self) -> AutomatonExit: 
+    async def activate(self) -> RunResult: 
         """interface for activation of the automaton"""
+        run_result: RunResult = None
         try:
             self._automaton_definition.on_entry()
             main_runner_task = asyncio.create_task(self._run())
-            self._active = True
-            results = await main_runner_task
+            run_result = await main_runner_task
+        except Exception as e: 
+            run_result =  RunResult(
+                exit_result=RunResultCode.FAILURE,
+                reason=-1,
+                message="exception occured during activation"
+            )
+        finally: 
             self._automaton_definition.on_exit()
             
-            return AutomatonExit(
-                exit_code=results[0], 
-                msg=results[1]
-            ) 
-        except Exception as e: 
-            return AutomatonExit(
-                exit_code=ExitCode.FAILURE, 
-                msg=str(e)
-            )
+        return run_result
 
     def deactivate(self): 
         self._active = False
