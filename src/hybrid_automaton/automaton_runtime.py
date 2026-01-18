@@ -171,7 +171,7 @@ class Runtime:
             dt: float = 0.1
     ): 
         # TODO: Make 'self._active' this a async event instead of just being a boolean  
-        self._active: bool = False
+        self._active_event = asyncio.Event()
         self._integrate: bool = integrate
 
         self._automaton_definition: Definition = automaton_definition
@@ -362,21 +362,25 @@ class Runtime:
         
     async def _run(self) -> RunResult:
         """ 
-        async evaluation loop worker for running the automaton
+        async _run worker for running the automaton
         instance, either in real time mode or simulation mode.
-        assumes that the automaton has already been activated
-        and that there is no other current automaton loops running.
+        activates the automaton and its clock steps evaluation
+        evaluates step results which determines control of the automaton
+        
+        when complete returns RunResults instance, which will contain file path
+        to the logs associated with the automaton as well as results written to a file.
+        These results can be evaluated after quantativaly/qualatiativaly when completed.
         """
         run_result: RunResult = RunResult()
         is_real_time = self._ctx.clk.is_real_time()
-        self._active = True
+        self._active_event.set()
 
         clock_task = None
         if is_real_time:
             clock_task = asyncio.create_task(self._ctx.clk.activate())
 
         try:
-            while self._active:
+            while self._active_event.is_set():
                 step_result: StepResult = self._evaluation_step()                
                 match step_result.severity:
                     case StepSeverity.STEP_OK: 
@@ -384,7 +388,10 @@ class Runtime:
                             case StepResultCode.STEP_NORMAL: pass
                             case StepResultCode.STEP_TRANSITION: print (f"{step_result.message}") # TODO add logging for transition
                             case StepResultCode.STEP_TERMINAL_REACHED: 
-                                self._active = False
+                                self._active_event.clear()
+                                run_result.exit_result = RunResultCode.SUCCESS
+                                run_result.reason = step_result.result
+                                run_result.message = step_result.message
                                 print (f"{step_result.message}") # TODO: Add better logging
                     case StepSeverity.STEP_WARNING:
                         # TODO: Should log warning for now print
@@ -436,12 +443,7 @@ class Runtime:
                 except Exception:
                     pass
 
-        return run_result
-
-    # NOTE: Future hook option
-    # def _on_deactivate(self): 
-    #     """internal deactivation hook"""
-    #     self._automaton_definition.on_exit()    
+        return run_result   
 
     async def activate(self) -> RunResult: 
         """interface for activation of the automaton"""
@@ -462,4 +464,4 @@ class Runtime:
         return run_result
 
     def deactivate(self): 
-        self._active = False
+        self._active_event.clear()

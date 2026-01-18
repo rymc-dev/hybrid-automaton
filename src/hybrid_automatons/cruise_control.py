@@ -132,7 +132,7 @@ if __name__ == '__main__':
     import asyncio
     ha_runner: AutomatonRunner = AutomatonRunner(hybrid_automaton=ha, sampling_rate=0.001)
     async def main(): 
-        await ha_runner.run(
+        results = await ha_runner.run(
             x0=np.array([5.0, 0.0]), 
             collect_automaton=True, 
             collect_transitions=True, 
@@ -145,13 +145,14 @@ if __name__ == '__main__':
             dt=0.01
         )
         
-        ha_runner.print_summary()
-        results = ha_runner.get_results()
+        print(results) 
+        # ha_runner.print_summary()
+        # results = ha_runner.get_results()
         from matplotlib import pyplot as plt
-        from hybrid_automaton_evaluation.visualization import  automaton_states_over_time, continuous_states_over_time_fig, transitions_times_over_time_fig
-        fig1 = continuous_states_over_time_fig(results['continuous_states'], state_labels=['Velocity (m/s)', 'Distance to car in front (m)'])
-        # fig2 = transitions_times_over_time_fig(results['transition_times']) # TODO: Need to fix this
-        fig5 = automaton_states_over_time(results['automaton_states'])
-        plt.show()
+        # from hybrid_automaton_evaluation.visualization import  automaton_states_over_time, continuous_states_over_time_fig, transitions_times_over_time_fig
+        # fig1 = continuous_states_over_time_fig(results['continuous_states'], state_labels=['Velocity (m/s)', 'Distance to car in front (m)'])
+        # # fig2 = transitions_times_over_time_fig(results['transition_times']) # TODO: Need to fix this
+        # fig5 = automaton_states_over_time(results['automaton_states'])
+        # plt.show()
 
     asyncio.run(main())
