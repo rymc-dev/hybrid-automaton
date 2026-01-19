@@ -138,7 +138,7 @@ if __name__ == '__main__':
             print (str(e))
             sys.exit(1)
         
-        print (results)
+        results.print_summary()
         # ha_runner.print_summary()
         # results = ha_runner.get_results()
         # from matplotlib import pyplot as plt

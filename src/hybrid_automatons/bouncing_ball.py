@@ -208,13 +208,13 @@ if __name__ == '__main__':
             sys.exit(1)
             
             
-        ha_runner.print_summary()
-        results = ha_runner.get_results()
-        from matplotlib import pyplot as plt
-        from hybrid_automaton_evaluation.visualization import  automaton_states_over_time, continuous_states_over_time_fig, transitions_times_over_time_fig
-        fig1 = continuous_states_over_time_fig(results['continuous_states'], state_labels=['Height (m)', 'Velocity (m/s)'])
-        # fig2 = transitions_times_over_time_fig(results['transition_times']) # TODO: Need to fix this
-        fig5 = automaton_states_over_time(results['automaton_states'])
-        plt.show()
+        # results.print_summary()
+        # # results = ha_runner.get_results()
+        # from matplotlib import pyplot as plt
+        # from hybrid_automaton_evaluation.visualization import  automaton_states_over_time, continuous_states_over_time_fig, transitions_times_over_time_fig
+        # fig1 = continuous_states_over_time_fig(results['continuous_states'], state_labels=['Height (m)', 'Velocity (m/s)'])
+        # # fig2 = transitions_times_over_time_fig(results['transition_times']) # TODO: Need to fix this
+        # fig5 = automaton_states_over_time(results['automaton_states'])
+        # plt.show()
 
     asyncio.run(main())

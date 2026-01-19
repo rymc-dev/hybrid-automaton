@@ -152,8 +152,9 @@ if __name__ == '__main__':
         except Exception as e:
             print (f"Caught a critical Exception in automaton run: {str(e)}")
             sys.exit(1)
-            
-        print (results)
+        
+        results.print_summary()
+        # print (results)
             
         # ha_runner.print_summary()
         # results = ha_runner.get_results()

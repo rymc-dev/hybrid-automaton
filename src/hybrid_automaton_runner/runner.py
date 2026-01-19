@@ -407,18 +407,6 @@ class AutomatonRunner:
         self.automaton_collector.clear()
         self.transition_collector.clear()
 
-    # def print_summary(self):
-    #     """Print summary of collected data."""
-    #     print(f"{self.ha.get_automaton_name()} Run Summary:")
-    #     print(f"\tTime Elapsed: {self.ha.get_runtime_time_elapsed()}")
 
-    #     if getattr(self.continuous_collector, "data", None):
-    #         print(f"\tCollected {len(self.continuous_collector.data)} continuous state samples")
-    #     if getattr(self.auxiliary_collector, "data", None):
-    #         print(f"\tCollected {len(self.auxiliary_collector.data)} auxiliary state samples")
-    #     if getattr(self.control_collector, "data", None):
-    #         print(f"\tCollected {len(self.control_collector.data)} control input samples")
-    #     if getattr(self.automaton_collector, "data", None):
-    #         print(f"\tCollected {len(self.automaton_collector.data)} automaton state samples")
-    #     if getattr(self.transition_collector, "data", None):
-    #         print(f"\tCollected {len(self.transition_collector.data)} transition time samples")
+
+

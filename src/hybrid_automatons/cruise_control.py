@@ -145,10 +145,11 @@ if __name__ == '__main__':
             dt=0.01
         )
         
-        print(results) 
+        results.print_summary()
+        # print(results) 
         # ha_runner.print_summary()
         # results = ha_runner.get_results()
-        from matplotlib import pyplot as plt
+        # from matplotlib import pyplot as plt
         # from hybrid_automaton_evaluation.visualization import  automaton_states_over_time, continuous_states_over_time_fig, transitions_times_over_time_fig
         # fig1 = continuous_states_over_time_fig(results['continuous_states'], state_labels=['Velocity (m/s)', 'Distance to car in front (m)'])
         # # fig2 = transitions_times_over_time_fig(results['transition_times']) # TODO: Need to fix this
