@@ -13,10 +13,16 @@ class RunnerExit:
 class AutomatonRunData: 
     def __init__(
         self,
+        automaton_name: str,
+        automaton_version: str,
+        run_id: str,
         runner_exit: RunnerExit,
         automaton_exit: AutomatonExit, 
         results: dict = None
     ):
+        self.automaton_name = automaton_name
+        self.automaton_version = automaton_version
+        self.run_id = run_id
         self.runner_exit = runner_exit
         self.automaton_exit = automaton_exit
         self.results: dict = results if results is not None else {}

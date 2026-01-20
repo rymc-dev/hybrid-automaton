@@ -13,7 +13,7 @@ from hybrid_automaton_runner.injectors import ContinuousStateInjector
 from hybrid_automaton_runner.injectors import AuxiliaryStateInjector
 from hybrid_automaton_runner.injectors import ControlInputInjector
 
-from hybrid_automaton_runner.collectors import ContinuousStateCollector
+from hybrid_automaton_runner.samplers import ContinuousStateCollector
 from hybrid_automaton_runner import AutomatonRunner
 
 import numpy as np

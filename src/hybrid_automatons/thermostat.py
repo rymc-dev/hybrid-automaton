@@ -84,6 +84,7 @@ def thermostat(too_cold_threshold: float = 18.0, too_hot_threshold: float = 22.0
     
     return Automaton(
         name="Thermostat",
+        version="v0.0.1",
         states=[heating, cooling, idle],
         configuration={
             'too_cold_threshold': too_cold_threshold,
@@ -106,20 +107,16 @@ if __name__ == '__main__':
     
     from hybrid_automaton_runner import AutomatonRunner
     import asyncio
-    ha_runner: AutomatonRunner = AutomatonRunner(hybrid_automaton=ha, sampling_rate=0.001)
+    ha_runner: AutomatonRunner = AutomatonRunner(hybrid_automaton=ha)
     async def main(): 
         try:
-            results = await ha_runner.run(
-                x0 = np.array([25.0]), 
-                real_time_mode=False, 
-                integrate=True, 
-                duration=30.0, 
-                dt=0.01, 
-                collect_automaton=True,
-                collect_continuous=True,
-                collect_transitions=True,
-                collect_control=False, 
-                collect_auxiliary=False
+            results = await ha_runner.activate(
+                initial_continuous_state=np.array([25.0]),
+                enable_real_time_mode=False,
+                should_integrate=True,
+                timeout_sec=30.0,
+                delta_time=0.01,
+                should_sample_continuous_states=True
             )
         except Exception as e:
             print (f"Caught a critical Exception in automaton run: {str(e)}")
@@ -132,22 +129,20 @@ if __name__ == '__main__':
         # from matplotlib import pyplot as plt
         # from hybrid_automaton_evaluation.visualization import  automaton_states_over_time, continuous_states_over_time_fig, transitions_times_over_time_fig
         # fig1 = continuous_states_over_time_fig(results['continuous_states'], state_labels=['temperature (c)'])
-        # # fig2 = transitions_times_over_time_fig(results['transition_times']) # TODO: Need to fix this
+        # # fig2 = transition,s_times_over_time_fig(results['transition_times']) # TODO: Need to fix this
         # fig5 = automaton_states_over_time(results['automaton_states'])
         # plt.show()
         
         try:
-            results = await ha_runner.run(
-                x0 = np.array([15.0]), 
-                real_time_mode=False, 
-                integrate=True, 
-                duration=30.0, 
-                dt=0.01, 
-                collect_automaton=True,
-                collect_continuous=True,
-                collect_transitions=True,
-                collect_control=False, 
-                collect_auxiliary=False
+            results = await ha_runner.activate(
+                initial_continuous_state=np.array([15.0]),
+                enable_real_time_mode=False,
+                should_integrate=True,
+                delta_time=0.01,
+                timeout_sec=30.0,
+                should_sample_continuous_states=True,
+                sample_rate_continuous_states=0.1,
+                output_dir="./log_hybrid_automaton/thermostat/"
             )
         except Exception as e:
             print (f"Caught a critical Exception in automaton run: {str(e)}")

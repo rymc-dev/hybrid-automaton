@@ -110,6 +110,7 @@ def cruise_control(target_speed: float = 30.0, safe_distance: float = 50.0,
     # Create automaton
     car = Automaton(
         name="Cruise Control", 
+        version="0.0.1",
         states=[accelerate, cruise, brake, emergency], 
         configuration={
             'target_speed': target_speed,
@@ -130,20 +131,21 @@ if __name__ == '__main__':
     print (repr(ha))
     from hybrid_automaton_runner import AutomatonRunner
     import asyncio
-    ha_runner: AutomatonRunner = AutomatonRunner(hybrid_automaton=ha, sampling_rate=0.001)
+    ha_runner: AutomatonRunner = AutomatonRunner(hybrid_automaton=ha)
     async def main(): 
-        results = await ha_runner.run(
-            x0=np.array([5.0, 0.0]), 
-            collect_automaton=True, 
-            collect_transitions=True, 
-            collect_continuous=True, 
-            collect_auxiliary=True, 
-            collect_control=False, 
-            real_time_mode=False, 
-            integrate=True, 
-            duration=100.0, 
-            dt=0.01
+        results = await ha_runner.activate(
+            initial_continuous_state=np.array([5.0, 0.0]),
+            should_sample_continuous_states=True,
+            sample_rate_continuous_states=0.01,
+            should_sample_auxiliary_states=False,
+            sample_rate_auxiliary_states=0.1,
+            enable_real_time_mode=False,
+            should_integrate=True,
+            timeout_sec=30.0,
+            delta_time=0.01,
+            output_dir="log_hybrid_automaton/cruise_control/"
         )
+    
         
         results.print_summary()
         # print(results) 

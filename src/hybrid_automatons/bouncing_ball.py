@@ -170,6 +170,7 @@ def bouncing_ball(gravity: float = -9.81, restitution: float = 0.8):
 
     return Automaton(
         name="Bouncing Ball",
+        version="0.0.1",
         states=[flying, ground, resting],
         configuration= {
             'gravity': gravity,
@@ -188,24 +189,24 @@ if __name__ == '__main__':
     import asyncio
     from typing import Tuple, Optional
     from hybrid_automaton.exit_codes import ExitCode
-    ha_runner: AutomatonRunner = AutomatonRunner(hybrid_automaton=ha, sampling_rate=0.001)
+    ha_runner: AutomatonRunner = AutomatonRunner(hybrid_automaton=ha)
     async def main(): 
-        try: 
-            results: AutomatonRunData = await ha_runner.run(
-                x0=np.array([5.0, 0.0]), 
-                collect_automaton=True, 
-                collect_transitions=True, 
-                collect_continuous=True, 
-                collect_auxiliary=False, 
-                collect_control=False, 
-                real_time_mode=False, 
-                integrate=True, 
-                duration=30.0, 
-                dt=0.001
+        try:         
+            results: AutomatonRunData = await ha_runner.activate(
+                initial_continuous_state=np.array([5.0, 5.0]),
+                should_sample_continuous_states=True,
+                enable_real_time_mode=False,
+                sample_rate_continuous_states=0.01,
+                should_integrate=True,
+                delta_time=0.001,
+                timeout_sec=30.0,
+                output_dir = "./log_hybrid_automaton/bouncing_ball/"
             )
         except Exception as e:
             print(f"Exception: Automaton execution terminated with exception: {e}")
             sys.exit(1)
+            
+        print (results.automaton_exit)
             
             
         # results.print_summary()

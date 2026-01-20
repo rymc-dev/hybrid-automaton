@@ -1,5 +1,7 @@
 from typing import List, Optional, Any, Dict, Callable
 from .automaton_state import State
+import hashlib
+import json
 
 class Definition: 
     """ 
@@ -25,12 +27,14 @@ class Definition:
     def __init__(
         self, 
         name: str, 
+        version: str,
         states: List[State], 
         configuration: Dict[str, Any] = {},
         on_entry: Optional[Callable] = None, 
         on_exit: Optional[Callable] = None
     ): 
         self.name = name
+        self.version = version
         self.id = Definition._id_counter
         Definition._id_counter += 1
 
@@ -60,6 +64,11 @@ class Definition:
 
     def get_configuration(self) -> Dict:
         return self._configuration
+    
+    def get_configuration_hash(self) -> Any:
+        serialized = json.dumps(self._configuration, sort_keys=True, separators=(",", ":"))
+        digest = hashlib.sha256(serialized.encode("utf-8")).hexdigest()
+        return digest[:12]
 
     def _to_mermaid(self):
         """Return a Mermaid stateDiagram-v2 representation of the automaton."""

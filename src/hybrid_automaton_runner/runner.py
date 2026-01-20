@@ -2,12 +2,16 @@
 import asyncio
 import numpy as np
 from typing import Optional, Dict, Any, Tuple
-from .collectors import (
-    ContinuousStateCollector,
-    AuxiliaryStateCollector,
-    ControlInputCollector,
-    AutomatonStateCollector,
-    TransitionTimeCollector
+from .samplers import (
+    StateSampler,
+    ContinuousStateSampler, 
+    AuxiliaryStateSampler,
+    ControlInputStateSampler,
+)
+from .injectors import (
+    ContinuousStateInjector,
+    AuxiliaryStateInjector,
+    ControlInputInjector
 )
 from hybrid_automaton import Automaton
 from hybrid_automaton.exit_codes import ExitCode as AutomatonExitCode
@@ -15,7 +19,18 @@ from .run_data import AutomatonRunData
 from .exit_codes import ExitCode as RunnerExitCode
 from .run_data import RunnerExit
 from hybrid_automaton.automaton_exit import AutomatonExit
+import uuid
+from datetime import datetime, timezone
+import json
+import hashlib
+import yaml
+import sys
+import socket
+import os
 
+python_version = sys.version
+host_name = socket.gethostname()
+pid = os.getpid()
 
 class TaskGroupExit(Exception):
     """
@@ -39,16 +54,8 @@ class TaskGroupExit(Exception):
 class AutomatonRunner:
     """Runner for hybrid automaton with data collection."""
 
-    def __init__(self, hybrid_automaton: Automaton, sampling_rate: float = 0.01):
+    def __init__(self, hybrid_automaton: Automaton):
         self.ha = hybrid_automaton
-        self.sampling_rate = sampling_rate
-
-        # Initialize collectors
-        self.continuous_collector = ContinuousStateCollector(sampling_rate)
-        self.auxiliary_collector = AuxiliaryStateCollector(sampling_rate)
-        self.control_collector = ControlInputCollector(sampling_rate)
-        self.automaton_collector = AutomatonStateCollector(sampling_rate)
-        self.transition_collector = TransitionTimeCollector(sampling_rate)
 
         # Events that the supervisor will wait on:
         self._automaton_run_complete = asyncio.Event()
@@ -64,62 +71,103 @@ class AutomatonRunner:
             'automaton_exit_msg': None,
         }
 
-    async def run(
+    def _generate_run_identity(self, run_hash, output_dir):
+        ha_hash = self.ha._definition.get_configuration_hash()
+        return {
+            "run_id": f"{datetime.now(timezone.utc):%Y%m%dT%H%M%SZ}_{uuid.uuid4().hex[:6]}",
+            "automaton name": self.ha.get_automaton_name(),
+            "automaton_version": self.ha.get_automaton_version(),
+            "logs_output_directory": output_dir, 
+            "configuration_info": {
+                "run_hash": run_hash,
+                "ha_hash": ha_hash,
+                "config_hash": f"{run_hash}_{ha_hash}"
+            },
+            "environment_info": {
+                "python_version": f"{python_version}" ,
+                "host_name": f"{host_name}",
+                "pid": f"{pid}"
+            }
+        }
+    
+    def _generate_run_configuration_hash(self, timeout_sec, real_time_mode_enabled, should_integrate, delta_time): 
+        serialized = json.dumps(
+            {
+                "timeout_sec": timeout_sec, 
+                "real_time_mode_enabled": real_time_mode_enabled, 
+                "should_integrate": should_integrate,
+                "delta_time": delta_time
+            }
+        )
+        digest = hashlib.sha256(serialized.encode("utf-8")).hexdigest()
+        return digest[:12]
+
+    async def activate(
         self,
-        x0: np.ndarray = None,
-        aux_x0: Dict = {},
-        u0: Dict = {},
-        duration: float = np.inf,
-        real_time_mode: bool = False,
-        integrate: bool = True,
-        dt: float = 0.01,
-        collect_continuous: bool = True,
-        collect_auxiliary: bool = False,
-        collect_control: bool = False,
-        collect_automaton: bool = True,
-        collect_transitions: bool = True,
-        inject_continuous: bool = False,
-        inject_auxiliary: bool = False,
-        inject_control: bool = False,
-        continuous_state_fn: Optional[callable] = None,
-        auxiliary_fn: Optional[callable] = None,
-        control_fn: Optional[callable] = None,
-        injector_update_rate: float = 0.001,
+        initial_continuous_state: np.ndarray = None,
+        initial_auxiliary_states: Dict = {},
+        initial_control_inputs: Dict = {},
+        timeout_sec: float = np.inf,
+        enable_real_time_mode: bool = False,
+        should_integrate: bool = True,
+        delta_time: float = 0.01,
+        should_sample_continuous_states: bool = True,
+        sample_rate_continuous_states: float = 0.01,
+        should_sample_auxiliary_states: bool = False,
+        sample_rate_auxiliary_states: float = 0.1,
+        should_sample_control_input_states: bool = False,
+        sample_rate_control_input_states: float = 0.1,
+        should_inject_continuous_state: bool = False,
+        continuous_state_injection_fn: Optional[callable] = None,
+        continuous_states_injection_rate: float = 0.001,
+        should_inject_auxiliary_states: bool = False,
+        auxiliary_states_injection_fn: Optional[callable] = None,
+        auxiliary_states_injection_rate: float = 0.001,
+        should_inject_control_states: bool = False,
+        control_states_injection_fn: Optional[callable] = None,
+        control_states_injection_rate: float = 0.001,
+        output_dir: str = "./log_hybrid_automaton/"
     ) -> AutomatonRunData:
         """
         Run the hybrid automaton simulation with data collection and/or injection.
         Returns an AutomatonRunData constructed from the captured completion result.
         """
-
+        # TODO: Continue updating this.
         # Reset automaton runtime if necessary
         if self.ha._runtime is not None:
             self.ha.reset()
 
-        # Clear previous data and events
-        self.clear_all_data()
+        """ create the runtime identity for the results"""
+        StateSampler.output_dir = output_dir
+        
+        run_hash = self._generate_run_configuration_hash(
+            timeout_sec=timeout_sec,
+            real_time_mode_enabled=enable_real_time_mode,
+            should_integrate=should_integrate,
+            delta_time=delta_time
+        )
+        run_id = self._generate_run_identity(
+            run_hash=run_hash,
+            output_dir=output_dir           
+        )          
+        
         self._automaton_run_complete.clear()
         self._automaton_run_exception.clear()
         self._automaton_run_stop_requested.clear()
         self._automaton_run_timeout.clear()
-        self._completion_result = {
-            'runner_exit_code': None,
-            'runner_exit_msg': None,
-            'automaton_exit_code': None,
-            'automaton_exit_msg': None,
-        }
-
+    
         try:
             async with asyncio.TaskGroup() as tg:
                 # Main automaton task: THIS is the primary task that can finish the run.
                 tg.create_task(
                     self._wrapped_task(
                         coro=self.ha.activate(
-                            x0=x0,
-                            aux_x0=aux_x0,
-                            u0=u0,
-                            real_time_mode=real_time_mode,
-                            integrate=integrate,
-                            dt=dt
+                            x0=initial_continuous_state,
+                            aux_x0=initial_auxiliary_states,
+                            u0=initial_control_inputs,
+                            real_time_mode=enable_real_time_mode,
+                            integrate=should_integrate,
+                            dt=delta_time
                         ),
                         success_event=self._automaton_run_complete,
                         event_runner_code=RunnerExitCode.AUTOMATON_RUN_COMPLETE,
@@ -129,104 +177,101 @@ class AutomatonRunner:
                 )
 
                 # Data collection tasks: they should NOT signal normal run completion.
-                if collect_continuous:
+                if should_sample_continuous_states:
+                    continuous_state_sampler = ContinuousStateSampler(
+                        sampling_rate=sample_rate_continuous_states
+                    )
                     tg.create_task(
                         self._wrapped_task(
-                            coro=self.continuous_collector.collect(self.ha),
+                            coro=continuous_state_sampler.activate(automaton_run_id=run_id['run_id'], ha=self.ha),
                             success_event=None,
-                            source_name="continuous_collector"
+                            source_name="continuous_state_sampler"
                         ),
-                        name="collect_continuous_state_task"
+                        name="sample_auxiliary_state_task"
                     )
 
-                if collect_auxiliary:
+                if should_sample_auxiliary_states:
+                    auxiliary_state_sampler = AuxiliaryStateSampler(
+                        sampling_rate=sample_rate_auxiliary_states
+                    )
                     tg.create_task(
                         self._wrapped_task(
-                            coro=self.auxiliary_collector.collect(self.ha, auxiliary_fn),
+                            coro=auxiliary_state_sampler.activate(automaton_run_id=run_id['run_id'], ha=self.ha ),
                             success_event=None,
-                            source_name="auxiliary_collector"
+                            source_name="auxiliary_state_sampler"
                         ),
-                        name="collect_auxiliary_states_task"
+                        name="sample_auxiliary_state_task"
                     )
 
-                if collect_control:
+                if should_sample_control_input_states:
+                    control_input_states_sampler = ControlInputStateSampler(
+                        sampling_rate=sample_rate_control_input_states
+                    )
                     tg.create_task(
                         self._wrapped_task(
-                            coro=self.control_collector.collect(self.ha, control_fn),
+                            coro=control_input_states_sampler.activate(automaton_run_id=run_id['run_id'], ha=self.ha),
                             success_event=None,
-                            source_name="control_collector"
+                            source_name="sample_control_input_states"
                         ),
-                        name="collect_control_states_task"
+                        name="sample_control_inputs_task"
                     )
 
-                if collect_automaton:
-                    tg.create_task(
-                        self._wrapped_task(
-                            coro=self.automaton_collector.collect(self.ha),
-                            success_event=None,
-                            source_name="automaton_collector"
-                        ),
-                        name="collect_automaton_discrete_data"
-                    )
-
-                if collect_transitions:
-                    tg.create_task(
-                        self._wrapped_task(
-                            coro=self.transition_collector.collect(self.ha),
-                            success_event=None,
-                            source_name="transition_collector"
-                        ),
-                        name="collect_transitions_task"
-                    )
 
                 # Data injection tasks: injectors also should not signal run completion on normal exit.
-                if inject_continuous:
-                    if continuous_state_fn is None:
+                if should_inject_continuous_state:
+                    if continuous_state_injection_fn is None:
                         raise ValueError("inject_continuous=True requires continuous_state_fn")
-                    from .injectors import ContinuousStateInjector
-                    injector = ContinuousStateInjector(continuous_state_fn, injector_update_rate)
+
+                    continuous_state_injector = ContinuousStateInjector(
+                        continuous_state_injection_fn, 
+                        continuous_states_injection_rate 
+                    )
                     tg.create_task(
                         self._wrapped_task(
-                            coro=injector.inject(self.ha),
+                            coro=continuous_state_injector.inject(self.ha),
                             success_event=None,
-                            source_name="continuous_injector"
+                            source_name="continuous_state_injector"
                         ),
                         name="continuous_state_injector_task"
                     )
 
-                if inject_auxiliary:
-                    if auxiliary_fn is None:
+                if should_inject_auxiliary_states:
+                    if auxiliary_states_injection_fn is None:
                         raise ValueError("inject_auxiliary=True requires auxiliary_fn")
-                    from .injectors import AuxiliaryStateInjector
-                    injector = AuxiliaryStateInjector(auxiliary_fn, injector_update_rate)
+                    auxiliary_state_injector = AuxiliaryStateInjector(
+                        fn=auxiliary_states_injection_fn, 
+                        update_rate=auxiliary_states_injection_rate
+                    )
                     tg.create_task(
                         self._wrapped_task(
-                            coro=injector.inject(self.ha),
+                            coro=auxiliary_state_injector.inject(self.ha),
                             success_event=None,
                             source_name="auxiliary_injector"
                         ),
-                        name="auxiliary_injector_task"
+                        name="auxiliary_state_injector_task"
                     )
 
-                if inject_control:
-                    if control_fn is None:
+                if should_inject_control_states:
+                    if control_states_injection_fn is None:
                         raise ValueError("inject_control=True requires control_fn")
-                    from .injectors import ControlInputInjector
-                    injector = ControlInputInjector(control_fn, injector_update_rate)
+                    control_states_injector = ControlInputInjector(
+                        fn=control_states_injection_fn, 
+                        update_rate=control_states_injection_rate
+                    )
                     tg.create_task(
                         self._wrapped_task(
-                            coro=injector.inject(self.ha),
+                            coro=control_states_injector.inject(self.ha),
                             success_event=None,
                             source_name="control_injector"
                         ),
-                        name="control_input_task"
+                        name="control_inputs_injection_task"
                     )
 
                 # Timeout monitor: if finite duration provided, this can finish the run.
-                if np.isfinite(duration) and duration > 0:
+                if np.isfinite(timeout_sec) and timeout_sec > 0:
                     tg.create_task(
                         self._wrapped_task(
-                            coro=self._timeout_monitor(duration),
+                            coro=self._timeout_monitor(timeout_sec),
                             success_event=self._automaton_run_timeout,
                             event_runner_code=RunnerExitCode.AUTOMATON_RUN_TIMEOUT,
                             source_name="timeout_monitor"
@@ -271,12 +316,18 @@ class AutomatonRunner:
 
             # If automaton provided a code/message, prefer that in the returned AutomatonRunData.
             return AutomatonRunData(
+                automaton_name=self.ha.get_automaton_name(),
+                automaton_version=self.ha.get_automaton_version(),
+                run_id=run_id,
                 runner_exit=RunnerExit(runner_code, runner_msg),
                 automaton_exit=AutomatonExit(automaton_code, automaton_msg),
             )
         else:
             # Fallback if nothing meaningful was captured
             return AutomatonRunData(
+                automaton_name=self.ha.get_automaton_name(),
+                automaton_version=self.ha.get_automaton_version() ,
+                run_id=run_id,
                 runner_exit=RunnerExit(RunnerExitCode.AUTOMATON_NO_RUN, "No completion result captured")
             )
 

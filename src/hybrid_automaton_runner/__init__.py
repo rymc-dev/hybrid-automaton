@@ -1,10 +1,8 @@
-from .collectors import (
-    StateCollector,
-    ContinuousStateCollector,
-    AuxiliaryStateCollector,
-    ControlInputCollector,
-    AutomatonStateCollector,
-    TransitionTimeCollector
+from .samplers import (
+    StateSampler,
+    ContinuousStateSampler,
+    AuxiliaryStateSampler,
+    ControlInputStateSampler
 )
 from .injectors import (
     ContinuousStateInjector,
@@ -18,12 +16,10 @@ __author__ = "Ryan McKee"
 __version__ = "v0.0.1"
 
 __all__ = [
-    'StateCollector',
-    'ContinuousStateCollector',
-    'AuxiliaryStateCollector',
-    'ControlInputCollector',
-    'AutomatonStateCollector',
-    'TransitionTimeCollector',
+    'StateSampler',
+    'ContinuousStateSampler',
+    'AuxiliaryStateSampler',
+    'ControlInputStateSampler',
     'AutomatonRunner',
     'deactivate_after_timeout',
     'run_with_timeout',

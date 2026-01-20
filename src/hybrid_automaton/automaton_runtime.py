@@ -434,7 +434,8 @@ class Runtime:
             run_result.exit_result = RunResultCode.FAILURE
             run_result.reason = -1
             run_result.message = f"Fatal exception occured attempting runtime: {str(e)}"
-
+        except asyncio.CancelledError as e: 
+            print (str(e))
         finally:
             if clock_task and not clock_task.cancelled():
                 clock_task.cancel()

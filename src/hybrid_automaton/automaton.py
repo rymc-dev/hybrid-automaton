@@ -68,6 +68,7 @@ class Automaton:
     def __init__(
         self, 
         name: str,
+        version: str,
         states: List[State],
         configuration: Dict = {},
         on_entry: Optional[Callable] = None, 
@@ -79,6 +80,7 @@ class Automaton:
         """
         self._definition: Definition = Definition(
             name=name,
+            version=version,
             states=states,
             configuration=configuration,
             on_entry=on_entry,
@@ -90,6 +92,9 @@ class Automaton:
     """ === property getters === """
     def get_automaton_name(self) -> str: 
         return self._definition.name
+    
+    def get_automaton_version(self) -> str:
+        return self._definition.version
 
     def get_automaton_id(self) -> int:
         return self._definition.id
