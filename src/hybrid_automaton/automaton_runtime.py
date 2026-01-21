@@ -54,6 +54,10 @@ class StepResultCode(Enum):
        and we are in a designated definition final state this is returned
     """  
 
+    STEP_AUTOMATON_CANCELLED = auto()
+    """signifies that the automaton has been manually cancelled by the client 
+    """
+
 class StepSeverity(Enum): 
     STEP_OK = auto()
     """ step worked as expected, continue normal operation as expected
@@ -140,7 +144,12 @@ f"""# ------------------------------------------------------------
 # Log contents:
 #   Temporal automaton events as they occur
 #   Includes transition events, invariant violations, etc.
-#   Format: [LEVEL] [timestamp]: [Event] [Details]
+#   Format: [LEVEL] [timestamp]: [Event Type] [Details]
+#   Events: 
+#       - Transition: [FROM Discrete State] - [Transition Name] --> [TO Discrete State]
+#       - Activation: automaton activated
+#       - Deactivation: [reason]
+#       - ...
 #
 # Execution:
 #   Initial mode: {self._automaton_initial_mode}
@@ -452,7 +461,7 @@ class Runtime:
                 return StepResult(
                     result=StepResultCode.STEP_TERMINAL_REACHED, 
                     severity=StepSeverity.STEP_OK,
-                    message=f"'{self._automaton_definition.name}' has reached terminal state '{self._discrete_state.name}'."
+                    message=f"reached: '{self._discrete_state.name}'"
                 )
             else: 
                 return StepResult(
@@ -498,6 +507,16 @@ class Runtime:
                     self._active_event.clear()
                     self._run_completed_event.set()
                     break
+                elif self._deactivate_event.is_set(): 
+                    logger.INFO(
+                        condition="MANUAL_STOP", 
+                        consequence="Automaton was manually stopped via external event."
+                    )
+                    run_result.exit_result = RunResultCode.SUCCESS
+                    run_result.reason = StepResult(
+                        severity=StepSeverity.STEP_OK,
+                        result=StepResultCode.STEP_
+                    )
 
                 # Evaluate the next step
                 step_result: StepResult = self._evaluation_step()
@@ -514,6 +533,14 @@ class Runtime:
                                 logger.INFO(condition="Terminal Reached", consequence=f"{step_result.message}")
                                 run_result.exit_result = RunResultCode.SUCCESS
                                 run_result.reason = step_result.result
+                                run_result.message = step_result.message
+                                self._active_event.clear()
+                                self._run_completed_event.set()
+                                break
+                            case StepResultCode.STEP_AUTOMATON_CANCELLED:
+                                logger.INFO(condition="Automaton Cancelled", consequence=f"{step_result.message}")
+                                run_result.exit_result = RunResultCode.SUCCESS
+                                run_result.reason = step_result.result 
                                 run_result.message = step_result.message
                                 self._active_event.clear()
                                 self._run_completed_event.set()
@@ -580,7 +607,6 @@ class Runtime:
 
         return run_result
 
-
     def _on_entry_hook(self, logger: TemporalAutomatonLogger):
         logger.INFO(condition="Automaton Activation", consequence="automaton has been activated")
         self._automaton_definition.on_entry()
@@ -588,7 +614,6 @@ class Runtime:
     def _on_exit_hook(self, logger: TemporalAutomatonLogger):
         logger.INFO(condition="Automaton Complete", consequence="automaton completed!")
         self._automaton_definition.on_exit()
-        
 
     async def activate(
         self,
@@ -682,7 +707,7 @@ class Runtime:
                     message="Timeout occurred during automaton activation."
                 )
                 if logger:
-                    logger.WARNING("Timeout", f"Automaton exceeded timeout of {timeout_sec:.3f}s")
+                    logger.WARNING("TIMEOUT", f"Automaton exceeded timeout of {timeout_sec:.3f}s")
 
         except Exception as e:
             run_result = RunResult(
@@ -715,7 +740,6 @@ class Runtime:
         except asyncio.CancelledError:
             return
  
-        
-
     def deactivate(self): 
+        print ("Client deactivation request received!") 
         self._active_event.clear()

@@ -98,6 +98,7 @@ def traffic_lights(time_in_green: float = 8.0, time_in_red: float = 5.0, time_in
     
     return Automaton(
         name="Traffic Light Automaton",
+        version="0.0.1",
         states=[red_state, green_state, yellow_state],
         configuration={
             'time_in_red': time_in_red,
@@ -123,17 +124,20 @@ if __name__ == '__main__':
     async def main(): 
         try:
             results = await ha_runner.run(
-                x0 = None, 
-                real_time_mode=False, 
-                integrate=True, 
-                duration=100.0, 
-                dt=0.01, 
-                collect_automaton=True,
-                collect_continuous=True,
-                collect_transitions=True,
-                collect_control=False, 
-                collect_auxiliary=False
+                
             )
+            # results = await ha_runner.run(
+            #     x0 = None, 
+            #     real_time_mode=False, 
+            #     integrate=True, 
+            #     duration=100.0, 
+            #     dt=0.01, 
+            #     collect_automaton=True,
+            #     collect_continuous=True,
+            #     collect_transitions=True,
+            #     collect_control=False, 
+            #     collect_auxiliary=False
+            # )
         except Exception as e: 
             print (str(e))
             sys.exit(1)
