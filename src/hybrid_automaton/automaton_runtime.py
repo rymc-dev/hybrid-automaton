@@ -1,3 +1,4 @@
+import os
 import asyncio
 import numpy as np
 from typing import Optional, Dict, List, Tuple
@@ -10,6 +11,8 @@ from .exit_codes import ExitCode
 from .automaton_exit import AutomatonExit
 from dataclasses import dataclass
 from enum import Enum, auto
+from datetime import timezone, time, datetime
+import uuid
 
 class StepResultCode(Enum): 
     STEP_NORMAL = auto()
@@ -83,8 +86,6 @@ class RunResultCode(Enum):
     SUCCESS = auto()
     FAILURE = auto()
 
-
-
 @dataclass
 class RunResult:
     """   
@@ -93,6 +94,103 @@ class RunResult:
     exit_result: RunResultCode = RunResultCode.SUCCESS
     reason: StepResult = None # if failure then returns previous step result which caused
     message: str = ""
+    
+class TemporalAutomatonLogger: 
+    """logs temporal data regarding the automaton 
+    """
+    FILE_EXTENSION = "log"
+    def __init__(
+        self,
+        automaton_name: str,
+        automaton_version: str,
+        automaton_runner_version: str,
+        automaton_initial_mode_name: str,
+        is_real_time: bool,
+        run_id: str,
+        clk: Clock, 
+        should_write_logs_to_file: bool = True,
+        log_dir: str = "./log_hybrid_automaton/", 
+        file_name: str = "temporal_automaton.log", 
+    ):
+        self._automaton_name = automaton_name
+        self._automaton_version = automaton_version
+        self._automaton_runner_version = automaton_runner_version
+        self._automaton_initial_mode = automaton_initial_mode_name
+        self._is_real_time = is_real_time
+        self._run_id = run_id
+        self._clk = clk
+        self._is_write = should_write_logs_to_file
+        import os
+        self._file_path = os.path.join(log_dir, f"{file_name}.{self.FILE_EXTENSION}")
+        if self._is_write: 
+            self._create_file(self._file_path)
+    
+    def _create_file(self, file_path): 
+        os.makedirs(os.path.dirname(file_path), exist_ok=True)
+        with open(file_path, "w") as f:
+            f.write(
+f"""# ------------------------------------------------------------
+# Temporal log for hybrid automaton: '{self._automaton_name}_v{self._automaton_version}'
+#
+# Time reference:
+#   t = 0.0
+#   Clock: monotonic {'real' if self._is_real_time else 'simulation'} time
+#   Units: seconds
+#
+# Log contents:
+#   Temporal automaton events as they occur
+#   Includes transition events, invariant violations, etc.
+#   Format: [LEVEL] [timestamp]: [Event] [Details]
+#
+# Execution:
+#   Initial mode: {self._automaton_initial_mode}
+#   Runner: hybrid_automaton.Runtime v{self._automaton_runner_version}
+#   Run ID: {self._run_id}
+#
+# ------------------------------------------------------------
+                """)
+
+
+    def _write_to_file(self, msg: str): 
+        with open(self._file_path, "a") as f:
+            f.write(f"\n{msg}")
+            
+    def _gen_log_msg(self, fixture: str, condition: str, consequence: str): 
+        return f"[{fixture}] [{self._clk.get_elapsed_time_active():.3f}]: [{condition}] {consequence}"
+            
+    def INFO(self, condition:str, consequence: str): 
+        fixture = "INFO"
+        msg = self._gen_log_msg(fixture=fixture, condition=condition, consequence=consequence )
+        if self._is_write:
+            self._write_to_file(msg)
+        else:
+            print (msg)
+        
+    def WARNING(self, condition: str, consequence: str): 
+        fixture = "WARNING"
+        msg = self._gen_log_msg(fixture=fixture, condition=condition, consequence=consequence )
+        if self._is_write:
+            self._write_to_file(msg)
+        else:
+            print (msg)
+        
+    def ERROR(self, condition:str, consequence: str): 
+        fixture = "ERROR"
+        msg = self._gen_log_msg(fixture=fixture, condition=condition, consequence=consequence )
+        if self._is_write:
+            self._write_to_file(msg)
+        else:
+            print (msg)
+
+    def FATAL(self, condition:str, consequence: str): 
+        fixture = "FATAL"
+        msg = self._gen_log_msg(fixture=fixture, condition=condition, consequence=consequence )
+        if self._is_write:
+            self._write_to_file(msg)
+        else:
+            print (msg)
+
+
 
 class Runtime: 
     """ 
@@ -159,6 +257,7 @@ class Runtime:
         activate
         deactivate    
     """
+    _VERSION = "0.0.1"
 
     def __init__(
             self,
@@ -177,6 +276,11 @@ class Runtime:
         self._automaton_definition: Definition = automaton_definition
         self._discrete_state: State = automaton_definition.state_t0 
 
+        
+        self._timeout_event = asyncio.Event()
+        self._deactivate_event = asyncio.Event()
+        self._run_completed_event = asyncio.Event()
+        
         self._ctx: Context = Context(
             clk=Clock(dt=dt, real_time_mode=real_time_mode),
             x0=x0,
@@ -186,6 +290,9 @@ class Runtime:
         )
         self._xdot: List = None
 
+    def is_active(self) -> bool: 
+        return self._active_event.is_set()
+    
     def get_active_discrete_state(self) -> Tuple[int, str]: 
         return (self._discrete_state.get_state_id(), self._discrete_state.name) 
     
@@ -313,7 +420,7 @@ class Runtime:
                     return StepResult(
                         result=StepResultCode.STEP_TRANSITION,
                         severity=StepSeverity.STEP_OK,
-                        message=f"'{self._automaton_definition.name}' transition '{d.name}' occured moving discrete state from: '{old_mode}' -> '{self._discrete_state.name}'"
+                        message=f"'{old_mode}' - |{d.name}| -> '{self._discrete_state.name}'"
                     )
                 except Exception as e: 
                     return StepResult( 
@@ -360,109 +467,255 @@ class Runtime:
                 message=f"undefined fatal exception has occured during evaluation step, please raise issue in 'hybrid_automaton' github repo: {str(e)}"
             )
         
-    async def _run(self) -> RunResult:
-        """ 
-        async _run worker for running the automaton
-        instance, either in real time mode or simulation mode.
-        activates the automaton and its clock steps evaluation
-        evaluates step results which determines control of the automaton
-        
-        when complete returns RunResults instance, which will contain file path
-        to the logs associated with the automaton as well as results written to a file.
-        These results can be evaluated after quantativaly/qualatiativaly when completed.
+    async def _run(self, logger: TemporalAutomatonLogger, timeout_sec: float = 1.0) -> RunResult:
         """
-        run_result: RunResult = RunResult()
+        Main worker for running the automaton asynchronously.
+
+        Handles evaluation steps, state transitions, timeouts, and real-time or simulation clocks.
+        Ensures proper cleanup of all tasks and sets RunResult appropriately.
+        """
+        run_result = RunResult()
         is_real_time = self._ctx.clk.is_real_time()
-        self._active_event.set()
+        self._active_event.set()  # mark automaton as active
 
         clock_task = None
         if is_real_time:
+            # Real-time mode: start the clock
             clock_task = asyncio.create_task(self._ctx.clk.activate())
 
         try:
             while self._active_event.is_set():
-                step_result: StepResult = self._evaluation_step()                
+                # Handle timeout first
+                if self._timeout_event.is_set():
+                    logger.WARNING(condition="Timeout", consequence=f"Automaton run timed out after {timeout_sec:.3f}s")
+                    run_result.exit_result = RunResultCode.FAILURE
+                    run_result.reason = StepResult(
+                        severity=StepSeverity.STEP_ERROR,
+                        result=StepResultCode.STEP_INVARIANT_VIOLATION,
+                        message=f"Timeout exceeded {timeout_sec:.3f} seconds"
+                    )
+                    run_result.message = "Automaton terminated due to timeout."
+                    self._active_event.clear()
+                    self._run_completed_event.set()
+                    break
+
+                # Evaluate the next step
+                step_result: StepResult = self._evaluation_step()
+
+                # Handle step severities
                 match step_result.severity:
-                    case StepSeverity.STEP_OK: 
-                        match step_result.result: 
-                            case StepResultCode.STEP_NORMAL: pass
-                            case StepResultCode.STEP_TRANSITION: print (f"{step_result.message}") # TODO add logging for transition
-                            case StepResultCode.STEP_TERMINAL_REACHED: 
-                                self._active_event.clear()
+                    case StepSeverity.STEP_OK:
+                        match step_result.result:
+                            case StepResultCode.STEP_NORMAL:
+                                pass  # continue
+                            case StepResultCode.STEP_TRANSITION:
+                                logger.INFO(condition="Transition", consequence=f"{step_result.message}")
+                            case StepResultCode.STEP_TERMINAL_REACHED:
+                                logger.INFO(condition="Terminal Reached", consequence=f"{step_result.message}")
                                 run_result.exit_result = RunResultCode.SUCCESS
                                 run_result.reason = step_result.result
                                 run_result.message = step_result.message
-                                print (f"{step_result.message}") # TODO: Add better logging
+                                self._active_event.clear()
+                                self._run_completed_event.set()
+                                break
                     case StepSeverity.STEP_WARNING:
-                        # TODO: Should log warning for now print
-                        # TODO: Should prob check if this warning is recurring so we don't spam the logs
-                        print (f"WARNING: {self._automaton_definition.name} warning: status: {step_result.result}, {step_result.message}")
+                        logger.WARNING(condition="Step Warning", consequence=f"{step_result.result}: {step_result.message}")
                     case StepSeverity.STEP_ERROR:
-                        # When an error occurs there is a defined symantic error that 
-                        # is arrived during automaton runtime.
-                        match step_result.result: 
-                            case StepResultCode.CONTINUOUS_FLOW_EXCEPTION: 
-                                print ("exception occured with the continuous dynamics function given")
-                                break
-                            case StepResultCode.STEP_SELF_INTEGRATION_EXCEPTION: 
-                                print ("exception occured performing continuous dynamic integration on continuous state.")
-                                break
-                            case StepResultCode.STEP_INVARIANT_VIOLATION: 
-                                print ("Invariant violation")
-                                break
-                            case StepResultCode.STEP_TRANSITION_EXCEPTION: 
-                                print ("exception occured during step transition")
-                                break
-                            case _:
-                                print ("undefined automaton error occured")
+                        # Log error and terminate loop
+                        logger.ERROR(condition="Step Error", consequence=f"{step_result.result}: {step_result.message}")
+                        run_result.exit_result = RunResultCode.FAILURE
+                        run_result.reason = step_result.result
+                        run_result.message = step_result.message
+                        self._active_event.clear()
+                        self._run_completed_event.set()
                         break
                     case StepSeverity.STEP_FATAL:
-                        print ("something has went fatally wrong during the automaton run")
+                        logger.FATAL(condition="Fatal Step Error", consequence=f"{step_result.result}: {step_result.message}")
+                        run_result.exit_result = RunResultCode.FAILURE
+                        run_result.reason = step_result.result
+                        run_result.message = step_result.message
+                        self._active_event.clear()
+                        self._run_completed_event.set()
                         break
-                    case _: 
-                        print ("a severity undefined occured")
+                    case _:
+                        logger.FATAL(condition="Unknown Step Severity", consequence=f"{step_result.result}: {step_result.message}")
+                        run_result.exit_result = RunResultCode.FAILURE
+                        run_result.reason = step_result.result
+                        run_result.message = "Unknown step severity encountered"
+                        self._active_event.clear()
+                        self._run_completed_event.set()
                         break
-                        
+
+                # Advance the clock
                 if is_real_time:
                     await self._ctx.clk.sleep_for_dt()
                 else:
                     self._ctx.clk.step_dt()
                     await asyncio.sleep(0.001)
 
+        except asyncio.CancelledError:
+            # Clear active state and propagate cancellation
+            logger.WARNING(condition="Cancelled", consequence="Automaton run cancelled externally")
+            self._active_event.clear()
+            self._run_completed_event.set()
+            raise
         except Exception as e:
-            # Unexpected loop-level exceptio
+            # Unexpected exception
+            logger.FATAL(condition="Runtime Exception", consequence=str(e))
             run_result.exit_result = RunResultCode.FAILURE
             run_result.reason = -1
-            run_result.message = f"Fatal exception occured attempting runtime: {str(e)}"
-        except asyncio.CancelledError as e: 
-            print (str(e))
+            run_result.message = f"Fatal exception during runtime: {str(e)}"
+            self._active_event.clear()
+            self._run_completed_event.set()
         finally:
+            # Cleanup real-time clock if running
             if clock_task and not clock_task.cancelled():
                 clock_task.cancel()
                 try:
                     await clock_task
+                except asyncio.CancelledError:
+                    pass
                 except Exception:
                     pass
 
-        return run_result   
-
-    async def activate(self) -> RunResult: 
-        """interface for activation of the automaton"""
-        run_result: RunResult = None
-        try:
-            self._automaton_definition.on_entry()
-            main_runner_task = asyncio.create_task(self._run())
-            run_result = await main_runner_task
-        except Exception as e: 
-            run_result =  RunResult(
-                exit_result=RunResultCode.FAILURE,
-                reason=-1,
-                message="exception occured during activation"
-            )
-        finally: 
-            self._automaton_definition.on_exit()
-            
         return run_result
+
+
+    def _on_entry_hook(self, logger: TemporalAutomatonLogger):
+        logger.INFO(condition="Automaton Activation", consequence="automaton has been activated")
+        self._automaton_definition.on_entry()
+        
+    def _on_exit_hook(self, logger: TemporalAutomatonLogger):
+        logger.INFO(condition="Automaton Complete", consequence="automaton completed!")
+        self._automaton_definition.on_exit()
+        
+
+    async def activate(
+        self,
+        write_logs: bool = True,
+        temporal_log_dir: str = "./log_hybrid_automaton",
+        should_timeout: bool = False,
+        timeout_sec: float = 100.0
+    ) -> RunResult:
+        """Activate the automaton asynchronously with optional timeout."""
+        run_id = f"{datetime.now(timezone.utc):%Y%m%dT%H%M%SZ}_{uuid.uuid4().hex[:6]}"
+        run_result: Optional[RunResult] = None
+        timeout_task: Optional[asyncio.Task] = None
+        main_runner_task: Optional[asyncio.Task] = None
+        entered = False
+
+        logger: Optional[TemporalAutomatonLogger] = None
+
+        try:
+            self._run_completed_event.clear()
+            self._timeout_event.clear()
+            self._deactivate_event.clear()
+
+            # Initialize logger
+            logger = TemporalAutomatonLogger(
+                automaton_name=self._automaton_definition.name,
+                automaton_version=self._automaton_definition.version,
+                automaton_runner_version=self._VERSION,
+                automaton_initial_mode_name=self._automaton_definition.state_t0.name,
+                run_id=run_id,
+                is_real_time=self._ctx.clk.is_real_time(),
+                clk=self._ctx.clk,
+                should_write_logs_to_file=write_logs,
+                log_dir=temporal_log_dir,
+                file_name="temporal_automaton.log"
+            )
+
+            self._on_entry_hook(logger)
+            entered = True
+
+            # Start main runner
+            main_runner_task = asyncio.create_task(
+                self._run(logger=logger, timeout_sec=timeout_sec), name="main_runner"
+            )
+
+            # Start timeout watcher if requested
+            if should_timeout:
+                timeout_task = asyncio.create_task(self._timeout_watchdog(timeout_sec), name="timeout_watchdog")
+
+            tasks = [main_runner_task]
+            if timeout_task:
+                tasks.append(timeout_task)
+
+            # Wait for the first task to finish
+            done, pending = await asyncio.wait(
+                tasks
+            )
+
+            # Cancel any remaining tasks
+            for task in pending:
+                task.cancel()
+                try:
+                    await task
+                except asyncio.CancelledError:
+                    pass
+
+            # Determine the finished task result safely
+            finished_task = next((t for t in done if not t.cancelled()), None)
+            if finished_task is not None:
+                run_result = finished_task.result()
+            else:
+                # All tasks were cancelled (e.g., due to timeout)
+                run_result = RunResult(
+                    exit_result=RunResultCode.FAILURE,
+                    reason=StepResult(
+                        severity=StepSeverity.STEP_ERROR,
+                        result=StepResultCode.STEP_INVARIANT_VIOLATION,
+                        message="Automaton run was cancelled"
+                    ),
+                    message="All tasks were cancelled during activation."
+                )
+
+            # Handle timeout
+            if self._timeout_event.is_set() and run_result.exit_result != RunResultCode.SUCCESS:
+                run_result = RunResult(
+                    exit_result=RunResultCode.FAILURE,
+                    reason=StepResult(
+                        severity=StepSeverity.STEP_ERROR,
+                        result=StepResultCode.STEP_INVARIANT_VIOLATION,
+                        message=f"Automaton run exceeded timeout of {timeout_sec:.3f} seconds."
+                    ),
+                    message="Timeout occurred during automaton activation."
+                )
+                if logger:
+                    logger.WARNING("Timeout", f"Automaton exceeded timeout of {timeout_sec:.3f}s")
+
+        except Exception as e:
+            run_result = RunResult(
+                exit_result=RunResultCode.FAILURE,
+                reason=StepResult(severity=StepSeverity.STEP_FATAL, message=str(e)),
+                message=f"Exception occurred during activation: {str(e)}"
+            )
+
+        finally:
+            # Ensure exit hook always runs
+            if entered and logger:
+                try:
+                    self._on_exit_hook(logger)
+                except Exception as e:
+                    if logger:
+                        logger.ERROR("ExitHookError", f"Exception during on_exit_hook: {str(e)}")
+
+        return run_result
+
+
+    async def _timeout_watchdog(self, timeout_sec: float):
+        """Monitor automaton and set timeout if elapsed."""
+        try:
+            while self._ctx.clk.get_elapsed_time_active() < timeout_sec:
+                if self._run_completed_event.is_set() or self._deactivate_event.is_set():
+                    return
+                await asyncio.sleep(0.05)
+            # Timeout triggered
+            self._timeout_event.set()
+        except asyncio.CancelledError:
+            return
+ 
+        
 
     def deactivate(self): 
         self._active_event.clear()

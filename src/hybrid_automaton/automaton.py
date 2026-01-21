@@ -314,7 +314,11 @@ class Automaton:
         u0: Optional[Dict[str, np.array]] = {},
         real_time_mode: Optional[bool] = False,
         integrate: Optional[bool] = True,
-        dt: Optional[float] = 0.1
+        dt: Optional[float] = 0.1,
+        output_dir: str = './log_hybrid_automaton',
+        should_timeout: bool = False,
+        should_write_logs: bool = True,
+        timeout_sec: float = np.inf
     ) -> AutomatonExit:
         """
         Activate the hybrid automaton.
@@ -377,7 +381,7 @@ class Automaton:
         """
 
         if self._runtime is not None: 
-            if self._runtime._active:
+            if self._runtime.is_active():
                 raise SystemError(f"can't activate automaton '{self._definition.name}', it's already active.")
 
         self._runtime: Runtime = Runtime(
@@ -389,7 +393,12 @@ class Automaton:
             integrate=integrate,
             dt=dt
         )
-        results: AutomatonExit = await self._runtime.activate()
+        results: AutomatonExit = await self._runtime.activate(
+            timeout_sec=timeout_sec,
+            temporal_log_dir=output_dir,
+            should_timeout=should_timeout,
+            write_logs=should_write_logs
+        )
         
         self._on_deactivate()
         return results

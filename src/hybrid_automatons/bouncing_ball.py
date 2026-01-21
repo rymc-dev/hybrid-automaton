@@ -208,7 +208,6 @@ if __name__ == '__main__':
             
         print (results.automaton_exit)
             
-            
         # results.print_summary()
         # # results = ha_runner.get_results()
         # from matplotlib import pyplot as plt

@@ -63,15 +63,7 @@ class AutomatonRunner:
         self._automaton_run_exception = asyncio.Event()
         self._automaton_run_stop_requested = asyncio.Event()
 
-        # canonical completion result dict:
-        self._completion_result: Dict[str, Any] = {
-            'runner_exit_code': None,
-            'runner_exit_msg': None,
-            'automaton_exit_code': None,
-            'automaton_exit_msg': None,
-        }
-
-    def _generate_run_identity(self, run_hash, output_dir):
+    def _generate_run_identity(self, run_hash: str, output_dir: str):
         ha_hash = self.ha._definition.get_configuration_hash()
         return {
             "run_id": f"{datetime.now(timezone.utc):%Y%m%dT%H%M%SZ}_{uuid.uuid4().hex[:6]}",
@@ -90,7 +82,7 @@ class AutomatonRunner:
             }
         }
     
-    def _generate_run_configuration_hash(self, timeout_sec, real_time_mode_enabled, should_integrate, delta_time): 
+    def _generate_run_configuration_hash(self, timeout_sec: float, real_time_mode_enabled: bool, should_integrate: bool, delta_time: float): 
         serialized = json.dumps(
             {
                 "timeout_sec": timeout_sec, 
@@ -126,6 +118,7 @@ class AutomatonRunner:
         should_inject_control_states: bool = False,
         control_states_injection_fn: Optional[callable] = None,
         control_states_injection_rate: float = 0.001,
+        should_write_logs: bool = True,
         output_dir: str = "./log_hybrid_automaton/"
     ) -> AutomatonRunData:
         """
@@ -167,7 +160,11 @@ class AutomatonRunner:
                             u0=initial_control_inputs,
                             real_time_mode=enable_real_time_mode,
                             integrate=should_integrate,
-                            dt=delta_time
+                            dt=delta_time,
+                            output_dir=output_dir,
+                            should_write_logs=should_write_logs,
+                            should_timeout=True if timeout_sec!= np.inf else False,
+                            timeout_sec=timeout_sec
                         ),
                         success_event=self._automaton_run_complete,
                         event_runner_code=RunnerExitCode.AUTOMATON_RUN_COMPLETE,
@@ -439,16 +436,6 @@ class AutomatonRunner:
         return f"{self.ha.get_automaton_name()} runtime timeout after specified period: '{timeout_sec}'"
 
     # """ === post run metadata utilities ==== """
-
-    # def get_results(self) -> Dict[str, Any]:
-    #     """Get all collected data."""
-    #     return {
-    #         'continuous_states': self.continuous_collector.get_data(),
-    #         'auxiliary_states': self.auxiliary_collector.get_data(),
-    #         'control_inputs': self.control_collector.get_data(),
-    #         'automaton_states': self.automaton_collector.get_data(),
-    #         'transition_times': self.transition_collector.get_data(),
-    #     }
 
     def clear_all_data(self):
         """Clear all collected data."""
