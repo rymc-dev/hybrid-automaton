@@ -95,7 +95,7 @@ class RunResult:
     """   
     a return obj for showing results of the runtime
     """ 
-    exit_result: RunResultCode = RunResultCode.SUCCESS
+    result: RunResultCode = RunResultCode.SUCCESS
     reason: StepResult = None # if failure then returns previous step result which caused
     message: str = ""
     
@@ -496,7 +496,7 @@ class Runtime:
             while self._active_event.is_set():
                 # Handle timeout first
                 if self._timeout_event.is_set():
-                    logger.WARNING(condition="Timeout", consequence=f"Automaton run timed out after {timeout_sec:.3f}s")
+                    logger.WARNING(condition="TIMEOUT", consequence=f"t > {timeout_sec:.3f}")
                     run_result.exit_result = RunResultCode.FAILURE
                     run_result.reason = StepResult(
                         severity=StepSeverity.STEP_ERROR,
@@ -608,12 +608,34 @@ class Runtime:
         return run_result
 
     def _on_entry_hook(self, logger: TemporalAutomatonLogger):
-        logger.INFO(condition="Automaton Activation", consequence="automaton has been activated")
+        """entry hook which logs activation and performs any automaton on entry function calls"""
+        logger.INFO(condition="ACTIVATION", consequence="automaton activated successfully.")
         self._automaton_definition.on_entry()
         
     def _on_exit_hook(self, logger: TemporalAutomatonLogger):
-        logger.INFO(condition="Automaton Complete", consequence="automaton completed!")
+        """exit hook which logs deactivation and performs any autoamton definition on exit function calls"""
+        logger.INFO(condition="DEACTIVATION", consequence="automaton deactivated successfully.")
         self._automaton_definition.on_exit()
+
+    def _clear_events(self):
+            self._run_completed_event.clear()
+            self._timeout_event.clear()
+            self._deactivate_event.clear()
+
+    def _initialize_logger(self, run_id: str, should_write_logs: bool, log_dir: str): 
+        logger = TemporalAutomatonLogger(
+            automaton_name=self._automaton_definition.name,
+            automaton_version=self._automaton_definition.version,
+            automaton_runner_version=self._VERSION,
+            automaton_initial_mode_name=self._automaton_definition.state_t0.name,
+            run_id=run_id,
+            is_real_time=self._ctx.clk.is_real_time(),
+            clk=self._ctx.clk,
+            should_write_logs_to_file=should_write_logs,
+            log_dir=log_dir,
+            file_name="temporal_automaton.log"
+        )
+        return logger
 
     async def activate(
         self,
@@ -625,108 +647,45 @@ class Runtime:
         """Activate the automaton asynchronously with optional timeout."""
         run_id = f"{datetime.now(timezone.utc):%Y%m%dT%H%M%SZ}_{uuid.uuid4().hex[:6]}"
         run_result: Optional[RunResult] = None
-        timeout_task: Optional[asyncio.Task] = None
-        main_runner_task: Optional[asyncio.Task] = None
         entered = False
-
-        logger: Optional[TemporalAutomatonLogger] = None
+        self._clear_events
+        logger: Optional[TemporalAutomatonLogger] = self._initialize_logger(
+            run_id=run_id,
+            should_write_logs=write_logs,
+            log_dir=temporal_log_dir
+        )
 
         try:
-            self._run_completed_event.clear()
-            self._timeout_event.clear()
-            self._deactivate_event.clear()
-
-            # Initialize logger
-            logger = TemporalAutomatonLogger(
-                automaton_name=self._automaton_definition.name,
-                automaton_version=self._automaton_definition.version,
-                automaton_runner_version=self._VERSION,
-                automaton_initial_mode_name=self._automaton_definition.state_t0.name,
-                run_id=run_id,
-                is_real_time=self._ctx.clk.is_real_time(),
-                clk=self._ctx.clk,
-                should_write_logs_to_file=write_logs,
-                log_dir=temporal_log_dir,
-                file_name="temporal_automaton.log"
-            )
-
+            # Start Automaton
             self._on_entry_hook(logger)
             entered = True
 
-            # Start main runner
-            main_runner_task = asyncio.create_task(
-                self._run(logger=logger, timeout_sec=timeout_sec), name="main_runner"
-            )
+            tasks = [
+                asyncio.create_task(
+                    self._run(logger=logger, timeout_sec=timeout_sec),
+                    name="main_runner",
+                )
+            ]
 
-            # Start timeout watcher if requested
             if should_timeout:
-                timeout_task = asyncio.create_task(self._timeout_watchdog(timeout_sec), name="timeout_watchdog")
-
-            tasks = [main_runner_task]
-            if timeout_task:
-                tasks.append(timeout_task)
-
-            # Wait for the first task to finish
-            done, pending = await asyncio.wait(
-                tasks
-            )
-
-            # Cancel any remaining tasks
-            for task in pending:
-                task.cancel()
-                try:
-                    await task
-                except asyncio.CancelledError:
-                    pass
-
-            # Determine the finished task result safely
-            finished_task = next((t for t in done if not t.cancelled()), None)
-            if finished_task is not None:
-                run_result = finished_task.result()
-            else:
-                # All tasks were cancelled (e.g., due to timeout)
-                run_result = RunResult(
-                    exit_result=RunResultCode.FAILURE,
-                    reason=StepResult(
-                        severity=StepSeverity.STEP_ERROR,
-                        result=StepResultCode.STEP_INVARIANT_VIOLATION,
-                        message="Automaton run was cancelled"
-                    ),
-                    message="All tasks were cancelled during activation."
+                tasks.append(
+                    asyncio.create_task(
+                        self._timeout_watchdog(timeout_sec),
+                        name="timeout_watchdog",
+                    )
                 )
 
-            # Handle timeout
-            if self._timeout_event.is_set() and run_result.exit_result != RunResultCode.SUCCESS:
-                run_result = RunResult(
-                    exit_result=RunResultCode.FAILURE,
-                    reason=StepResult(
-                        severity=StepSeverity.STEP_ERROR,
-                        result=StepResultCode.STEP_INVARIANT_VIOLATION,
-                        message=f"Automaton run exceeded timeout of {timeout_sec:.3f} seconds."
-                    ),
-                    message="Timeout occurred during automaton activation."
-                )
-                if logger:
-                    logger.WARNING("TIMEOUT", f"Automaton exceeded timeout of {timeout_sec:.3f}s")
-
+            results = await asyncio.gather(*tasks)
+            run_result: RunResult = results[0]
         except Exception as e:
-            run_result = RunResult(
-                exit_result=RunResultCode.FAILURE,
-                reason=StepResult(severity=StepSeverity.STEP_FATAL, message=str(e)),
-                message=f"Exception occurred during activation: {str(e)}"
-            )
-
+            logger.ERROR("FATAL Exception", str(e))
+            raise e
         finally:
             # Ensure exit hook always runs
-            if entered and logger:
-                try:
-                    self._on_exit_hook(logger)
-                except Exception as e:
-                    if logger:
-                        logger.ERROR("ExitHookError", f"Exception during on_exit_hook: {str(e)}")
+            if entered:
+                self._on_exit_hook(logger)
 
         return run_result
-
 
     async def _timeout_watchdog(self, timeout_sec: float):
         """Monitor automaton and set timeout if elapsed."""

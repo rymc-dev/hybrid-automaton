@@ -399,8 +399,7 @@ class Automaton:
             should_timeout=should_timeout,
             write_logs=should_write_logs
         )
-        
-        self._on_deactivate()
+        self._runtime = None
         return results
         
     def deactivate(self): 

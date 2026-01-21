@@ -213,7 +213,6 @@ class AutomatonRunner:
                         name="sample_control_inputs_task"
                     )
 
-
                 # Data injection tasks: injectors also should not signal run completion on normal exit.
                 if should_inject_continuous_state:
                     if continuous_state_injection_fn is None:
@@ -262,18 +261,6 @@ class AutomatonRunner:
                             source_name="control_injector"
                         ),
                         name="control_inputs_injection_task"
-                    )
-
-                # Timeout monitor: if finite duration provided, this can finish the run.
-                if np.isfinite(timeout_sec) and timeout_sec > 0:
-                    tg.create_task(
-                        self._wrapped_task(
-                            coro=self._timeout_monitor(timeout_sec),
-                            success_event=self._automaton_run_timeout,
-                            event_runner_code=RunnerExitCode.AUTOMATON_RUN_TIMEOUT,
-                            source_name="timeout_monitor"
-                        ),
-                        name="timeout_monitor_task"
                     )
 
                 # Supervisor watches the run events and raises TaskGroupExit to finish the TaskGroup.
@@ -401,7 +388,6 @@ class AutomatonRunner:
         # Create tasks mapped to their RunnerExitCode for clarity.
         wait_map = {
             asyncio.create_task(self._automaton_run_complete.wait()): RunnerExitCode.AUTOMATON_RUN_COMPLETE,
-            asyncio.create_task(self._automaton_run_timeout.wait()): RunnerExitCode.AUTOMATON_RUN_TIMEOUT,
             asyncio.create_task(self._automaton_run_exception.wait()): RunnerExitCode.AUTOMATON_RUN_EXCEPTION,
             asyncio.create_task(self._automaton_run_stop_requested.wait()): RunnerExitCode.AUTOMATON_RUN_STOP_REQUESTED,
         }
@@ -428,12 +414,6 @@ class AutomatonRunner:
             automaton_exit_code=automaton_code,
             automaton_exit_msg=automaton_msg
         )
-
-    async def _timeout_monitor(self, timeout_sec: float) -> str:
-        """"""
-        while self.ha.get_runtime_time_elapsed() < timeout_sec:
-            await asyncio.sleep(0.1)
-        return f"{self.ha.get_automaton_name()} runtime timeout after specified period: '{timeout_sec}'"
 
     # """ === post run metadata utilities ==== """
 
