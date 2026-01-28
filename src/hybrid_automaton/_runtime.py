@@ -28,6 +28,7 @@ PYTHON_VERSION = sys.version
 HOST_NAME = socket.gethostname()
 PID = os.getpid()
 
+
 class _Runtime: 
     """ 
     `Automaton.Runtime` is the class that takes
@@ -43,13 +44,14 @@ class _Runtime:
     Args: 
         TODO: 
     """
-    _VERSION = "0.0.1"
+    _VERSION = "0.0.2"
     
     class Logger: 
         """logs temporal data regarding the automaton 
         """
         def __init__(
             self,
+            *
             automaton_definition: _Definition,
             run_signature: "_Runtime.Signature",
             run_context: "_Runtime.Context", 
@@ -143,6 +145,7 @@ f"""# ------------------------------------------------------------
     class Signature: 
         def __init__(
             self, 
+            *
             automaton_definition: _Definition,
             timeout_sec: float,
             real_time_mode_enabled: bool,
@@ -273,9 +276,9 @@ f"""# ------------------------------------------------------------
         """   
         a return obj for showing results of the runtime
         """
-        run_signature:AutomatonRuntime.Signature = None 
-        result: RunResultCode = RunResultCode.SUCCESS
-        reason: StepResult = None # if failure then returns previous step result which caused
+        run_signature:'_Runtime.Signature' = None 
+        result:'_Runtime.RunResultCode' = _Runtime.RunResultCode.SUCCESS
+        reason: '_Runtime.StepResult' = None # if failure then returns previous step result which caused
         message: str = ""
         dwell_time: float = 0.0
         
@@ -767,27 +770,32 @@ f"""# ------------------------------------------------------------
             self,
             *,
             continuous_fn: Optional[Callable[[], Dict[str, np.ndarray]]] = None,
+            continuous_update_rate: int = 10,
             auxiliary_fn: Optional[Callable[[], Dict[str, np.ndarray]]] = None,
+            auxiliary_update_rate: int = 10,
             control_fn: Optional[Callable[[], Dict[str, np.ndarray]]] = None,
-            update_rate: float = 0.001,
+            control_update_rate: int = 10,
         ):
             self._providers: List[_Runtime.StateProviders.StateProvider.BaseStateProvider] = []
 
             if continuous_fn:
                 self._providers.append(
-                    _Runtime.StateProviders.ContinuousStateProvider(continuous_fn, update_rate)
+                    _Runtime.StateProviders.ContinuousStateProvider(continuous_fn, (1.0/continuous_update_rate))
                 )
 
             if auxiliary_fn:
                 self._providers.append(
-                    _Runtime.StateProviders.AuxiliaryStateProvider(auxiliary_fn, update_rate)
+                    _Runtime.StateProviders.AuxiliaryStateProvider(auxiliary_fn, (1.0/auxiliary_update_rate))
                 )
 
             if control_fn:
                 self._providers.append(
-                    _Runtime.StateProviders.ControlInputProvider(control_fn, update_rate)
+                    _Runtime.StateProviders.ControlInputProvider(control_fn, (1.0/control_update_rate))
                 )
 
+        def is_providers(self): 
+            return len(self._providers) > 0
+        
         async def activate(self, ha):
             await asyncio.gather(*(p.activate(ha) for p in self._providers))
 
@@ -968,6 +976,9 @@ f"""# ------------------------------------------------------------
                     )
                 )
 
+        def is_samplers(self) -> bool: 
+            return len(self._samplers) > 0
+
         async def activate(self, automaton_run_id: str, ha):
             await asyncio.gather(
                 *(s.activate(automaton_run_id, ha) for s in self._samplers)
@@ -978,6 +989,7 @@ f"""# ------------------------------------------------------------
 
     def __init__(
             self,
+            *
             definition: _Definition,
             integration_fnc: Optional[callable] = None
     ): 
@@ -1258,6 +1270,7 @@ f"""# ------------------------------------------------------------
     
     async def activate(
         self,
+        *,
         initial_continuous_state: Optional[np.ndarray] = None,
         initial_auxiliary_states: Optional[Dict[str, np.ndarray]] = None,
         initial_control_input_states: Optional[Dict[str, np.ndarray]] = None,
@@ -1273,7 +1286,7 @@ f"""# ------------------------------------------------------------
         auxiliary_states_sampler_samples_per_write: Optional[int] = 1000,
         control_input_states_sampler_enabled: bool = False,
         control_input_states_sampler_rate: Optional[int] = 1,
-        control_input_states_samplers_per_write: Optional[int] = 1000,
+        control_input_states_samples_per_write: Optional[int] = 1000,
         continuous_state_provider: Optional[Callable] = None,
         continuous_state_provision_rate: Optional[int] = None,
         auxiliary_states_provider: Optional[Callable] = None,
@@ -1296,10 +1309,8 @@ f"""# ------------------------------------------------------------
             initial_continuous_state=initial_continuous_state,
             initial_auxiliary_states=initial_auxiliary_states,
             initial_control_input_states=initial_control_input_states,
-            clock=_Runtime.Context.Clock(
-                dt=delta_time,
-                real_time_mode=enable_real_time_mode
-            ),
+            delta_time=delta_time,
+            timeout_sec=timeout_sec,
             configuration=self._automaton_definition._configuration, # TODO: Need to update this, configuration should not be referenced through context when being used
             timeout_sec=timeout_sec,
             should_integrate=enable_self_integration
@@ -1311,6 +1322,25 @@ f"""# ------------------------------------------------------------
             should_write_logs_to_file=should_write_logs,
             log_dir=output_dir,
             file_name="temporal_automaton.log"
+        )
+        state_samplers:_Runtime.StateSamplers = _Runtime.StateSamplers(
+            continuous_enabled=continuous_state_sampler_enabled,
+            continuous_sample_rate=continuous_state_sampler_rate,
+            continuous_samples_per_write=continuous_state_sampler_samples_per_write,
+            auxiliary_enabled=auxiliary_states_sampler_enabled,
+            auxiliary_sample_rate=auxiliary_states_sampler_rate,
+            auxiliary_samples_per_write=auxiliary_states_sampler_samples_per_write,
+            control_enabled=control_input_states_sampler_enabled,
+            control_sample_rate=control_input_states_sampler_rate,
+            control_samples_per_write=control_input_states_samples_per_write
+        )
+        state_providers:_Runtime.StateProviders = _Runtime.StateProviders(
+            continuous_fn=continuous_state_provider,
+            continuous_update_rate=continuous_state_provision_rate,
+            auxiliary_fn=auxiliary_states_provider,
+            auxiliary_update_rate=auxiliary_states_provision_rate,
+            control_fn=control_input_states_provider,
+            control_update_rate=control_input_states_provision_rate 
         )
         
         try:
@@ -1326,90 +1356,36 @@ f"""# ------------------------------------------------------------
                     self._run(logger=run_logger, run_context=run_context), # TODO: pass run ID which should contain cfg hash and custom id and automaton name for logging
                     name="runner_task"
                 )
-               
-                # timeout task
-                if not (timeout_sec==np.inf): 
-                    task_results.timeout_watchdog_task_result = tg.create_task(
-                        self._timeout_watchdog(run_context, timeout_sec),
-                        name="timeout_watchdog"
-                    ) 
-                # samplers
-                if continuous_state_sampler_enabled:
-                    continuous_state_sampler = _Runtime.StateSampler.ContinuousStateSampler(
-                        sampling_rate=(1.0/continuous_state_sampler_rate),
-                        samples_per_write=continuous_state_sampler_samples_per_write
-                    )
-                    task_results.continuous_state_sampler_task_result = tg.create_task(
-                        continuous_state_sampler.activate(run_signature.run_id, self._automaton_definition),
-                        name="continuous_states_sampler"
-                    )
-                
-                if auxiliary_states_sampler_enabled:
-                    auxiliary_states_sampler = AuxiliaryStateSampler(
-                        sampling_rate=auxiliary_states_sampler_rate,
-                        samples_per_write=auxiliary_states_sampler_samples_per_write 
-                    )
-                    task_results.auxiliary_state_sampler_task_result = tg.create_task(
-                        auxiliary_states_sampler.activate(
-                            run_signature.run_id,
-                            self._automaton_definition
-                        )
-                    )
-                # if control_input_states_sampler_enabled:
-                #     control_inputs_state_sampler = ControlInputStateSampler(
-                #         sampling_rate = (1.0 / control_input_states_sampler_rate), 
-                #         samples_per_write=control_input_states_samplers_per_write 
-                #     )
-                #     control_inputs_state_sampler_task_result = tg.create_task(
-                #         control_inputs_state_sampler.activate(
-                #             automaton_run_id=run_signature.run_id,
-                #             ha=self._automaton_definition
-                #         ),
-                #         name="control_inputs_state_sampler"
-                #     )
-                # # providers 
-                # if continuous_state_provider is not None: 
-                #     continuous_state_provider: ContinuousStateInjector = ContinuousStateInjector(
-                #         fn=continuous_state_provider,
-                #         update_rate=(1.0/continuous_state_provision_rate)
-                #     )
-                #     tg.create_task(
-                #         continuous_state_provider.inject(self._automaton_definition),
-                #         name="continuous_state_injection"
-                #     )           
-                # if auxiliary_states_provider is not None: 
-                #     auxiliary_states_provider: AuxiliaryStateInjector = AuxiliaryStateInjector(
-                #         fn=auxiliary_states_provider,
-                #         update_rate=(1.0/auxiliary_states_provision_rate)
-                #     )
-                #     tg.create_task(
-                #         auxiliary_states_provider.inject(ha=self._automaton_definition),
-                #         name="auxiliary_state_injection"
-                #     )              
-                # if control_input_states_provider is not None:
-                #     control_input_states_provider: ControlInputInjector = ControlInputInjector(
-                #         fn=control_input_states_provider,
-                #         update_rate=(1.0 / control_input_states_provision_rate)        
-                #     )
-                #     tg.create_task(
-                #         control_input_states_provider.inject( # TODO: SHould just inject the context instead of automaton definition or something else
-                #             fn=control_input_states_provider.inject(self._automaton_definition),
-                            
-                #         )
-                #     )
+                # samplers task
+                sampler_results = tg.create_task(
+                    coro=state_samplers.activate(
+                        automaton_run_id=run_signature.run_id,
+                        ha=self._automaton_definition
+                    ),
+                    name='state_sampler_task'
+                )
+                # providers task
+                provider_results = tg.create_task(
+                    coro=state_providers.activate(
+                        ha=run_signature.run_id,
+                    ),
+                    name="provider_task"
+                )
 
             run_logger.INFO(condition="DEACTIVATION", consequence="automaton deactivated successfully.")
             self._automaton_definition.on_exit()
             
+            
+            print (sampler_results)
+            print (provider_results)
             print (task_results.runner_task_result)
             
-            return task_results.runner_task_result.result() if task_results.runner_task_result.result() else RunResult()
+            return None
+            # return task_results.runner_task_result.result() if task_results.runner_task_result.result() else RunResult()
         except Exception as e:
             run_logger.ERROR("FATAL Exception", str(e))
             raise e
-        
-
- 
+    
     def deactivate(self): 
         print ("Client deactivation request received!") 
         self._active_event.clear()

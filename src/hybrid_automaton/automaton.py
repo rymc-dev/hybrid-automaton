@@ -1,23 +1,15 @@
-""" 
-Automaton is a class for defining hybrid automaton, 
-automaton contains both definition and runtime information,
-in the runtime there are attributes which store information]
-regarding the state space the automaton is operating during runtime
-this includes continous states, auxiliary states, control inputs,
-the definition contains the configuration of the automaton and te structure
-the structure encompasses the formal definition transitions map, guards resets, 
-invariants and so on.
+#! /usr/bin/python3
 
-...
-"""
 
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import Any, Callable, Dict, List, Optional 
+
 import numpy as np
 
-from .definition import Definition
-from ._runtime import AutomatonRuntime
-from .automaton_state import State
-from hybrid_automaton.exit_codes import ExitCode
+from .definition import _Definition
+from .definition import Transition 
+from .definition import State
+from ._runtime import _Runtime
+
 
 class Automaton: 
     """ 
@@ -51,17 +43,8 @@ class Automaton:
             of the agent continous state by 1 
 
     functions:
-        get_name 
-        get_id
-        get_continuous_state
-        get_auxiliary_states
-        get_continuous_dynamics
-        get_runtime_time_elapsed
-        get_runtime_last_transition_name
-        get_runtime_time_elapsed_since_last_transition
         
     """
-
 
     def __init__(
         self, 
@@ -76,7 +59,7 @@ class Automaton:
         """ 
         initialize the static details of the automaton
         """
-        self._definition: Definition = Definition(
+        self._definition: _Definition = _Definition(
             name=name,
             version=version,
             states=states,
@@ -84,7 +67,7 @@ class Automaton:
             on_entry=on_entry,
             on_exit=on_exit
         )
-        self._runtime: AutomatonRuntime = AutomatonRuntime(
+        self._runtime: _Runtime = _Runtime(
             definition=self._definition,
             integration_fnc=integration_function
         )
@@ -100,216 +83,11 @@ class Automaton:
     def get_automaton_id(self) -> int:
         return self._definition.id
 
-    """ === getter for when active === """
-
-    def get_runtime_active_discrete_state(self) -> Tuple[int, str]: 
-        if self._runtime is None: 
-            raise SystemError(
-                "Attempted to get current mode `q` but the automaton is not active. Call `activate()` first."
-            )
-
-        return self._runtime.get_active_discrete_state()
-
-    def get_runtime_continuous_state(self) -> np.array:
-        """"""
-        if self._runtime is None:
-            raise SystemError(
-                "Attempted to get continous state 'x' but the automaton is not active. Call `activate()` first."
-            )
-
-        return self._runtime.get_continuous_state()
-    
-    def get_runtime_auxiliary_state(self) -> Dict: 
-        if self._runtime is None: 
-            raise SystemError(
-                "Attempted to get auxiliary state 'aux_x' but the automaton is not active. Call `activate()` first."
-            )
-        return self._runtime.get_auxiliary_states()
-    
-    def get_runtime_control_input(self) -> Dict: 
-        if self._runtime is None: 
-            raise SystemError(
-                "Attempted to get control input `u` but the automaton is not active. Call `activate()` first"
-            )
-        return self._runtime.get_control_inputs()
-    
-    def get_runtime_continuous_dynamics(self) -> Dict[str, 'Automaton.Runtime.ContinousDynamics']: 
-        """ 
-        utilized for retrieving the current continous dynamics if there are any continous dynamics to get
-        """
-        if self._runtime is None: 
-            raise SystemError(
-                "Attempted to get continous dynamics `xdot` but the automaton is not active. Call `activate()` first."
-            )
-        
-        return self._runtime.get_continuous_dynamics()
-    
-    def get_runtime_time_elapsed(self) -> float:
-        if self._runtime is None:
-            raise SystemError(
-                "Attempted to get active elapsed time but the automaton is not active. Call `activate()` first."
-            )
-   
-        return self._runtime.get_elapsed_time()
-    
-    def get_runtime_previous_transition_name(self) -> str: 
-        if self._runtime is None: 
-            raise SystemError("Attemped to get previous transition name but the automaton is not active, Call `activate()` first.")
-        return self._runtime.get_previous_transition_name()
-    
-    def get_runtime_time_elapsed_since_transition(self) -> float:
-        if self._runtime is None:
-            raise SystemError(
-                "Attempted to get active elapsed time since last transition but the automaton is not active. Call `activate` first."
-            )
-
-        return self._runtime.get_elapsed_time_since_transition()
-
-    """ === setter function for when active === """
-
-    def set_runtime_continuous_state(self, x: np.array):
-        """
-        Explicit setter for the continuous state `x` of the automaton.
-
-        This updates the internal continuous state that is normally evolved by
-        the active state's continuous dynamics (flow function) and integrated
-        via the automaton's integration method. This setter is intended for
-        real-time operation, where the continuous state comes from external
-        sensors rather than simulation-based integration.
-
-        This function may **only** be called while the automaton is active.
-
-        Args:
-            x (Any):
-                New continuous state value. The structure (e.g., dict keys,
-                dimensionality) must match the structure provided during
-                activation (`x0`).
-
-        Raises:
-            SystemError:
-                If called when the automaton has not been activated or is not
-                currently active.
-
-            ValueError:
-                If the provided value `x` does not match the format/structure of
-                the initial continuous state defined at activation time.
-        """
-
-        # -------------------------------
-        # 1. Must be active
-        # -------------------------------
-        if self._runtime is None:
-            raise SystemError(
-                "Automaton runtime is not initialized. Ensure the automaton is activated."
-            )
-        
-        if not self._runtime._active:
-            raise SystemError(
-                "Attempted to update continuous state `x` but the automaton "
-                "is not active. Call `activate()` first."
-            )
-        
-        # -------------------------------
-        # 2. Check real-time mode (optional warning, but don't block)
-        # -------------------------------
-        # FIX: Access real_time_mode through the clock
-        if self._runtime._ctx.clk.is_real_time():
-            # This is just a warning - we allow it for open-loop injection
-            # in simulation mode (integrate=False)
-            if self._runtime._integrate:
-                print("Warning: Setting continuous state while integrate=True. "
-                    "This may cause conflicts. Consider integrate=False for open-loop.")
-
-        # -------------------------------
-        # 3. Set the state
-        # -------------------------------
-        try:
-            self._runtime.set_continuous_state(x)
-        except Exception as e:
-            raise ValueError(
-                f"Failed to set continuous state `x`: {str(e)}"
-            ) from e
-
-    def set_runtime_auxiliary_continuous_states(self, aux_x: Dict[str, np.array]):
-        """
-        explicity auxilary continous state setter
-
-        Args: 
-            aux_x: Any
-                aux_x can be a list, dict or whatever else is required
-                is's structure is defined by the aux_x0 representation 
-                at time 0.
-
-        Raises:
-            SystemError: if you try set aux_x while the automaton is not active
-            ValueError: if you try to set a aux_x which is invalid 
-
-        """
-
-        """ 
-            1. automaton must be active
-        """
-        if self._runtime is None:
-            raise SystemError(
-                "Automaton runtime is not initialized. Ensure the automaton is activated."
-            )
-        else: 
-            if not self._runtime._active: 
-                raise SystemError(
-                    "Attempted to update auxielary state `x` but the automaton "
-                    "is not active. Call `activate()` first."
-                )
-        
-        try: 
-            self._runtime.set_auxiliary_states(aux_x)
-        except Exception as e: 
-            raise Exception(
-                f"Failed to set auxiliary continuous state `aux_x`: {str(e)}"
-            ) from e 
-
-    def set_runtime_control_inputs(self, u: Dict[str, np.array]): 
-        """
-        explicity setter for the internal control input value
-        this is a value that effects flow functions, can be heading
-        offset or so on.
-
-        Args:
-            u: Any
-                u can be a list, dict or whatever else is required 
-                it's structure is defined by the u0 representation which
-                is set on t0.
-
-        Raises: 
-            SystemError: if you try set control input state `u` but the automaton is not active
-            ValueError: if you try to set `u` value but the structure is not the same as u0
-        """
-
-        if self._runtime is None:
-            raise SystemError(
-                "Automaton runtime is not initialized. Ensure the automaton is activated."
-            )
-        else: 
-            if not self._runtime._active: 
-                raise SystemError(
-                    "Attempted to update control input `x` but the automaton "
-                    "is not active. Call `activate()` first."
-                )
-        
-        try: 
-            self._runtime.set_control_inputs(u)
-        except Exception as e: 
-            raise ValueError(
-                f"Failed to set control input `u`: {str(e)}"
-            ) from e
-
     """ === toggle active / deactive functions === """
-
-    def _on_deactivate(self):
-        """automaton deactivation hook"""
-        self._runtime = None
 
     async def activate(
         self,
+        *,
         initial_continuous_state: Optional[np.ndarray] = None,
         initial_auxiliary_states: Optional[Dict[str, np.ndarray]] = {},
         initial_control_input_states: Optional[Dict[str, np.ndarray]] = {},
@@ -424,14 +202,7 @@ class Automaton:
         
     def deactivate(self): 
         """deactives the automaton"""
-        if self._runtime is None or not self._runtime._active:
-            raise SystemError(f"can't deactivate automaton '{self._definition.name}', it's not active.")
-
-        self._runtime.deactivate()
-        
-    def reset(self): 
-        if self._runtime is not None: 
-            self._runtime = None
+        ...
 
     """ === string representations of the class === """
 
