@@ -45,7 +45,7 @@ class _Runtime:
     Args: 
         TODO: 
     """
-    _VERSION = "0.0.2"
+    _VERSION = "0.0.3"
     
     class Logger: 
         """logs temporal data regarding the automaton 
@@ -237,8 +237,8 @@ f"""# ------------------------------------------------------------
     @dataclass
     class EvalStepResult:
         """Result of a single evaluation step"""
-        code: "StepResultCode"
-        severity: "StepSeverity"
+        code: "_Runtime.StepResultCode"
+        severity: "_Runtime.StepSeverity"
         message: str = ""
         
         def is_ok(self) -> bool:
@@ -794,7 +794,7 @@ f"""# ------------------------------------------------------------
                 except asyncio.CancelledError:
                     pass
 
-            def _inject(self, ctx, value: Dict[str, np.ndarray]):
+            def _inject(self, ctx: '_Runtime.Context', value: Dict[str, np.ndarray]):
                 raise NotImplementedError
             
         class ContinuousStateProvider(BaseStateProvider):
@@ -1304,7 +1304,7 @@ f"""# ------------------------------------------------------------
     # =========================================================================
     # ACTIVATION
     # =========================================================================
-    
+        
     async def activate(
         self,
         *,
@@ -1392,33 +1392,31 @@ f"""# ------------------------------------------------------------
             self._automaton_definition.on_entry()
             self._active_event.set()
             
-            # Run all tasks
-            async with asyncio.TaskGroup() as tg:
-                runner_task = tg.create_task(
-                    self._run(logger=run_logger, run_context=run_context),
-                    name="runner_task"
+            # Activate samplers and providers (starts background tasks)
+            if state_samplers.is_samplers():
+                await state_samplers.activate(
+                    automaton_run_id=run_signature.run_id,
+                    ctx=run_context
                 )
-                
-                if state_samplers.is_samplers():
-                    sampler_task = tg.create_task(
-                        state_samplers.activate(
-                            automaton_run_id=run_signature.run_id,
-                            ctx=run_context
-                        ),
-                        name='state_sampler_task'
-                    )
-                
-                if state_providers.is_providers():
-                    provider_task = tg.create_task(
-                        state_providers.activate(ha=self),
-                        name="provider_task"
-                    )
-
-            # Get result
-            run_result: _Runtime.RunResult = runner_task.result()
+            
+            if state_providers.is_providers():
+                await state_providers.activate(ctx=run_context)
+            
+            # Run the main automaton loop
+            run_result: _Runtime.RunResult = await self._run(
+                logger=run_logger, 
+                run_context=run_context
+            )
             run_result.run_signature = run_signature
             
-            # Deactivate
+            # CRITICAL: Deactivate samplers/providers (triggers final dump)
+            if state_samplers.is_samplers():
+                await state_samplers.deactivate()
+            
+            if state_providers.is_providers():
+                await state_providers.deactivate()
+            
+            # Final cleanup
             run_logger.INFO("DEACTIVATION", f"automaton deactivated - {run_result.status.name}")
             self._automaton_definition.on_exit()
             
@@ -1426,8 +1424,16 @@ f"""# ------------------------------------------------------------
             
         except Exception as e:
             run_logger.FATAL("Activation Error", str(e))
+            # Ensure cleanup on error
+            try:
+                if state_samplers.is_samplers():
+                    await state_samplers.deactivate()
+                if state_providers.is_providers():
+                    await state_providers.deactivate()
+            except Exception:
+                pass
             raise
-    
+        
     def deactivate(self): 
         """Request deactivation of the automaton"""
         if self._ctx:
