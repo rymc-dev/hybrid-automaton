@@ -179,88 +179,169 @@ f"""# ------------------------------------------------------------
         def _generate_run_id(self): 
             return f"{datetime.now(timezone.utc):%Y%m%dT%H%M%SZ}_{uuid.uuid4().hex[:6]}"
      
+    # =========================================================================
+    # IMPROVED STATUS CODES AND RESULTS
+    # =========================================================================
+    
+    class StepResultCode(Enum):
+        """
+        Codes representing the outcome of a single evaluation step.
+        Streamlined to remove redundancy and improve clarity.
+        """
+        # Normal operation
+        NORMAL = auto()
+        """Standard operation: continuous dynamics evolve, invariants hold, no active guards"""
+        
+        # Successful transitions
+        TRANSITION = auto()
+        """Guard satisfied, transition executed, new discrete mode entered"""
+        
+        # Terminal states
+        TERMINAL_REACHED = auto()
+        """Entered a designated terminal/accepting state - run complete"""
+        
+        CANCELLED = auto()
+        """Automaton manually cancelled by client"""
+        
+        # Semantic violations
+        INVARIANT_VIOLATION = auto()
+        """Invariant violated without valid transition - invalid automaton state"""
+        
+        # Exceptions during evaluation
+        CONTINUOUS_FLOW_ERROR = auto()
+        """Exception during continuous dynamics evaluation"""
+        
+        INTEGRATION_ERROR = auto()
+        """Exception during integration of continuous dynamics"""
+        
+        TRANSITION_ERROR = auto()
+        """Exception during discrete state transition execution"""
+        
+        GUARD_EVALUATION_ERROR = auto()
+        """Exception during guard evaluation"""
+
+    class StepSeverity(Enum):
+        """Severity level of a step result"""
+        OK = auto()
+        """Step executed successfully"""
+        
+        WARNING = auto()
+        """Non-critical issue that doesn't stop execution"""
+        
+        ERROR = auto()
+        """Critical error - automaton should terminate"""
+        
+        FATAL = auto()
+        """Unexpected fatal error - indicates code bug"""
+
     @dataclass
     class EvalStepResult:
-        """
-        a struct for returning information regarding evaluation steps
-        in the runtime.
-        """
-        class EvalStepResultCode(Enum): 
-            STEP_NORMAL = auto()
-            """standard operation inside a discrete mode, continuous dynamics evolve,
-            invariants hold, guards all evaluated as false"""
-            STEP_TRANSITION = auto()
-            """guard/(s) satisfied during evaluation, transition selected, reset(s) applied if there are any
-            for the transition new discrete mode entered  
-            """
-            CONTINUOUS_FLOW_EXCEPTION = auto()
-            """continuous flow exception evaluation raised during integration
-            """
-            
-            STEP_SELF_INTEGRATION_EXCEPTION = auto()
-            """exception occured integration continuous dynamics generated for step
-            """
-            
-            STEP_TRANSITION_EXCEPTION = auto()
-            """an exception occured while attempting a discrete state jump
-            """
-            # NOTE: ENABLED_TRANSITION_CONFLICT ignored, handled by automaton definition requirements of non conflicting 
-            # discrete mode priorities when defining discrete state transiitons
-            # TIME BLOCK should not occur either, we check transitions have destinations 
-            # on definition initialization, but as for the automaton flow, lack of flow may be a design
-            # choice so there s no way for me to validate this, it's up to designer to determine through the 
-            # automaton results if time blocks occur.  JUNMPS ALWAYS possible, 
-            # but no continuous flow of dynamic not a worry of framework as may be intentional  
-            STEP_INVARIANT_VIOLATION = auto()
-            """invariant(s) bitwise ~| evaluated as without valid transition from current 
-            discrete mode being available therefore leaving automaton in a semantically invalid state
-            in an invalid state so run should stop
-            """
-            
-            STEP_TERMINAL_REACHED = auto()
-            """Entered a designated terminal / accepting discrete mode
-            no further evolution intended therefore automaton run complete
-            auto deactivate. 
-            in this automaton final mode is declared, when invariant violation occurs
-            and we are in a designated definition final state this is returned
-            """  
-
-            STEP_AUTOMATON_CANCELLED = auto()
-            """signifies that the automaton has been manually cancelled by the client 
-            """
-        
-        class EvalStepSeverity(Enum): 
-            STEP_OK = auto()
-            """ step worked as expected, continue normal operation as expected
-            """
-            STEP_WARNING = auto()
-            """ a non critical issue during step, just need to prompt the end user of this
-            """
-            STEP_ERROR = auto()
-            """ error raised, these are typically critical related to the automaton definition being mishandled,
-            when raised should close automaton handle and raise exception to stop the run
-            """
-            STEP_FATAL = auto()
-            """ fatal raised, this is an unexpected exception most likely related to code implementations, 
-                when this occurs something has went fatally wrong with the code, for evaluation_step 
-                should contact the developer if this severity occurs
-            """
-        
-        severity: "_Runtime.EvalStepResult.EvalStepSeverity" = None
-        result: "_Runtime.EvalStepResult.EvalStepResultCode" = None
+        """Result of a single evaluation step"""
+        code: "StepResultCode"
+        severity: "StepSeverity"
         message: str = ""
         
+        def is_ok(self) -> bool:
+            """Check if step was successful"""
+            return self.severity == _Runtime.StepSeverity.OK
+        
+        def is_terminal(self) -> bool:
+            """Check if step reached a terminal condition"""
+            return self.code in [
+                _Runtime.StepResultCode.TERMINAL_REACHED,
+                _Runtime.StepResultCode.CANCELLED
+            ]
+        
+        def should_terminate(self) -> bool:
+            """Check if this result should terminate the run"""
+            return self.severity in [
+                _Runtime.StepSeverity.ERROR,
+                _Runtime.StepSeverity.FATAL
+            ] or self.is_terminal()
+
+    class RunStatus(Enum):
+        """Overall status of the automaton run"""
+        SUCCESS = auto()
+        """Run completed successfully (terminal state reached or cancelled cleanly)"""
+        
+        FAILURE = auto()
+        """Run failed due to error or violation"""
+        
+        TIMEOUT = auto()
+        """Run exceeded timeout limit"""
+
     @dataclass
     class RunResult:
-        """   
-        a return obj for showing results of the runtime
         """
-        run_signature:'_Runtime.Signature' = None 
-        result:bool = False
-        reason: '_Runtime.StepResult' = None # if failure then returns previous step result which caused
-        message: str = ""
-        dwell_time: float = 0.0
+        Complete result of an automaton run.
+        Provides comprehensive information about execution outcome.
+        """
+        # Identification
+        run_signature: '_Runtime.Signature' = None
         
+        # Status
+        status: '_Runtime.RunStatus' = None
+        
+        # Termination details
+        termination_code: '_Runtime.StepResultCode' = None
+        termination_message: str = ""
+        
+        # Final state information
+        final_discrete_state: str = ""
+        final_continuous_state: Optional[np.ndarray] = None
+        
+        # Timing
+        total_runtime_sec: float = 0.0
+        total_steps: int = 0
+        transitions_count: int = 0
+        
+        # Statistics
+        step_statistics: Dict[str, int] = None
+        
+        def __post_init__(self):
+            if self.step_statistics is None:
+                self.step_statistics = {}
+        
+        def was_successful(self) -> bool:
+            """Check if run completed successfully"""
+            return self.status == _Runtime.RunStatus.SUCCESS
+        
+        def summary(self) -> str:
+            """Generate human-readable summary"""
+            lines = [
+                f"{'='*60}",
+                f"Automaton Run Summary",
+                f"{'='*60}",
+                f"Run ID: {self.run_signature.run_id if self.run_signature else 'N/A'}",
+                f"Status: {self.status.name if self.status else 'UNKNOWN'}",
+                f"",
+                f"Termination:",
+                f"  Code: {self.termination_code.name if self.termination_code else 'N/A'}",
+                f"  Message: {self.termination_message}",
+                f"  Final State: {self.final_discrete_state}",
+                f"",
+                f"Execution Metrics:",
+                f"  Total Runtime: {self.total_runtime_sec:.3f}s",
+                f"  Total Steps: {self.total_steps}",
+                f"  Transitions: {self.transitions_count}",
+                f"",
+            ]
+            
+            if self.step_statistics:
+                lines.append("Step Statistics:")
+                for code, count in self.step_statistics.items():
+                    lines.append(f"  {code}: {count}")
+            
+            lines.append(f"{'='*60}")
+            return "\n".join(lines)
+        
+        def __str__(self): 
+            return self.summary()
+    
+    # =========================================================================
+    # CONTEXT AND STATE MANAGEMENT
+    # =========================================================================
+    
     class Context: 
         class Clock:
             """clock, runs a clock instance that is utilized
@@ -269,7 +350,7 @@ f"""# ------------------------------------------------------------
                 self, 
                 dt: float, 
                 real_time_mode: bool,
-                timeout_event:asyncio.Event, # A reference to the context timeout event
+                timeout_event:asyncio.Event,
                 timeout_sec: float = np.inf
             ):
                 self._real_time_mode: bool = real_time_mode
@@ -284,7 +365,7 @@ f"""# ------------------------------------------------------------
                 self._timeout_sec = timeout_sec
                 self._timeout_event:asyncio.Event = timeout_event
 
-                self._running: bool = False  # Add running flag for start/stop
+                self._running: bool = False
 
             def step_dt(self):
                 if self._real_time_mode:
@@ -388,9 +469,6 @@ f"""# ------------------------------------------------------------
                 # initialize
                 self._add_state(x0)
 
-            # ----------------------------------------------------------------------
-            # Internal "aux-like" buffer update
-            # ----------------------------------------------------------------------
             def _add_state(self, x: np.ndarray):
                 """Add new state + timestamp, updating timing statistics."""
                 now = time.perf_counter_ns()
@@ -410,9 +488,6 @@ f"""# ------------------------------------------------------------
                 self.last_update_stamp = now / 1_000_000_000
                 self.input_step += 1
 
-            # ----------------------------------------------------------------------
-            # Public API
-            # ----------------------------------------------------------------------
             def latest(self) -> np.ndarray:
                 """Return the latest continuous state."""
                 return self.x_buffer[0]
@@ -430,9 +505,6 @@ f"""# ------------------------------------------------------------
                 """Directly set the continuous state."""
                 self._add_state(x)
 
-            # ----------------------------------------------------------------------
-            # Integration
-            # ----------------------------------------------------------------------
             def integrate(self, xdot: np.ndarray, dt: float):
                 """Integrate using custom function or Euler fallback."""
                 x_current = self.latest()
@@ -445,13 +517,12 @@ f"""# ------------------------------------------------------------
 
                 self._add_state(x_next)
 
-            # ----------------------------------------------------------------------
             def __repr__(self):
                 return (
                     f"ContinuousState(name={self.name}, "
                     f"latest={self.latest()}, "
                     f"actual_update_hz={self.actual_update_hz:.2f}, "
-                    f"timestep={self.timestep})"
+                    f"timestep={self.input_step})"
                 )
 
         class AuxiliaryState:
@@ -471,7 +542,7 @@ f"""# ------------------------------------------------------------
                 self.aux_update_stamps = deque(maxlen=aux_buffer_len)
 
                 self.expected_update_hz = expected_update_hz
-                self.actual_update_hz = expected_update_hz  # start with expected
+                self.actual_update_hz = expected_update_hz
 
                 self.last_update_stamp: float = None
                 self.input_step: int = 0
@@ -496,18 +567,16 @@ f"""# ------------------------------------------------------------
                 """Add a new auxiliary state and update timing stats."""
                 now = time.perf_counter_ns()
 
-                # Compute actual update frequency if this is not the first update
                 if len(self.aux_update_stamps) > 0:
                     dt_ns = now - self.aux_update_stamps[0]
-                    dt_s = dt_ns / 1_000_000_000  # convert to seconds
+                    dt_s = dt_ns / 1_000_000_000
                     if dt_s > 0:
                         self.actual_update_hz = 1.0 / dt_s
 
-                # Update buffers
                 self.aux_buffer.appendleft(aux)
                 self.aux_update_stamps.appendleft(now)
 
-                self.last_update_stamp = now / 1_000_000_000  # store in seconds
+                self.last_update_stamp = now / 1_000_000_000
                 self.input_step += 1
 
             def __repr__(self):
@@ -530,24 +599,17 @@ f"""# ------------------------------------------------------------
                 self.name = name
                 self.u0 = u0
 
-                # buffer for control inputs
                 self.u_buffer = deque(maxlen=buffer_len)
                 self.u_update_stamps = deque(maxlen=buffer_len)
 
-                # timing stats
                 self.expected_update_hz = expected_update_hz
                 self.actual_update_hz = expected_update_hz
                 self.last_update_stamp: float = None
 
-                # bookkeeping
                 self.input_step: int = 0
 
-                # initialize
                 self.add(u0)
 
-            # ----------------------------------------------------------------------
-            # Internal buffer update
-            # ----------------------------------------------------------------------
             def _add_state(self, u: np.ndarray):
                 now = time.perf_counter_ns()
 
@@ -563,9 +625,6 @@ f"""# ------------------------------------------------------------
                 self.last_update_stamp = now / 1_000_000_000
                 self.input_step += 1
 
-            # ----------------------------------------------------------------------
-            # Public API
-            # ----------------------------------------------------------------------
             def latest(self) -> np.ndarray:
                 """Return the most recent control input."""
                 return self.u_buffer[0]
@@ -587,7 +646,6 @@ f"""# ------------------------------------------------------------
                 """Alias for add, for backward compatibility."""
                 self.add(u)
 
-            # ----------------------------------------------------------------------
             def __repr__(self):
                 return (
                     f"ControlInput(name={self.name}, "
@@ -598,47 +656,47 @@ f"""# ------------------------------------------------------------
                 
         @dataclass
         class EventFlags: 
-            # core control events
-            timeout_event = asyncio.Event()
-            deactivate_event = asyncio.Event()
+            timeout_event: asyncio.Event = None
+            deactivate_event: asyncio.Event = None
+            terminal_reached_event: asyncio.Event = None
+            error_event: asyncio.Event = None
+            fatal_event: asyncio.Event = None
             
-            # step events
-            transition_event: asyncio.Event = asyncio.Event()
-            
-            terminal_reached_event: asyncio.Event = asyncio.Event()
-            
-            warning_event: asyncio.Event = asyncio.Event()
-            error_event: asyncio.Event = asyncio.Event()
-            fatal_exception_event: asyncio.Event = asyncio.Event()
-            
-            
-            
-            # Coordination events
-            error_event: asyncio.Event  = asyncio.Event()
+            def __post_init__(self):
+                if self.timeout_event is None:
+                    self.timeout_event = asyncio.Event()
+                if self.deactivate_event is None:
+                    self.deactivate_event = asyncio.Event()
+                if self.terminal_reached_event is None:
+                    self.terminal_reached_event = asyncio.Event()
+                if self.error_event is None:
+                    self.error_event = asyncio.Event()
+                if self.fatal_event is None:
+                    self.fatal_event = asyncio.Event()
                 
-            def is_event(self) -> bool:
-                """validates if any events are active or not"""
+            def is_any_event_set(self) -> bool:
+                """Check if any termination event is set"""
                 return any([
-                    self.run_completed_event.is_set(),
                     self.timeout_event.is_set(),
                     self.deactivate_event.is_set(),
-                    self.transition_event.is_set()
+                    self.terminal_reached_event.is_set(),
+                    self.error_event.is_set(),
+                    self.fatal_event.is_set()
                 ])
                 
-            def which_event(self) -> None:
-                """  
-                returns enum associated with the event
-                """ 
-                if self.run_completed_event.is_set(): 
-                    return ... 
-                elif self.timeout_event.is_set(): 
-                    return ...
-                elif self.deactivate_event.is_set(): 
-                    return ...
-                elif self.deactivate_event.is_set(): 
-                    return ...
-                else: 
-                    None
+            def get_active_event(self) -> Optional[str]:
+                """Return name of first active event"""
+                if self.timeout_event.is_set():
+                    return "timeout"
+                elif self.deactivate_event.is_set():
+                    return "deactivate"
+                elif self.terminal_reached_event.is_set():
+                    return "terminal_reached"
+                elif self.error_event.is_set():
+                    return "error"
+                elif self.fatal_event.is_set():
+                    return "fatal"
+                return None
         
         class Status(Enum): 
             ACTIVE = auto()
@@ -648,32 +706,53 @@ f"""# ------------------------------------------------------------
             self,
             initial_state,
             initial_continuous_state: Optional[np.array] = None,
-            initial_auxiliary_states: Optional[Dict[str, np.array]] = {},
-            initial_control_input_states: Optional[Dict[str, np.array]] = {},
+            initial_auxiliary_states: Optional[Dict[str, np.array]] = None,
+            initial_control_input_states: Optional[Dict[str, np.array]] = None,
             delta_time: float = 0.001,
             real_time_mode: bool = False,
-            configuration: Optional[Dict[str, Any]] = {},
+            configuration: Optional[Dict[str, Any]] = None,
             timeout_sec: Optional[float] = np.inf,
             should_integrate: bool = True 
         ):
             from .definition import State
             self.discrete_state: State = initial_state
 
-            self.continuous_state: _Runtime.Context.ContinuousState = _Runtime.Context.ContinuousState(name='agent_state', x0=initial_continuous_state)
-            self.auxiliary_states: Dict[str, _Runtime.Context.AuxiliaryState] = {k:_Runtime.Context.AuxiliaryState(name=k, aux0=v) for k, v in initial_auxiliary_states.items()} if initial_auxiliary_states is not None else {}
-            self.control_input_states: Dict[str, _Runtime.Context.ControlInput] = {k: _Runtime.Context.ControlInput(name=k, u0=v) for k, v in initial_control_input_states.items()} if initial_control_input_states is not None else {}
-            self.configuration: Dict[str, Any] = configuration | {
+            self.continuous_state: _Runtime.Context.ContinuousState = _Runtime.Context.ContinuousState(
+                name='agent_state', 
+                x0=initial_continuous_state
+            )
+            
+            self.auxiliary_states: Dict[str, _Runtime.Context.AuxiliaryState] = {
+                k: _Runtime.Context.AuxiliaryState(name=k, aux0=v) 
+                for k, v in (initial_auxiliary_states or {}).items()
+            }
+            
+            self.control_input_states: Dict[str, _Runtime.Context.ControlInput] = {
+                k: _Runtime.Context.ControlInput(name=k, u0=v) 
+                for k, v in (initial_control_input_states or {}).items()
+            }
+            
+            self.configuration: Dict[str, Any] = (configuration or {}) | {
                 "should_integrate": should_integrate
             }
             
-            self.status = _Runtime.Context.Status = _Runtime.Context.Status.ACTIVE
+            self.status = _Runtime.Context.Status.ACTIVE
             self.events: _Runtime.Context.EventFlags = _Runtime.Context.EventFlags()
             self.clock: _Runtime.Context.Clock = _Runtime.Context.Clock(
                 dt=delta_time,
-                real_time_mode=True,
+                real_time_mode=real_time_mode,
                 timeout_event=self.events.timeout_event,
                 timeout_sec=timeout_sec
-            ) 
+            )
+            
+            # Statistics tracking
+            self.total_steps: int = 0
+            self.transitions_count: int = 0
+            self.step_counts: Dict[str, int] = {}
+    
+    # =========================================================================
+    # STATE PROVIDERS AND SAMPLERS
+    # =========================================================================
     
     class StateProviders: 
         
@@ -689,11 +768,9 @@ f"""# ------------------------------------------------------------
                 self._active_event = asyncio.Event()
                 self._task: Optional[asyncio.Task] = None
 
-            # ---------- lifecycle ----------
-
-            async def activate(self, ha):
+            async def activate(self, ctx: '_Runtime.Context'):
                 self._active_event.set()
-                self._task = asyncio.create_task(self._inject_loop(ha))
+                self._task = asyncio.create_task(self._inject_loop(ctx))
 
             async def deactivate(self):
                 self._active_event.clear()
@@ -702,14 +779,12 @@ f"""# ------------------------------------------------------------
                     self._task.cancel()
                     await asyncio.gather(self._task, return_exceptions=True)
 
-            # ---------- core loop ----------
-
-            async def _inject_loop(self, ha):
+            async def _inject_loop(self, ctx: '_Runtime.Context'):
                 try:
                     while self._active_event.is_set():
                         try:
                             value = self._fn()
-                            self._inject(ha, value)
+                            self._inject(ctx, value)
                         except Exception as e:
                             print(f"{self.__class__.__name__} injection error: {e}")
                             break
@@ -719,22 +794,20 @@ f"""# ------------------------------------------------------------
                 except asyncio.CancelledError:
                     pass
 
-            # ---------- override hook ----------
-
-            def _inject(self, ha, value: Dict[str, np.ndarray]):
+            def _inject(self, ctx, value: Dict[str, np.ndarray]):
                 raise NotImplementedError
             
         class ContinuousStateProvider(BaseStateProvider):
-            def _inject(self, ha, value):
-                ha.set_runtime_continuous_state(value)
+            def _inject(self, ctx: '_Runtime.Context', value):
+                ctx.continuous_state = value
 
         class AuxiliaryStateProvider(BaseStateProvider):
-            def _inject(self, ha, value):
-                ha.set_runtime_auxiliary_continuous_states(value)
+            def _inject(self, ctx: '_Runtime.Context', value):
+                ctx.auxiliary_states = value
 
         class ControlInputProvider(BaseStateProvider):
-            def _inject(self, ha, value):
-                ha.set_runtime_control_inputs(value)
+            def _inject(self, ctx: '_Runtime.Context', value):
+                ctx.control_input_states = value
 
         def __init__(
             self,
@@ -746,7 +819,7 @@ f"""# ------------------------------------------------------------
             control_fn: Optional[Callable[[], Dict[str, np.ndarray]]] = None,
             control_update_rate: int = 10,
         ):
-            self._providers: List[_Runtime.StateProviders.StateProvider.BaseStateProvider] = []
+            self._providers: List[_Runtime.StateProviders.BaseStateProvider] = []
 
             if continuous_fn:
                 self._providers.append(
@@ -766,8 +839,8 @@ f"""# ------------------------------------------------------------
         def is_providers(self): 
             return len(self._providers) > 0
         
-        async def activate(self, ha):
-            await asyncio.gather(*(p.activate(ha) for p in self._providers))
+        async def activate(self, ctx: '_Runtime.Context'):
+            await asyncio.gather(*(p.activate(ctx) for p in self._providers))
 
         async def deactivate(self):
             await asyncio.gather(*(p.deactivate() for p in self._providers))
@@ -799,15 +872,13 @@ f"""# ------------------------------------------------------------
                 self._file_path: Optional[str] = None
                 self._last_run_id: Optional[str] = None
 
-            # ---------- lifecycle ----------
-
-            async def activate(self, automaton_run_id: str, ha):
+            async def activate(self, automaton_run_id: str, ctx: '_Runtime.Context'):
                 self._last_run_id = automaton_run_id
                 self._create_file(automaton_run_id)
                 self._active_event.set()
 
                 self._task_group = [
-                    asyncio.create_task(self._state_sampler(ha)),
+                    asyncio.create_task(self._state_sampler(ctx)),
                     asyncio.create_task(self._watch_for_dump_event()),
                 ]
 
@@ -820,18 +891,16 @@ f"""# ------------------------------------------------------------
                 await asyncio.gather(*self._task_group, return_exceptions=True)
                 self._dump_samples()
 
-            # ---------- core logic ----------
-
-            async def _state_sampler(self, ha):
-                next_sample_time = ha.get_runtime_time_elapsed() + self._sampling_rate
+            async def _state_sampler(self, ctx: '_Runtime.Context'):
+                next_sample_time = ctx.clock.get_elapsed_time_active() + self._sampling_rate
 
                 try:
                     while self._active_event.is_set():
-                        now = ha.get_runtime_time_elapsed()
+                        now = ctx.clock.get_elapsed_time_active()
                         await asyncio.sleep(max(0, next_sample_time - now))
 
-                        sample = self._get_state_sample(ha)
-                        self._samples.append([ha.get_runtime_time_elapsed(), sample])
+                        sample = self._get_state_sample(ctx)
+                        self._samples.append([ctx.clock.get_elapsed_time_active(), sample])
                         self._samples_collected += 1
 
                         if self._samples_collected >= self._samples_per_write:
@@ -850,8 +919,6 @@ f"""# ------------------------------------------------------------
                         self._dump_event.clear()
                 except asyncio.CancelledError:
                     pass
-
-            # ---------- file handling ----------
 
             def _create_file(self, automaton_run_id: str):
                 os.makedirs(self._output_dir, exist_ok=True)
@@ -883,22 +950,20 @@ f"""# ------------------------------------------------------------
                 self._samples.clear()
                 self._samples_collected = 0
 
-            # ---------- override hook ----------
-
             def _get_state_sample(self, ha) -> Any:
                 raise NotImplementedError
             
         class ContinuousStateSampler(BaseStateSampler):
-            def _get_state_sample(self, ha):
-                return ha.get_runtime_continuous_state().latest()
+            def _get_state_sample(self, ctx: '_Runtime.Context'):
+                return ctx.continuous_state.latest()
 
         class AuxiliaryStateSampler(BaseStateSampler):
-            def _get_state_sample(self, ha):
-                return ha.get_runtime_auxiliary_state()
+            def _get_state_sample(self, ctx: '_Runtime.Context'):
+                return ctx.auxiliary_states
 
         class ControlInputStateSampler(BaseStateSampler):
-            def _get_state_sample(self, ha):
-                return ha.get_runtime_control_input().latest()
+            def _get_state_sample(self, ctx: '_Runtime.Context'):
+                return ctx.control_input_states
               
         def __init__(
             self,
@@ -949,21 +1014,24 @@ f"""# ------------------------------------------------------------
         def is_samplers(self) -> bool: 
             return len(self._samplers) > 0
 
-        async def activate(self, automaton_run_id: str, ha):
+        async def activate(self, automaton_run_id: str, ctx: '_Runtime.Context'):
             await asyncio.gather(
-                *(s.activate(automaton_run_id, ha) for s in self._samplers)
+                *(s.activate(automaton_run_id, ctx) for s in self._samplers)
             )
 
         async def deactivate(self):
             await asyncio.gather(*(s.deactivate() for s in self._samplers))
 
+    # =========================================================================
+    # RUNTIME INITIALIZATION
+    # =========================================================================
+    
     def __init__(
             self,
             *,
             definition: _Definition,
             integration_fnc: Optional[callable] = None
     ): 
-        # TODO: Make 'self._active' this a async event instead of just being a boolean  
         self._active_event = asyncio.Event()
 
         self._automaton_definition: _Definition = definition
@@ -974,42 +1042,44 @@ f"""# ------------------------------------------------------------
         self._ctx: _Runtime.Context = None
         self._xdot: List = None
     
+    # =========================================================================
+    # EVALUATION STEP
+    # =========================================================================
+    
     def _evaluation_step(self, logger: Logger, runtime_context: Context) -> EvalStepResult:
         """
         Perform one timestep evaluation of the hybrid automaton.
-        this is a purely syncronis function.
         
-        return: 
-            StepResult: A step code and msg
+        Returns:
+            EvalStepResult: Result code, severity, and message
         """
         try: 
             # ---------------------------------------------------------
             # 1️⃣ Continuous dynamics
             # ---------------------------------------------------------
             try:
-                xdot = self._discrete_state.continuous_dynamics( # TODO: need to change this function to use new class attribute reprensetations instead of dicts
+                xdot = runtime_context.discrete_state.continuous_dynamics(
                     ctx=runtime_context
                 )
             except Exception as e:
-                return _Runtime.StepResult( 
-                    result=_Runtime.StepResultCode.CONTINUOUS_FLOW_EXCEPTION,
-                    severity=_Runtime.StepSeverity.STEP_ERROR,
-                    message=f"'{self._automaton_definition.name}' exception occured duration continuous flow caused by: '{str(e)}'"
+                return _Runtime.EvalStepResult( 
+                    code=_Runtime.StepResultCode.CONTINUOUS_FLOW_ERROR,
+                    severity=_Runtime.StepSeverity.ERROR,
+                    message=f"Continuous flow exception in mode '{runtime_context.discrete_state.name}': {str(e)}"
                 )
 
             if runtime_context.configuration['should_integrate'] and (xdot is not None) and (runtime_context.continuous_state.x0 is not None):
                 try:
                     runtime_context.continuous_state.integrate(xdot, runtime_context.clock.get_dt())
                 except Exception as e: 
-                    return _Runtime.StepResult(
-                        result=_Runtime.StepResultCode.STEP_SELF_INTEGRATION_EXCEPTION,
-                        severity=_Runtime.StepSeverity.STEP_ERROR,
-                        message=f"'{self._automaton_definition.name}' exception occured during continuous dynamics integration caused by: '{str(e)}'"
+                    return _Runtime.EvalStepResult(
+                        code=_Runtime.StepResultCode.INTEGRATION_ERROR,
+                        severity=_Runtime.StepSeverity.ERROR,
+                        message=f"Integration exception in mode '{runtime_context.discrete_state.name}': {str(e)}"
                     ) 
             
             # ---------------------------------------------------------
-            # 2️⃣ Guard transitions - (Evaluate and Execute discrete
-            #  Transition if 1 guard or more are active)
+            # 2️⃣ Guard transitions
             # ---------------------------------------------------------
             try:
                 guard_evaluations = runtime_context.discrete_state.evaluate_transitions(
@@ -1017,55 +1087,55 @@ f"""# ------------------------------------------------------------
                 )
                 active_guards = [item[0] for item in guard_evaluations if item[1] is True]
                 error_guards = [[item[0], item[2]] for item in guard_evaluations if item[2] is not None]
+                
                 if error_guards and len(error_guards) >= len(active_guards):
-                    raise Exception("No valid guard evaluations could be performed, automaton may be stuck, please check guard function implementation.")
+                    raise Exception(f"All guard evaluations failed - automaton may be stuck")
+                    
                 if error_guards:
                     for g in error_guards:
-                        print (f"Warning, evaluating guard ended in exception could be critical: '{g[0].name}': {g[1]}")
+                        logger.WARNING("Guard Evaluation", f"Guard '{g[0].name}' raised exception: {g[1]}")
+                        
             except Exception as e:
-                return _Runtime.StepResult( 
-                    result=_Runtime.StepResultCode.STEP_TRANSITION_EXCEPTION, 
-                    severity=_Runtime.StepSeverity.STEP_ERROR,
-                    message=f"'{self._automaton_definition.name}' Guard Evaluation error: {str(e)}"
+                return _Runtime.EvalStepResult( 
+                    code=_Runtime.StepResultCode.GUARD_EVALUATION_ERROR, 
+                    severity=_Runtime.StepSeverity.ERROR,
+                    message=f"Guard evaluation error in mode '{runtime_context.discrete_state.name}': {str(e)}"
                 )
             
             if active_guards:
                 try:
                     old_mode = runtime_context.discrete_state.name
-                    if len(active_guards) == 1:
-                        d = active_guards[0]
-                    else:
-                        d: Transition = min(active_guards, key=lambda t: t.priority)
+                    
+                    # Select highest priority transition
+                    transition: Transition = min(active_guards, key=lambda t: t.priority)
 
                     # Execute transition
-                    new_mode, new_ctx = d.execute(
-                        ctx = runtime_context
-                    )
+                    new_mode, new_ctx = transition.execute(ctx=runtime_context)
                     runtime_context = new_ctx
                     runtime_context.clock.ping_transition()
+                    runtime_context.transitions_count += 1
 
+                    # Exit callback
                     if runtime_context.discrete_state.on_exit:
                         runtime_context.discrete_state.on_exit()
 
                     # Update state
-           
                     runtime_context.discrete_state = new_mode
-                    runtime_context = runtime_context 
 
-                    # State entry callback
-                    if self._discrete_state.on_enter:
-                        self._discrete_state.on_enter()
+                    # Entry callback
+                    if new_mode.on_enter:
+                        new_mode.on_enter()
                     
-                    return _Runtime.StepResult(
-                        result=_Runtime.StepResultCode.STEP_TRANSITION,
-                        severity=_Runtime.StepSeverity.STEP_OK,
-                        message=f"'{old_mode}' - |{d.name}| -> '{self._discrete_state.name}'"
+                    return _Runtime.EvalStepResult(
+                        code=_Runtime.StepResultCode.TRANSITION,
+                        severity=_Runtime.StepSeverity.OK,
+                        message=f"'{old_mode}' --[{transition.name}]--> '{new_mode.name}'"
                     )
                 except Exception as e: 
-                    return _Runtime.StepResult( 
-                        _Runtime.StepResultCode.STEP_TRANSITION_EXCEPTION, 
-                        _Runtime.StepSeverity.STEP_ERROR,
-                        message=f"'{self._automaton_definition.name}' discrete state jump (transition) exception occured: {str(e)}"
+                    return _Runtime.EvalStepResult( 
+                        code=_Runtime.StepResultCode.TRANSITION_ERROR, 
+                        severity=_Runtime.StepSeverity.ERROR,
+                        message=f"Transition execution error: {str(e)}"
                     )
 
             # ---------------------------------------------------------
@@ -1076,36 +1146,41 @@ f"""# ------------------------------------------------------------
                     ctx=runtime_context
                 )
             except Exception as e: 
-                return _Runtime.StepResult(
-                    results=_Runtime.StepResultCode.STEP_INVARIANT_VIOLATION,
-                    severity=_Runtime.StepSeverity.STEP_ERROR, 
-                    message=f"'{self._automaton_definition.name}' has had an invariant violation caused by exception during evaluation check, this is a critical semantic error for the automaton which could lead to instability and false results therefore please fix: {str(e)}"
+                return _Runtime.EvalStepResult(
+                    code=_Runtime.StepResultCode.INVARIANT_VIOLATION,
+                    severity=_Runtime.StepSeverity.ERROR, 
+                    message=f"Invariant check exception in mode '{runtime_context.discrete_state.name}': {str(e)}"
                 )
 
             if invariant_holds:
-                return _Runtime.StepResult(
-                    result=_Runtime.StepResultCode.STEP_NORMAL,
-                    severity=_Runtime.StepSeverity.STEP_OK
+                return _Runtime.EvalStepResult(
+                    code=_Runtime.StepResultCode.NORMAL,
+                    severity=_Runtime.StepSeverity.OK
                 )
             elif not invariant_holds and runtime_context.discrete_state._is_final:
-                return _Runtime.StepResult(
-                    result=_Runtime.StepResultCode.STEP_TERMINAL_REACHED, 
-                    severity=_Runtime.StepSeverity.STEP_OK,
-                    message=f"reached: '{runtime_context.discrete_state.name}'"
+                return _Runtime.EvalStepResult(
+                    code=_Runtime.StepResultCode.TERMINAL_REACHED, 
+                    severity=_Runtime.StepSeverity.OK,
+                    message=f"Terminal state '{runtime_context.discrete_state.name}' reached"
                 )
             else: 
-                return _Runtime.StepResult(
-                    result=_Runtime.StepResultCode.STEP_INVARIANT_VIOLATION, 
-                    severity=_Runtime.StepSeverity.STEP_ERROR,
-                    message=f"'{self._automaton_definition.name}' invariant(s) bitwise 'or/~|' '{runtime_context.discrete_state._Inv}' \
-                        has been violated, this is a critical semantic error for you automaton definition semantic."
+                return _Runtime.EvalStepResult(
+                    code=_Runtime.StepResultCode.INVARIANT_VIOLATION, 
+                    severity=_Runtime.StepSeverity.ERROR,
+                    message=f"Invariant violated in mode '{runtime_context.discrete_state.name}' with no valid transition available"
                 )
+                
         except Exception as e: 
-            return _Runtime.StepResult(
-                severity=_Runtime.StepSeverity.STEP_FATAL,
-                message=f"undefined fatal exception has occured during evaluation step, please raise issue in 'hybrid_automaton' github repo: {str(e)}"
+            return _Runtime.EvalStepResult(
+                code=_Runtime.StepResultCode.INVARIANT_VIOLATION,
+                severity=_Runtime.StepSeverity.FATAL,
+                message=f"Unexpected fatal exception during evaluation: {str(e)}"
             )
         
+    # =========================================================================
+    # MAIN RUN LOOP
+    # =========================================================================
+    
     async def _run(self, logger: Logger, run_context: Context) -> RunResult:
         """
         Main worker for running the automaton asynchronously.
@@ -1114,121 +1189,121 @@ f"""# ------------------------------------------------------------
         Ensures proper cleanup of all tasks and sets RunResult appropriately.
         """
         run_result = _Runtime.RunResult()
+        start_time = time.perf_counter()
 
         clock_task = None
         if run_context.clock.is_real_time():
-            # Real-time mode: start the clock
             clock_task = asyncio.create_task(run_context.clock.activate())
 
         try:
             while run_context.status is _Runtime.Context.Status.ACTIVE:
-                # Handle timeout first
-                # if run_context.events.timeout_event.is_set():
-                #     logger.WARNING(condition="TIMEOUT", consequence=f"t > {run_context.timeout_sec:.3f}")
-                #     run_result.result = RunResultCode.FAILURE
-                #     run_result.reason = StepResult(
-                #         severity=StepSeverity.STEP_ERROR,
-                #         result=StepResultCode.STEP_INVARIANT_VIOLATION,
-                #         message=f"Timeout exceeded {run_context.timeout_sec:.3f} seconds"
-                #     )
-                #     run_result.message = "Automaton terminated due to timeout."
-                #     self._active_event.clear()
-                #     run_context.events.run_completed_event.set()
-                #     break
-                # elif run_context.events.deactivate_event.is_set(): 
-                #     logger.INFO(
-                #         condition="MANUAL_STOP", 
-                #         consequence="Automaton was manually stopped via external event."
-                #     )
-                #     run_result.result = RunResultCode.SUCCESS
-                #     run_result.reason = StepResult(
-                #         severity=StepSeverity.STEP_OK,
-                #         result=-1
-                #     )
-                #     break
-
+                # Check for external termination events
+                if run_context.events.timeout_event.is_set():
+                    logger.WARNING("TIMEOUT", f"Exceeded {run_context.clock._timeout_sec:.3f}s")
+                    run_result.status = _Runtime.RunStatus.TIMEOUT
+                    run_result.termination_code = _Runtime.StepResultCode.CANCELLED
+                    run_result.termination_message = "Timeout exceeded"
+                    self._active_event.clear()
+                    break
+                    
+                if run_context.events.deactivate_event.is_set():
+                    logger.INFO("MANUAL_STOP", "Automaton stopped by client")
+                    run_result.status = _Runtime.RunStatus.SUCCESS
+                    run_result.termination_code = _Runtime.StepResultCode.CANCELLED
+                    run_result.termination_message = "Manually cancelled"
+                    self._active_event.clear()
+                    break
                 
-                # Evaluate the next step
-                step_result: _Runtime.StepResult = self._evaluation_step(logger=logger, runtime_context=run_context)
+                # Evaluate step
+                step_result: _Runtime.EvalStepResult = self._evaluation_step(
+                    logger=logger, 
+                    runtime_context=run_context
+                )
+                
+                # Update statistics
+                run_context.total_steps += 1
+                step_code_name = step_result.code.name
+                run_context.step_counts[step_code_name] = run_context.step_counts.get(step_code_name, 0) + 1
 
-                # Handle step severities
-                match step_result.severity:
-                    case _Runtime.StepSeverity.STEP_OK:
-                        match step_result.result:
-                            case _Runtime.StepResultCode.STEP_NORMAL:
-                                pass  # continue
-                            case _Runtime.StepResultCode.STEP_TRANSITION:
-                                logger.INFO(condition="Transition", consequence=f"{step_result.message}")
-                            case _Runtime.StepResultCode.STEP_TERMINAL_REACHED:
-                                logger.INFO(condition="Terminal Reached", consequence=f"{step_result.message}")
-                                run_result.result = _Runtime.RunResultCode.SUCCESS
-                                run_result.reason = step_result.result
-                                run_result.message = step_result.message
-                                self._active_event.clear()
-                                run_context.events.terminal_reached_event.set()
-                                break
-                            case _Runtime.StepResultCode.STEP_AUTOMATON_CANCELLED:
-                                logger.INFO(condition="Automaton Cancelled", consequence=f"{step_result.message}")
-                                run_result.result = _Runtime.RunResultCode.SUCCESS
-                                run_result.reason = step_result.result 
-                                run_result.message = step_result.message
-                                self._active_event.clear()
-                                run_context.events.deactivate_event.set()
-                                break
-                    case _Runtime.StepSeverity.STEP_WARNING:
-                        logger.WARNING(condition="Step Warning", consequence=f"{step_result.result}: {step_result.message}")
-                    case _Runtime.StepSeverity.STEP_ERROR:
-                        # Log error and terminate loop
-                        logger.ERROR(condition="Step Error", consequence=f"{step_result.result}: {step_result.message}")
-                        run_result.result = _Runtime.RunResultCode.FAILURE
-                        run_result.reason = step_result.result
-                        run_result.message = step_result.message
+                # Handle step result
+                if step_result.severity == _Runtime.StepSeverity.OK:
+                    if step_result.code == _Runtime.StepResultCode.TRANSITION:
+                        logger.INFO("Transition", step_result.message)
+                    elif step_result.code == _Runtime.StepResultCode.TERMINAL_REACHED:
+                        logger.INFO("Terminal", step_result.message)
+                        run_result.status = _Runtime.RunStatus.SUCCESS
+                        run_result.termination_code = step_result.code
+                        run_result.termination_message = step_result.message
                         self._active_event.clear()
-                        run_context.events.error_event.set()
+                        run_context.events.terminal_reached_event.set()
                         break
-                    case _:
-                        logger.FATAL(condition="Unknown Step Severity", consequence=f"{step_result.result}: {step_result.message}")
-                        run_result.result = _Runtime.RunResultCode.FAILURE
-                        run_result.reason = step_result.result
-                        run_result.message = "Unknown step severity encountered"
-                        self._active_event.clear()
-                        run_context.events.fatal_exception_event.set()
-                        break
+                        
+                elif step_result.severity == _Runtime.StepSeverity.WARNING:
+                    logger.WARNING(step_result.code.name, step_result.message)
+                    
+                elif step_result.severity == _Runtime.StepSeverity.ERROR:
+                    logger.ERROR(step_result.code.name, step_result.message)
+                    run_result.status = _Runtime.RunStatus.FAILURE
+                    run_result.termination_code = step_result.code
+                    run_result.termination_message = step_result.message
+                    self._active_event.clear()
+                    run_context.events.error_event.set()
+                    break
+                    
+                elif step_result.severity == _Runtime.StepSeverity.FATAL:
+                    logger.FATAL(step_result.code.name, step_result.message)
+                    run_result.status = _Runtime.RunStatus.FAILURE
+                    run_result.termination_code = step_result.code
+                    run_result.termination_message = f"FATAL: {step_result.message}"
+                    self._active_event.clear()
+                    run_context.events.fatal_event.set()
+                    break
 
-                # Advance the clock
+                # Advance clock
                 if run_context.clock.is_real_time():
                     await run_context.clock.sleep_for_dt()
                 else:
                     run_context.clock.step_dt()
                     await asyncio.sleep(0.001)
 
-        except asyncio.CancelledError as e:
-            # Clear active state and propagate cancellation
-            logger.WARNING(condition="Cancelled", consequence="Automaton run cancelled externally")
+        except asyncio.CancelledError:
+            logger.WARNING("Cancelled", "Run cancelled externally")
+            run_result.status = _Runtime.RunStatus.FAILURE
+            run_result.termination_code = _Runtime.StepResultCode.CANCELLED
+            run_result.termination_message = "Externally cancelled"
             self._active_event.clear()
-            run_context.events.fatal_exception_event.set()
             raise
+            
         except Exception as e:
-            # Unexpected exception
-            logger.FATAL(condition="Runtime Exception", consequence=str(e))
-            run_result.exit_result = _Runtime.RunResultCode.FAILURE
-            run_result.reason = -1
-            run_result.message = f"Fatal exception during runtime: {str(e)}"
+            logger.FATAL("Runtime Exception", str(e))
+            run_result.status = _Runtime.RunStatus.FAILURE
+            run_result.termination_code = _Runtime.StepResultCode.CONTINUOUS_FLOW_ERROR
+            run_result.termination_message = f"Unexpected exception: {str(e)}"
             self._active_event.clear()
-            run_context.events.fatal_exception_event.set()
+            run_context.events.fatal_event.set()
+            
         finally:
-            # Cleanup real-time clock if running
-            if clock_task and not clock_task.cancelled():
+            # Cleanup clock
+            if clock_task and not clock_task.done():
                 clock_task.cancel()
-                
                 try:
                     await clock_task
-                except asyncio.CancelledError:
+                except (asyncio.CancelledError, Exception):
                     pass
-                except Exception:
-                    pass
+            
+            # Populate final results
+            run_result.total_runtime_sec = time.perf_counter() - start_time
+            run_result.total_steps = run_context.total_steps
+            run_result.transitions_count = run_context.transitions_count
+            run_result.step_statistics = run_context.step_counts
+            run_result.final_discrete_state = run_context.discrete_state.name
+            run_result.final_continuous_state = run_context.continuous_state.latest() if run_context.continuous_state else None
 
         return run_result
+    
+    # =========================================================================
+    # ACTIVATION
+    # =========================================================================
     
     async def activate(
         self,
@@ -1259,24 +1334,28 @@ f"""# ------------------------------------------------------------
         output_dir: str = "./log_hybrid_automaton/"
     ) -> RunResult:
         """Activate the automaton asynchronously with optional timeout."""
-        run_signature:_Runtime.Signature = _Runtime.Signature(
+        
+        # Setup
+        run_signature = _Runtime.Signature(
             automaton_definition=self._automaton_definition,
             timeout_sec=timeout_sec,
             delta_time=delta_time,
             real_time_mode_enabled=enable_real_time_mode,
             should_integrate=enable_self_integration
         )
-        run_context:_Runtime.Context = _Runtime.Context( # TODO: Need to find a way to move EventFlags into run context
+        
+        run_context = _Runtime.Context(
             initial_state=self._automaton_definition.state_t0,
             initial_continuous_state=initial_continuous_state,
             initial_auxiliary_states=initial_auxiliary_states,
             initial_control_input_states=initial_control_input_states,
             delta_time=delta_time,
             timeout_sec=timeout_sec,
-            configuration=self._automaton_definition._configuration, # TODO: Need to update this, configuration should not be referenced through context when being used
+            configuration=self._automaton_definition._configuration,
             should_integrate=enable_self_integration
         )
-        run_logger:_Runtime.Logger = _Runtime.Logger(
+        
+        run_logger = _Runtime.Logger(
             automaton_definition=self._automaton_definition,
             run_signature=run_signature,
             run_context=run_context,
@@ -1284,7 +1363,8 @@ f"""# ------------------------------------------------------------
             log_dir=output_dir,
             file_name="temporal_automaton.log"
         )
-        state_samplers:_Runtime.StateSamplers = _Runtime.StateSamplers(
+        
+        state_samplers = _Runtime.StateSamplers(
             continuous_enabled=continuous_state_sampler_enabled,
             continuous_sample_rate=continuous_state_sampler_rate,
             continuous_samples_per_write=continuous_state_sampler_samples_per_write,
@@ -1293,9 +1373,11 @@ f"""# ------------------------------------------------------------
             auxiliary_samples_per_write=auxiliary_states_sampler_samples_per_write,
             control_enabled=control_input_states_sampler_enabled,
             control_sample_rate=control_input_states_sampler_rate,
-            control_samples_per_write=control_input_states_samples_per_write
+            control_samples_per_write=control_input_states_samples_per_write,
+            output_dir=output_dir
         )
-        state_providers:_Runtime.StateProviders = _Runtime.StateProviders(
+        
+        state_providers = _Runtime.StateProviders(
             continuous_fn=continuous_state_provider,
             continuous_update_rate=continuous_state_provision_rate,
             auxiliary_fn=auxiliary_states_provider,
@@ -1305,48 +1387,49 @@ f"""# ------------------------------------------------------------
         )
         
         try:
-            # Start Automaton
-            run_logger.INFO(condition="ACTIVATION", consequence="automaton activated successfully.")
+            # Activate automaton
+            run_logger.INFO("ACTIVATION", "automaton activated")
             self._automaton_definition.on_entry()
+            self._active_event.set()
             
-            task_results: _Runtime.TaskResults = _Runtime.TaskResults()
-            
-            async with asyncio.TaskGroup() as tg: 
-                # Runner Task
-                runner_results = tg.create_task(
-                    self._run(logger=run_logger, run_context=run_context), # TODO: pass run ID which should contain cfg hash and custom id and automaton name for logging
+            # Run all tasks
+            async with asyncio.TaskGroup() as tg:
+                runner_task = tg.create_task(
+                    self._run(logger=run_logger, run_context=run_context),
                     name="runner_task"
                 )
-                # samplers task
-                sampler_results = tg.create_task(
-                    coro=state_samplers.activate(
-                        automaton_run_id=run_signature.run_id,
-                        ha=self._automaton_definition
-                    ),
-                    name='state_sampler_task'
-                )
-                # providers task
-                provider_results = tg.create_task(
-                    coro=state_providers.activate(
-                        ha=run_signature.run_id,
-                    ),
-                    name="provider_task"
-                )
+                
+                if state_samplers.is_samplers():
+                    sampler_task = tg.create_task(
+                        state_samplers.activate(
+                            automaton_run_id=run_signature.run_id,
+                            ctx=run_context
+                        ),
+                        name='state_sampler_task'
+                    )
+                
+                if state_providers.is_providers():
+                    provider_task = tg.create_task(
+                        state_providers.activate(ha=self),
+                        name="provider_task"
+                    )
 
-            run_logger.INFO(condition="DEACTIVATION", consequence="automaton deactivated successfully.")
+            # Get result
+            run_result: _Runtime.RunResult = runner_task.result()
+            run_result.run_signature = run_signature
+            
+            # Deactivate
+            run_logger.INFO("DEACTIVATION", f"automaton deactivated - {run_result.status.name}")
             self._automaton_definition.on_exit()
             
+            return run_result
             
-            print (sampler_results)
-            print (provider_results)
-            print (runner_results)
-            
-            return None
-            # return task_results.runner_task_result.result() if task_results.runner_task_result.result() else RunResult()
         except Exception as e:
-            run_logger.ERROR("FATAL Exception", str(e))
-            raise e
+            run_logger.FATAL("Activation Error", str(e))
+            raise
     
     def deactivate(self): 
-        print ("Client deactivation request received!") 
+        """Request deactivation of the automaton"""
+        if self._ctx:
+            self._ctx.events.deactivate_event.set()
         self._active_event.clear()
