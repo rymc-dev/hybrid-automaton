@@ -9,7 +9,7 @@ import pytest
 from unittest.mock import MagicMock, AsyncMock, patch
 
 # Import your Runtime class
-from hybrid_automaton.automaton_runtime import Runtime
+from hybrid_automaton._runtime import Runtime
 
 # ----------------------
 # Mock dependencies

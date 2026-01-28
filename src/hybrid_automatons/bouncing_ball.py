@@ -8,7 +8,7 @@ import sys
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
 from hybrid_automaton import Automaton, State, Transition
-from hybrid_automaton.automaton_runtime import Context
+from hybrid_automaton._runtime import Context
 from hybrid_automaton.automaton_annotations import guard, reset, invariant, continuous_dynamics
 from hybrid_automaton_runner.run_data import AutomatonRunData
 import time

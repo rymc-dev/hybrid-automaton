@@ -24,7 +24,7 @@ class _Annotation:
         self.description = description
 
     def __call__(self, ctx):
-        from .automaton_runtime import AutomatonRuntime
+        from ._runtime import AutomatonRuntime
         if not isinstance(ctx, AutomatonRuntime.Context):
             raise TypeError(f"{self.name}: ctx must be a Context instance")
         return self.func(ctx)
@@ -41,7 +41,7 @@ def reset(func: Callable = None, *, name=None, priority=0, description=""):
     def wrapper(f):
         def inner(ctx):
             result = f(ctx)
-            from .automaton_runtime import AutomatonRuntime
+            from ._runtime import AutomatonRuntime
             if not isinstance(result, AutomatonRuntime.Context):
                 raise TypeError(f"Reset '{f.__name__}' must return a Context instance")
             return result

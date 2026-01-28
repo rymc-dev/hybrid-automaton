@@ -785,6 +785,190 @@ f"""# ------------------------------------------------------------
                     
                     await asyncio.sleep(self.update_rate)
     
+    class StateSamplers:   
+         
+        class BaseStateSampler:
+            FILE_EXTENSION = "csv"
+
+            def __init__(
+                self,
+                name: str,
+                sampling_rate: float,
+                samples_per_write: int,
+                output_dir: str,
+            ):
+                self._name = name
+                self._sampling_rate = sampling_rate
+                self._samples_per_write = samples_per_write
+                self._output_dir = output_dir
+
+                self._samples: List[List[Any]] = []
+                self._samples_collected = 0
+
+                self._dump_event = asyncio.Event()
+                self._active_event = asyncio.Event()
+
+                self._task_group: List[asyncio.Task] = []
+                self._file_path: Optional[str] = None
+                self._last_run_id: Optional[str] = None
+
+            # ---------- lifecycle ----------
+
+            async def activate(self, automaton_run_id: str, ha):
+                self._last_run_id = automaton_run_id
+                self._create_file(automaton_run_id)
+                self._active_event.set()
+
+                self._task_group = [
+                    asyncio.create_task(self._state_sampler(ha)),
+                    asyncio.create_task(self._watch_for_dump_event()),
+                ]
+
+            async def deactivate(self):
+                self._active_event.clear()
+
+                for task in self._task_group:
+                    task.cancel()
+
+                await asyncio.gather(*self._task_group, return_exceptions=True)
+                self._dump_samples()
+
+            # ---------- core logic ----------
+
+            async def _state_sampler(self, ha):
+                next_sample_time = ha.get_runtime_time_elapsed() + self._sampling_rate
+
+                try:
+                    while self._active_event.is_set():
+                        now = ha.get_runtime_time_elapsed()
+                        await asyncio.sleep(max(0, next_sample_time - now))
+
+                        sample = self._get_state_sample(ha)
+                        self._samples.append([ha.get_runtime_time_elapsed(), sample])
+                        self._samples_collected += 1
+
+                        if self._samples_collected >= self._samples_per_write:
+                            self._dump_event.set()
+
+                        next_sample_time += self._sampling_rate
+
+                except asyncio.CancelledError:
+                    pass
+
+            async def _watch_for_dump_event(self):
+                try:
+                    while self._active_event.is_set():
+                        await self._dump_event.wait()
+                        self._dump_samples()
+                        self._dump_event.clear()
+                except asyncio.CancelledError:
+                    pass
+
+            # ---------- file handling ----------
+
+            def _create_file(self, automaton_run_id: str):
+                os.makedirs(self._output_dir, exist_ok=True)
+                self._file_path = os.path.join(
+                    self._output_dir,
+                    f"{automaton_run_id}_{self._name}.{self.FILE_EXTENSION}",
+                )
+
+                with open(self._file_path, "w", newline="") as f:
+                    writer = csv.writer(f)
+                    writer.writerow(["timestamp", "state"])
+
+            def _dump_samples(self):
+                if not self._samples or not self._file_path:
+                    return
+
+                def to_serializable(obj):
+                    if isinstance(obj, np.ndarray):
+                        return obj.tolist()
+                    if isinstance(obj, dict):
+                        return {k: to_serializable(v) for k, v in obj.items()}
+                    return obj
+
+                with open(self._file_path, "a", newline="") as f:
+                    writer = csv.writer(f)
+                    for ts, state in self._samples:
+                        writer.writerow([ts, json.dumps(to_serializable(state))])
+
+                self._samples.clear()
+                self._samples_collected = 0
+
+            # ---------- override hook ----------
+
+            def _get_state_sample(self, ha) -> Any:
+                raise NotImplementedError
+            
+        class ContinuousStateSampler(BaseStateSampler):
+            def _get_state_sample(self, ha):
+                return ha.get_runtime_continuous_state().latest()
+
+        class AuxiliaryStateSampler(BaseStateSampler):
+            def _get_state_sample(self, ha):
+                return ha.get_runtime_auxiliary_state()
+
+        class ControlInputStateSampler(BaseStateSampler):
+            def _get_state_sample(self, ha):
+                return ha.get_runtime_control_input().latest()
+              
+        def __init__(
+            self,
+            *,
+            continuous_enabled=False,
+            continuous_sample_rate: int = 10,
+            continuous_samples_per_write: int = 1000,
+            auxiliary_enabled=False,
+            auxiliary_sample_rate: int = 10,
+            auxiliary_samples_per_write: int = 1000,
+            control_enabled=False,
+            control_sample_rate: int = 10,
+            control_samples_per_write: int = 1000,
+            output_dir="./log_hybrid_automaton",
+        ):
+            self._samplers: List[_Runtime.StateSamplers.BaseStateSampler] = []
+
+            if continuous_enabled:
+                self._samplers.append(
+                    _Runtime.StateSamplers.ContinuousStateSampler(
+                        name="continuous_state",
+                        sampling_rate=(1.0 / continuous_sample_rate),
+                        samples_per_write=continuous_samples_per_write,
+                        output_dir=output_dir,
+                    )
+                )
+
+            if auxiliary_enabled:
+                self._samplers.append(
+                    _Runtime.StateSamplers.AuxiliaryStateSampler(
+                        name="auxiliary_state",
+                        sampling_rate=(1.0/auxiliary_sample_rate),
+                        samples_per_write=auxiliary_samples_per_write,
+                        output_dir=output_dir,
+                    )
+                )
+
+            if control_enabled:
+                self._samplers.append(
+                    _Runtime.StateSamplers.ControlInputStateSampler(
+                        name="control_input_state",
+                        sampling_rate=(1.0/control_sample_rate),
+                        samples_per_write=control_samples_per_write,
+                        output_dir=output_dir,
+                    )
+                )
+
+        async def activate(self, automaton_run_id: str, ha):
+            await asyncio.gather(
+                *(s.activate(automaton_run_id, ha) for s in self._samplers)
+            )
+
+        async def deactivate(self):
+            await asyncio.gather(*(s.deactivate() for s in self._samplers))
+
+    
+    
     class StateSamplers:
         """Base class for state collectors."""
         FILE_EXTENSION = "csv"
@@ -827,6 +1011,9 @@ f"""# ------------------------------------------------------------
             
             self._dump_samples_event = asyncio.Event()
             self._active_event = asyncio.Event()
+           
+
+            self._aux_sampler = None
             
             self._create_file(self._file_path)        
 

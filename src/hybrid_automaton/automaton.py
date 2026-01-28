@@ -15,7 +15,7 @@ from typing import Any, Callable, Dict, List, Optional, Tuple
 import numpy as np
 
 from .definition import Definition
-from .automaton_runtime import AutomatonRuntime
+from ._runtime import AutomatonRuntime
 from .automaton_state import State
 from hybrid_automaton.exit_codes import ExitCode
 
