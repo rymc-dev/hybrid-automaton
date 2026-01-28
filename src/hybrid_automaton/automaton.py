@@ -14,12 +14,10 @@ invariants and so on.
 from typing import Any, Callable, Dict, List, Optional, Tuple
 import numpy as np
 
-from .automaton_definition import Definition
-from .automaton_runtime import Runtime
+from .definition import Definition
+from .automaton_runtime import AutomatonRuntime
 from .automaton_state import State
 from hybrid_automaton.exit_codes import ExitCode
-from .automaton_exit import AutomatonExit
-
 
 class Automaton: 
     """ 
@@ -76,7 +74,7 @@ class Automaton:
         integration_function: Optional[Callable] = None
     ):
         """ 
-        
+        initialize the static details of the automaton
         """
         self._definition: Definition = Definition(
             name=name,
@@ -86,7 +84,10 @@ class Automaton:
             on_entry=on_entry,
             on_exit=on_exit
         )
-        self._runtime: Runtime = None 
+        self._runtime: AutomatonRuntime = AutomatonRuntime(
+            definition=self._definition,
+            integration_fnc=integration_function
+        )
         # ContinuousState._integration_function = integration_function
 
     """ === property getters === """
@@ -309,18 +310,30 @@ class Automaton:
 
     async def activate(
         self,
-        x0: np.array,
-        aux_x0: Optional[Dict[str, np.array]] = {},
-        u0: Optional[Dict[str, np.array]] = {},
-        real_time_mode: Optional[bool] = False,
-        integrate: Optional[bool] = True,
-        dt: Optional[float] = 0.1,
-        output_dir: str = './log_hybrid_automaton',
-        should_timeout: bool = False,
+        initial_continuous_state: Optional[np.ndarray] = None,
+        initial_auxiliary_states: Optional[Dict[str, np.ndarray]] = {},
+        initial_control_input_states: Optional[Dict[str, np.ndarray]] = {},
+        enable_real_time_mode: bool = False,
+        enable_self_integration: bool = True,
+        delta_time: float = 0.01,
+        timeout_sec: float = np.inf,
+        continuous_state_sampler_enabled: bool = False,
+        continuous_state_sampler_rate: Optional[int] = 1,
+        auxiliary_states_sampler_enabled: bool = False,
+        auxiliary_states_sampler_rate: Optional[int] = 1,
+        control_input_states_sampler_enabled: bool = False,
+        control_input_states_sampler_rate: Optional[int] = 1,
+        continuous_state_provider: Optional[Callable] = None,
+        continuous_state_provision_rate: Optional[int] = None,
+        auxiliary_states_provider: Optional[Callable] = None,
+        auxiliary_states_provision_rate: Optional[int] = None,
+        control_states_provider: Optional[Callable] = None,
+        control_states_provision_rate: Optional[int] = None,
         should_write_logs: bool = True,
-        timeout_sec: float = np.inf
-    ) -> AutomatonExit:
+        output_dir: str = "./log_hybrid_automaton/"
+    ):
         """
+        # NOTE: THis has been updated to be a simple access point for the automaton runtime activate function
         Activate the hybrid automaton.
 
         This function initializes the automaton for execution. Activation defines the
@@ -379,27 +392,34 @@ class Automaton:
             ...     dt=1.0
             ... )
         """
-
-        if self._runtime is not None: 
-            if self._runtime.is_active():
-                raise SystemError(f"can't activate automaton '{self._definition.name}', it's already active.")
-
-        self._runtime: Runtime = Runtime(
-            automaton_definition=self._definition,
-            x0=x0,
-            aux0=aux_x0,
-            u0=u0,
-            real_time_mode=real_time_mode,
-            integrate=integrate,
-            dt=dt
-        )
         results: AutomatonExit = await self._runtime.activate(
+            # states at t0
+            initial_continuous_state=initial_continuous_state,
+            initial_auxiliary_states=initial_auxiliary_states,
+            initial_control_input_states=initial_control_input_states,
+            # run configuration
+            enable_real_time_mode=enable_real_time_mode,
+            enable_self_integration=enable_self_integration,
+            delta_time=delta_time,
             timeout_sec=timeout_sec,
-            temporal_log_dir=output_dir,
-            should_timeout=should_timeout,
-            write_logs=should_write_logs
+            # samplers
+            continuous_state_sampler_enabled=continuous_state_sampler_enabled,
+            continuous_state_sampler_rate=continuous_state_sampler_rate,
+            auxiliary_states_sampler_enabled=auxiliary_states_sampler_enabled,
+            auxiliary_states_sampler_rate=auxiliary_states_sampler_rate,
+            control_input_states_sampler_enabled=control_input_states_sampler_enabled,
+            control_input_states_sampler_rate=control_input_states_sampler_rate,
+            # providers 
+            continuous_state_provider=continuous_state_provider,
+            continuous_state_provision_rate=continuous_state_provision_rate,
+            auxiliary_states_provider=auxiliary_states_provider,
+            auxiliary_states_provision_rate=auxiliary_states_provision_rate,
+            control_input_states_provider=control_states_provider,
+            control_input_states_provision_rate=control_states_provision_rate,
+            # metadata and log outputs from run 
+            should_write_logs=should_write_logs,
+            output_dir=output_dir
         )
-        self._runtime = None
         return results
         
     def deactivate(self): 

@@ -189,19 +189,29 @@ if __name__ == '__main__':
     import asyncio
     from typing import Tuple, Optional
     from hybrid_automaton.exit_codes import ExitCode
-    ha_runner: AutomatonRunner = AutomatonRunner(hybrid_automaton=ha)
+    # ha_runner: AutomatonRunner = AutomatonRunner(hybrid_automaton=ha)
     async def main(): 
-        try:         
-            results: AutomatonRunData = await ha_runner.activate(
+        try:        
+            results: AutomatonRunData = await ha.activate(
                 initial_continuous_state=np.array([5.0, 5.0]),
-                should_sample_continuous_states=True,
                 enable_real_time_mode=False,
-                sample_rate_continuous_states=0.01,
-                should_integrate=True,
+                continuous_state_sampler_enabled=True,
+                continuous_state_provision_rate=0.01,
+                enable_self_integration=True,
                 delta_time=0.001,
                 timeout_sec=30.0,
                 output_dir = "./log_hybrid_automaton/bouncing_ball/"
-            )
+            ) 
+            # results: AutomatonRunData = await ha_runner.activate(
+            #     initial_continuous_state=np.array([5.0, 5.0]),
+            #     should_sample_continuous_states=True,
+            #     enable_real_time_mode=False,
+            #     sample_rate_continuous_states=0.01,
+            #     should_integrate=True,
+            #     delta_time=0.001,
+            #     timeout_sec=30.0,
+            #     output_dir = "./log_hybrid_automaton/bouncing_ball/"
+            # )
         except Exception as e:
             print(f"Exception: Automaton execution terminated with exception: {e}")
             sys.exit(1)

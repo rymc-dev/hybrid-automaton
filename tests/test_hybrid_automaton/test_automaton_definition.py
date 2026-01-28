@@ -4,12 +4,12 @@ import os
 sys.path.append(os.path.join(os.path.dirname(__file__), './../../src/'))
 
 
-from hybrid_automaton.automaton_definition import Definition
+from hybrid_automaton.definition import Definition
 
 import pytest
 from unittest.mock import Mock
 from hybrid_automaton.automaton_state import State
-from hybrid_automaton.automaton_definition import Definition
+from hybrid_automaton.definition import Definition
 
 # --- Helper functions ---
 def dummy_flow(x, aux_x=None, u=None, cfg=None, clk=None):
