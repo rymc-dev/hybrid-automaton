@@ -201,7 +201,7 @@ class Automaton:
         
     def deactivate(self): 
         """deactives the automaton"""
-        ...
+        self._runtime.deactivate()
 
     """ === string representations of the class === """
 

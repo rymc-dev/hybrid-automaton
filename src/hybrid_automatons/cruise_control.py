@@ -53,7 +53,7 @@ def cruise_control(target_speed: float = 30.0, safe_distance: float = 50.0,
         """Hard braking at -5 m/s²"""
         v = ctx.continuous_state.latest()[0]
         v_dot = -5.0 if v > 0 else 0.0
-        return np.array([v_dot, -(v - ctx.continuous_state['car_ahead_speed'])])
+        return np.array([v_dot, -(v - ctx.configuration['car_ahead_speed'])])
 
     # ==========================
     #   Guards
@@ -69,7 +69,7 @@ def cruise_control(target_speed: float = 30.0, safe_distance: float = 50.0,
     
     @guard    
     def too_close(ctx: RuntimeContext) -> bool:
-        return ctx.continuous_state.latest()[1] < ctx.continuous_state['safe_distance']
+        return ctx.continuous_state.latest()[1] < ctx.configuration['safe_distance']
     
     @guard    
     def dangerously_close(ctx: RuntimeContext) -> bool:
@@ -131,12 +131,10 @@ def cruise_control(target_speed: float = 30.0, safe_distance: float = 50.0,
 async def main(): 
     results = await ha.activate(
         initial_continuous_state=np.array([5.0, 0.0]),
-        should_sample_continuous_states=True,
-        sample_rate_continuous_states=0.01,
-        should_sample_auxiliary_states=False,
-        sample_rate_auxiliary_states=0.1,
+        continuous_state_sampler_enabled=True,
+        continuous_state_sampler_rate=100,
         enable_real_time_mode=False,
-        should_integrate=True,
+        enable_self_integration=True,
         timeout_sec=30.0,
         delta_time=0.01,
         output_dir="log_hybrid_automaton/cruise_control/"
