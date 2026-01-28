@@ -10,6 +10,7 @@ import os
 import socket
 import sys
 import time
+from collections import deque
 import uuid
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -51,7 +52,7 @@ class _Runtime:
         """
         def __init__(
             self,
-            *
+            *,
             automaton_definition: _Definition,
             run_signature: "_Runtime.Signature",
             run_context: "_Runtime.Context", 
@@ -78,7 +79,7 @@ f"""# ------------------------------------------------------------
 #
 # Time reference:
 #   t = 0.0
-#   Clock: monotonic {'real' if self._run_context.clk.is_real_time() else 'simulation'} time
+#   Clock: monotonic {'real' if self._run_context.clock.is_real_time() else 'simulation'} time
 #   Units: seconds
 #
 # Log contents:
@@ -108,7 +109,7 @@ f"""# ------------------------------------------------------------
                 f.write(f"\n{msg}")
                 
         def _gen_log_msg(self, fixture: str, condition: str, consequence: str): 
-            return f"[{fixture}] [{self._run_context.clk.get_elapsed_time_active():.3f}]: [{condition}] {consequence}"
+            return f"[{fixture}] [{self._run_context.clock.get_elapsed_time_active():.3f}]: [{condition}] {consequence}"
                 
         def INFO(self, condition:str, consequence: str): 
             fixture = "INFO"
@@ -145,7 +146,7 @@ f"""# ------------------------------------------------------------
     class Signature: 
         def __init__(
             self, 
-            *
+            *,
             automaton_definition: _Definition,
             timeout_sec: float,
             real_time_mode_enabled: bool,
@@ -277,7 +278,7 @@ f"""# ------------------------------------------------------------
         a return obj for showing results of the runtime
         """
         run_signature:'_Runtime.Signature' = None 
-        result:'_Runtime.RunResultCode' = _Runtime.RunResultCode.SUCCESS
+        result:'_Runtime.RunResultCode' = None
         reason: '_Runtime.StepResult' = None # if failure then returns previous step result which caused
         message: str = ""
         dwell_time: float = 0.0
@@ -690,20 +691,22 @@ f"""# ------------------------------------------------------------
         ):
             from .definition import State
             self.discrete_state: State = initial_state
-            self.clock: _Runtime.Context.Clock = _Runtime.Context.Clock(
-                dt=delta_time,
-                real_time_mode=True
-            ) 
+
             self.continuous_state: _Runtime.Context.ContinuousState = _Runtime.Context.ContinuousState(name='agent_state', x0=initial_continuous_state)
             self.auxiliary_states: Dict[str, _Runtime.Context.AuxiliaryState] = {k:_Runtime.Context.AuxiliaryState(name=k, aux0=v) for k, v in initial_auxiliary_states.items()} if initial_auxiliary_states is not None else {}
             self.control_input_states: Dict[str, _Runtime.Context.ControlInput] = {k: _Runtime.Context.ControlInput(name=k, u0=v) for k, v in initial_control_input_states.items()} if initial_control_input_states is not None else {}
             self.configuration: Dict[str, Any] = configuration | {
-                "timeout_sec": timeout_sec,
                 "should_integrate": should_integrate
             }
             
             self.status = _Runtime.Context.Status = _Runtime.Context.Status.ACTIVE
             self.events: _Runtime.Context.EventFlags = _Runtime.Context.EventFlags()
+            self.clock: _Runtime.Context.Clock = _Runtime.Context.Clock(
+                dt=delta_time,
+                real_time_mode=True,
+                timeout_event=self.events.timeout_event,
+                timeout_sec=timeout_sec
+            ) 
     
     class StateProviders: 
         
@@ -989,7 +992,7 @@ f"""# ------------------------------------------------------------
 
     def __init__(
             self,
-            *
+            *,
             definition: _Definition,
             integration_fnc: Optional[callable] = None
     ): 
@@ -1023,13 +1026,13 @@ f"""# ------------------------------------------------------------
             except Exception as e:
                 return _Runtime.StepResult( 
                     result=_Runtime.StepResultCode.CONTINUOUS_FLOW_EXCEPTION,
-                    severity=_Runtime.StepSeverityCode.STEP_ERROR,
+                    severity=_Runtime.StepSeverity.STEP_ERROR,
                     message=f"'{self._automaton_definition.name}' exception occured duration continuous flow caused by: '{str(e)}'"
                 )
 
-            if runtime_context.should_integrate and (xdot is not None) and (runtime_context.x.x0 is not None):
+            if runtime_context.configuration['should_integrate'] and (xdot is not None) and (runtime_context.continuous_state.x0 is not None):
                 try:
-                    runtime_context.x.integrate(xdot, runtime_context.clk.get_dt())
+                    runtime_context.continuous_state.integrate(xdot, runtime_context.clock.get_dt())
                 except Exception as e: 
                     return _Runtime.StepResult(
                         result=_Runtime.StepResultCode.STEP_SELF_INTEGRATION_EXCEPTION,
@@ -1072,7 +1075,7 @@ f"""# ------------------------------------------------------------
                         ctx = runtime_context
                     )
                     runtime_context = new_ctx
-                    runtime_context.clk.ping_transition()
+                    runtime_context.clock.ping_transition()
 
                     if runtime_context.discrete_state.on_exit:
                         runtime_context.discrete_state.on_exit()
@@ -1179,7 +1182,7 @@ f"""# ------------------------------------------------------------
 
                 
                 # Evaluate the next step
-                step_result: _Runtime.StepResult = self._evaluation_step(runtime_context=run_context)
+                step_result: _Runtime.StepResult = self._evaluation_step(logger=logger, runtime_context=run_context)
 
                 # Handle step severities
                 match step_result.severity:
@@ -1195,7 +1198,7 @@ f"""# ------------------------------------------------------------
                                 run_result.reason = step_result.result
                                 run_result.message = step_result.message
                                 self._active_event.clear()
-                                self._run_completed_event.set()
+                                run_context.events.terminal_reached_event.set()
                                 break
                             case _Runtime.StepResultCode.STEP_AUTOMATON_CANCELLED:
                                 logger.INFO(condition="Automaton Cancelled", consequence=f"{step_result.message}")
@@ -1203,7 +1206,7 @@ f"""# ------------------------------------------------------------
                                 run_result.reason = step_result.result 
                                 run_result.message = step_result.message
                                 self._active_event.clear()
-                                self._run_completed_event.set()
+                                run_context.events.deactivate_event.set()
                                 break
                     case _Runtime.StepSeverity.STEP_WARNING:
                         logger.WARNING(condition="Step Warning", consequence=f"{step_result.result}: {step_result.message}")
@@ -1214,15 +1217,7 @@ f"""# ------------------------------------------------------------
                         run_result.reason = step_result.result
                         run_result.message = step_result.message
                         self._active_event.clear()
-                        self._run_completed_event.set()
-                        break
-                    case _Runtime.StepResultCode.STEP_FATAL:
-                        logger.FATAL(condition="Fatal Step Error", consequence=f"{step_result.result}: {step_result.message}")
-                        run_result.result = _Runtime.RunResultCode.FAILURE
-                        run_result.reason = step_result.result
-                        run_result.message = step_result.message
-                        self._active_event.clear()
-                        self._run_completed_event.set()
+                        run_context.events.error_event.set()
                         break
                     case _:
                         logger.FATAL(condition="Unknown Step Severity", consequence=f"{step_result.result}: {step_result.message}")
@@ -1230,7 +1225,7 @@ f"""# ------------------------------------------------------------
                         run_result.reason = step_result.result
                         run_result.message = "Unknown step severity encountered"
                         self._active_event.clear()
-                        self._run_completed_event.set()
+                        run_context.events.fatal_exception_event.set()
                         break
 
                 # Advance the clock
@@ -1244,7 +1239,7 @@ f"""# ------------------------------------------------------------
             # Clear active state and propagate cancellation
             logger.WARNING(condition="Cancelled", consequence="Automaton run cancelled externally")
             self._active_event.clear()
-            self._run_completed_event.set()
+            run_context.events.fatal_exception_event.set()
             raise
         except Exception as e:
             # Unexpected exception
@@ -1253,7 +1248,7 @@ f"""# ------------------------------------------------------------
             run_result.reason = -1
             run_result.message = f"Fatal exception during runtime: {str(e)}"
             self._active_event.clear()
-            self._run_completed_event.set()
+            run_context.events.fatal_exception_event.set()
         finally:
             # Cleanup real-time clock if running
             if clock_task and not clock_task.cancelled():
@@ -1298,11 +1293,11 @@ f"""# ------------------------------------------------------------
     ) -> RunResult:
         """Activate the automaton asynchronously with optional timeout."""
         run_signature:_Runtime.Signature = _Runtime.Signature(
-            self._automaton_definition,
+            automaton_definition=self._automaton_definition,
             timeout_sec=timeout_sec,
             delta_time=delta_time,
             real_time_mode_enabled=enable_real_time_mode,
-            should_integrate = enable_self_integration
+            should_integrate=enable_self_integration
         )
         run_context:_Runtime.Context = _Runtime.Context( # TODO: Need to find a way to move EventFlags into run context
             initial_state=self._automaton_definition.state_t0,
@@ -1312,7 +1307,6 @@ f"""# ------------------------------------------------------------
             delta_time=delta_time,
             timeout_sec=timeout_sec,
             configuration=self._automaton_definition._configuration, # TODO: Need to update this, configuration should not be referenced through context when being used
-            timeout_sec=timeout_sec,
             should_integrate=enable_self_integration
         )
         run_logger:_Runtime.Logger = _Runtime.Logger(

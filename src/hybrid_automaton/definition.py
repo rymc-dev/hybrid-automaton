@@ -24,8 +24,9 @@ class _Annotation:
         self.description = description
 
     def __call__(self, ctx):
-        from ._runtime import AutomatonRuntime
-        if not isinstance(ctx, AutomatonRuntime.Context):
+        from ._runtime import _Runtime
+        Context = _Runtime.Context
+        if not isinstance(ctx, Context):
             raise TypeError(f"{self.name}: ctx must be a Context instance")
         return self.func(ctx)
 
@@ -49,8 +50,9 @@ def reset(func: Callable = None, *, name=None, priority=0, description=""):
     def wrapper(f):
         def inner(ctx):
             result = f(ctx)
-            from ._runtime import AutomatonRuntime
-            if not isinstance(result, AutomatonRuntime.Context):
+            from ._runtime import _Runtime
+            Context = _Runtime.Context
+            if not isinstance(result, Context):
                 raise TypeError(f"Reset '{f.__name__}' must return a Context instance")
             return result
         inner.__name__ = name or f.__name__
@@ -67,7 +69,9 @@ def continuous_dynamics(func: Callable = None, *, name=None, priority=0, descrip
         
         def inner(ctx):
             # Validate context first
-            if not isinstance(ctx):
+            from ._runtime import _Runtime
+            Context = _Runtime.Context
+            if not isinstance(ctx, Context):
                 raise TypeError(f"Continuous Dynamics '{f.__name__}': ctx must be a Context instance")
 
             result = f(ctx)

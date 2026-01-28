@@ -169,7 +169,7 @@ class Automaton:
             ...     dt=1.0
             ... )
         """
-        results: AutomatonExit = await self._runtime.activate(
+        results = await self._runtime.activate(
             # states at t0
             initial_continuous_state=initial_continuous_state,
             initial_auxiliary_states=initial_auxiliary_states,
