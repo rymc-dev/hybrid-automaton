@@ -100,14 +100,22 @@ def thermostat(too_cold_threshold: float = 18.0, too_hot_threshold: float = 22.0
     
 async def main(): 
     try:
-        results = await ha.activate(
-            initial_continuous_state=np.array([25.0]),
-            enable_real_time_mode=False,
-            should_integrate=True,
-            timeout_sec=30.0,
-            delta_time=0.01,
-            should_sample_continuous_states=True
-        )
+        async def timeout():
+            await asyncio.sleep(5.0)
+            ha.deactivate()
+            
+        results = await asyncio.gather(
+            timeout(),
+            ha.activate(
+                initial_continuous_state=np.array([25.0]),
+                enable_real_time_mode=False,
+                enable_self_integration=True,
+                timeout_sec=30.0,
+                delta_time=0.01,
+                continuous_state_sampler_enabled=True,
+                continuous_state_sampler_rate=100,
+                output_dir='./log_hybrid_automaton/thermostat'
+        ))
     except Exception as e:
         print (f"Caught a critical Exception in automaton run: {str(e)}")
         sys.exit(1)
