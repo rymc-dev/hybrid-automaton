@@ -130,7 +130,7 @@ def cruise_control(target_speed: float = 30.0, safe_distance: float = 50.0,
 
 async def main(): 
     async def timeout():
-        asyncio.sleep(5.0)
+        await asyncio.sleep(5.0)
         ha.deactivate()
     results = await asyncio.gather(
         timeout(),

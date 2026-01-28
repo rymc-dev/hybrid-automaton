@@ -1354,7 +1354,8 @@ f"""# ------------------------------------------------------------
             configuration=self._automaton_definition._configuration,
             should_integrate=enable_self_integration
         )
-        
+        self._ctx = run_context
+         
         run_logger = _Runtime.Logger(
             automaton_definition=self._automaton_definition,
             run_signature=run_signature,
@@ -1415,6 +1416,7 @@ f"""# ------------------------------------------------------------
             
             if state_providers.is_providers():
                 await state_providers.deactivate()
+            self._ctx = None
             
             # Final cleanup
             run_logger.INFO("DEACTIVATION", f"automaton deactivated - {run_result.status.name}")
