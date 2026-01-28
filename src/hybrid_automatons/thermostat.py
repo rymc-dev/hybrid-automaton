@@ -2,10 +2,14 @@ import os
 import sys
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
-from hybrid_automaton import Automaton, State, Transition
-from hybrid_automaton.automaton_runtime_context import Context
-from hybrid_automaton.automaton_annotations import guard, continuous_dynamics
 import numpy as np
+
+from hybrid_automaton import Automaton
+from hybrid_automaton.definition import State
+from hybrid_automaton.definition import Transition
+from hybrid_automaton.definition import guard
+from hybrid_automaton.definition import continuous_dynamics
+from hybrid_automaton import RuntimeContext
 
 def thermostat(too_cold_threshold: float = 18.0, too_hot_threshold: float = 22.0, 
                ambient_temp: float = 20.0, drift_rate: float = 0.5) -> Automaton: 
@@ -24,34 +28,34 @@ def thermostat(too_cold_threshold: float = 18.0, too_hot_threshold: float = 22.0
     # Guards
     # ================
     @guard
-    def too_cold(ctx: Context) -> bool: 
-        return ctx.x.latest()[0] < ctx.cfg['too_cold_threshold']  # ← FIX: Use [0] not [-1]
+    def too_cold(ctx: RuntimeContext) -> bool: 
+        return ctx.continuous_state.latest()[0] < ctx.configuration['too_cold_threshold']  # ← FIX: Use [0] not [-1]
     
     @guard
-    def too_hot(ctx: Context) -> bool: 
-        return ctx.x.latest()[0] > ctx.cfg['too_hot_threshold']  # ← FIX: Use [0] not [-1]
+    def too_hot(ctx: RuntimeContext) -> bool: 
+        return ctx.continuous_state.latest()[0] > ctx.configuration['too_hot_threshold']  # ← FIX: Use [0] not [-1]
     
     @guard
-    def temp_comfortable(ctx: Context) -> bool: 
-        temp = ctx.x.latest()[0]  # ← FIX: Get the actual temperature value
-        return ctx.cfg['too_cold_threshold'] <= temp <= ctx.cfg['too_hot_threshold']
+    def temp_comfortable(ctx: RuntimeContext) -> bool: 
+        temp = ctx.continuous_state.latest()[0]  # ← FIX: Get the actual temperature value
+        return ctx.configuration['too_cold_threshold'] <= temp <= ctx.configuration['too_hot_threshold']
     
     # ===============
     # Continuous Dynamics
     # ===============
     @continuous_dynamics
-    def heating_dynamics(ctx: Context) -> np.ndarray: 
+    def heating_dynamics(ctx: RuntimeContext) -> np.ndarray: 
         return np.array([2.0])  # ← FIX: Must be array with brackets
     
     @continuous_dynamics
-    def cooling_dynamics(ctx: Context) -> np.ndarray: 
+    def cooling_dynamics(ctx: RuntimeContext) -> np.ndarray: 
         return np.array([-1.5])  # ← FIX: Must be array with brackets
     
     @continuous_dynamics
-    def idle_dynamics(ctx: Context) -> np.ndarray: 
-        temp = ctx.x.latest()[0]  
-        ambient = ctx.cfg['ambient_temp']  
-        drift_rate = ctx.cfg['drift_rate']
+    def idle_dynamics(ctx: RuntimeContext) -> np.ndarray: 
+        temp = ctx.continuous_state.latest()[0]  
+        ambient = ctx.configuration['ambient_temp']  
+        drift_rate = ctx.configuration['drift_rate']
         return np.array([drift_rate * (ambient - temp)]) 
     
     # ===============
@@ -94,6 +98,23 @@ def thermostat(too_cold_threshold: float = 18.0, too_hot_threshold: float = 22.0
         }
     )
     
+async def main(): 
+    try:
+        results = await ha.activate(
+            initial_continuous_state=np.array([25.0]),
+            enable_real_time_mode=False,
+            should_integrate=True,
+            timeout_sec=30.0,
+            delta_time=0.01,
+            should_sample_continuous_states=True
+        )
+    except Exception as e:
+        print (f"Caught a critical Exception in automaton run: {str(e)}")
+        sys.exit(1)
+    
+    print ("Complete!")
+    print (results)
+    
 if __name__ == '__main__': 
 
     ha = thermostat(
@@ -105,58 +126,5 @@ if __name__ == '__main__':
     print (ha)
     print (repr(ha))
     
-    from hybrid_automaton_runner import AutomatonRunner
     import asyncio
-    ha_runner: AutomatonRunner = AutomatonRunner(hybrid_automaton=ha)
-    async def main(): 
-        try:
-            results = await ha_runner.activate(
-                initial_continuous_state=np.array([25.0]),
-                enable_real_time_mode=False,
-                should_integrate=True,
-                timeout_sec=30.0,
-                delta_time=0.01,
-                should_sample_continuous_states=True
-            )
-        except Exception as e:
-            print (f"Caught a critical Exception in automaton run: {str(e)}")
-            sys.exit(1)
-        
-        print (results)
-        
-        # ha_runner.print_summary()
-        # results = ha_runner.get_results()
-        # from matplotlib import pyplot as plt
-        # from hybrid_automaton_evaluation.visualization import  automaton_states_over_time, continuous_states_over_time_fig, transitions_times_over_time_fig
-        # fig1 = continuous_states_over_time_fig(results['continuous_states'], state_labels=['temperature (c)'])
-        # # fig2 = transition,s_times_over_time_fig(results['transition_times']) # TODO: Need to fix this
-        # fig5 = automaton_states_over_time(results['automaton_states'])
-        # plt.show()
-        
-        try:
-            results = await ha_runner.activate(
-                initial_continuous_state=np.array([15.0]),
-                enable_real_time_mode=False,
-                should_integrate=True,
-                delta_time=0.01,
-                timeout_sec=30.0,
-                should_sample_continuous_states=True,
-                sample_rate_continuous_states=0.1,
-                output_dir="./log_hybrid_automaton/thermostat/"
-            )
-        except Exception as e:
-            print (f"Caught a critical Exception in automaton run: {str(e)}")
-            sys.exit(1)
-        
-        results.print_summary()
-        # print (results)
-            
-        # ha_runner.print_summary()
-        # results = ha_runner.get_results()
-        
-        # fig10 = continuous_states_over_time_fig(results['continuous_states'], state_labels=['temperature (c)'])
-        # fig11 = automaton_states_over_time(results['automaton_states'])
-        # plt.show()
-        
-
     asyncio.run(main())

@@ -184,7 +184,7 @@ def bouncing_ball(gravity: float = -9.81, restitution: float = 0.8):
         on_exit=lambda: print(">>> Ending bouncing ball"),
     )
     
-    
+     
 async def main(): 
     try:        
         results = await ha.activate(
