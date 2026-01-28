@@ -9,7 +9,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
 from hybrid_automaton import Automaton, State, Transition
 from hybrid_automaton._runtime import Context
-from hybrid_automaton.automaton_annotations import guard, reset, invariant, continuous_dynamics
+from hybrid_automaton.definition import guard, reset, invariant, continuous_dynamics
 from hybrid_automaton_runner.run_data import AutomatonRunData
 import time
 import numpy as np
@@ -180,51 +180,31 @@ def bouncing_ball(gravity: float = -9.81, restitution: float = 0.8):
         on_exit=lambda: print(">>> Ending bouncing ball"),
     )
     
-if __name__ == '__main__': 
-    ha = bouncing_ball()
     
-    print (ha)
-    print (repr(ha))
-    from hybrid_automaton_runner import AutomatonRunner
+async def main(): 
+    try:        
+        results = await ha.activate(
+            initial_continuous_state=np.array([5.0, 5.0]),
+            enable_real_time_mode=False,
+            continuous_state_sampler_enabled=True,
+            continuous_state_provision_rate=0.01,
+            enable_self_integration=True,
+            delta_time=0.001,
+            timeout_sec=30.0,
+            output_dir = "./log_hybrid_automaton/bouncing_ball/"
+        ) 
+    except Exception as e:
+        print(f"Exception: Automaton execution terminated with exception: {e}")
+        sys.exit(1)
+    
+    print (results)
+    print ('Complete!')
+    
+if __name__ == '__main__': 
     import asyncio
     from typing import Tuple, Optional
-    from hybrid_automaton.exit_codes import ExitCode
-    # ha_runner: AutomatonRunner = AutomatonRunner(hybrid_automaton=ha)
-    async def main(): 
-        try:        
-            results: AutomatonRunData = await ha.activate(
-                initial_continuous_state=np.array([5.0, 5.0]),
-                enable_real_time_mode=False,
-                continuous_state_sampler_enabled=True,
-                continuous_state_provision_rate=0.01,
-                enable_self_integration=True,
-                delta_time=0.001,
-                timeout_sec=30.0,
-                output_dir = "./log_hybrid_automaton/bouncing_ball/"
-            ) 
-            # results: AutomatonRunData = await ha_runner.activate(
-            #     initial_continuous_state=np.array([5.0, 5.0]),
-            #     should_sample_continuous_states=True,
-            #     enable_real_time_mode=False,
-            #     sample_rate_continuous_states=0.01,
-            #     should_integrate=True,
-            #     delta_time=0.001,
-            #     timeout_sec=30.0,
-            #     output_dir = "./log_hybrid_automaton/bouncing_ball/"
-            # )
-        except Exception as e:
-            print(f"Exception: Automaton execution terminated with exception: {e}")
-            sys.exit(1)
-            
-        print (results.automaton_exit)
-            
-        # results.print_summary()
-        # # results = ha_runner.get_results()
-        # from matplotlib import pyplot as plt
-        # from hybrid_automaton_evaluation.visualization import  automaton_states_over_time, continuous_states_over_time_fig, transitions_times_over_time_fig
-        # fig1 = continuous_states_over_time_fig(results['continuous_states'], state_labels=['Height (m)', 'Velocity (m/s)'])
-        # # fig2 = transitions_times_over_time_fig(results['transition_times']) # TODO: Need to fix this
-        # fig5 = automaton_states_over_time(results['automaton_states'])
-        # plt.show()
-
+    
+    ha = bouncing_ball()
+    print (ha)
+    print (repr(ha))  
     asyncio.run(main())

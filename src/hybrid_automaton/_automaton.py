@@ -6,10 +6,8 @@ from typing import Any, Callable, Dict, List, Optional
 import numpy as np
 
 from .definition import _Definition
-from .definition import Transition 
 from .definition import State
 from ._runtime import _Runtime
-
 
 class Automaton: 
     """ 
@@ -47,7 +45,8 @@ class Automaton:
     """
 
     def __init__(
-        self, 
+        self,
+        *, 
         name: str,
         version: str,
         states: List[State],

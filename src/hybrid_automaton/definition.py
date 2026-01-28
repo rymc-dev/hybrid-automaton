@@ -29,6 +29,14 @@ class _Annotation:
             raise TypeError(f"{self.name}: ctx must be a Context instance")
         return self.func(ctx)
 
+def guard(func: Callable = None, *, name=None, priority=0, description=""):
+    def wrapper(f):
+        if hasattr(f, "__annotations__") and "return" in f.__annotations__:
+            if f.__annotations__["return"] is not bool:
+                raise TypeError(f"Guard '{f.__name__}' must return bool")
+        return _Annotation(f, name=name, priority=priority, description=description)
+    return wrapper(func) if func else wrapper
+
 def invariant(func: Callable = None, *, name=None, priority=0, description=""):
     def wrapper(f):
         if hasattr(f, "__annotations__") and "return" in f.__annotations__:
