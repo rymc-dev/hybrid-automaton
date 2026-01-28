@@ -1436,6 +1436,6 @@ f"""# ------------------------------------------------------------
         
     def deactivate(self): 
         """Request deactivation of the automaton"""
-        if self._ctx:
+        if self._ctx: # TODO: Need to fixure out a way to share context because currently this does not work
             self._ctx.events.deactivate_event.set()
         self._active_event.clear()

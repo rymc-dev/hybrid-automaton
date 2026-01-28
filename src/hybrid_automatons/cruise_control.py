@@ -129,15 +129,21 @@ def cruise_control(target_speed: float = 30.0, safe_distance: float = 50.0,
 
 
 async def main(): 
-    results = await ha.activate(
-        initial_continuous_state=np.array([5.0, 0.0]),
-        continuous_state_sampler_enabled=True,
-        continuous_state_sampler_rate=100,
-        enable_real_time_mode=False,
-        enable_self_integration=True,
-        timeout_sec=30.0,
-        delta_time=0.01,
-        output_dir="log_hybrid_automaton/cruise_control/"
+    async def timeout():
+        asyncio.sleep(5.0)
+        ha.deactivate()
+    results = await asyncio.gather(
+        timeout(),
+        ha.activate(
+            initial_continuous_state=np.array([5.0, 0.0]),
+            continuous_state_sampler_enabled=True,
+            continuous_state_sampler_rate=100,
+            enable_real_time_mode=False,
+            enable_self_integration=True,
+            timeout_sec=30.0,
+            delta_time=0.01,
+            output_dir="log_hybrid_automaton/cruise_control/"
+        )
     )
     print ("Complete!")
     print (results)
