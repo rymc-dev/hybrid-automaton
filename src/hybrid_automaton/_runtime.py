@@ -178,52 +178,58 @@ f"""# ------------------------------------------------------------
 
         def _generate_run_id(self): 
             return f"{datetime.now(timezone.utc):%Y%m%dT%H%M%SZ}_{uuid.uuid4().hex[:6]}"
-    
-    class StepResultCode(Enum): 
-        STEP_NORMAL = auto()
-        """standard operation inside a discrete mode, continuous dynamics evolve,
-        invariants hold, guards all evaluated as false"""
-        STEP_TRANSITION = auto()
-        """guard/(s) satisfied during evaluation, transition selected, reset(s) applied if there are any
-        for the transition new discrete mode entered  
+     
+    @dataclass
+    class EvalStepResult:
         """
-        CONTINUOUS_FLOW_EXCEPTION = auto()
-        """continuous flow exception evaluation raised during integration
+        a struct for returning information regarding evaluation steps
+        in the runtime.
         """
-        
-        STEP_SELF_INTEGRATION_EXCEPTION = auto()
-        """exception occured integration continuous dynamics generated for step
-        """
-        
-        STEP_TRANSITION_EXCEPTION = auto()
-        """an exception occured while attempting a discrete state jump
-        """
-        # NOTE: ENABLED_TRANSITION_CONFLICT ignored, handled by automaton definition requirements of non conflicting 
-        # discrete mode priorities when defining discrete state transiitons
-        # TIME BLOCK should not occur either, we check transitions have destinations 
-        # on definition initialization, but as for the automaton flow, lack of flow may be a design
-        # choice so there s no way for me to validate this, it's up to designer to determine through the 
-        # automaton results if time blocks occur.  JUNMPS ALWAYS possible, 
-        # but no continuous flow of dynamic not a worry of framework as may be intentional  
-        STEP_INVARIANT_VIOLATION = auto()
-        """invariant(s) bitwise ~| evaluated as without valid transition from current 
-        discrete mode being available therefore leaving automaton in a semantically invalid state
-        in an invalid state so run should stop
-        """
-        
-        STEP_TERMINAL_REACHED = auto()
-        """Entered a designated terminal / accepting discrete mode
-        no further evolution intended therefore automaton run complete
-        auto deactivate. 
-        in this automaton final mode is declared, when invariant violation occurs
-        and we are in a designated definition final state this is returned
-        """  
+        class EvalStepResultCode(Enum): 
+            STEP_NORMAL = auto()
+            """standard operation inside a discrete mode, continuous dynamics evolve,
+            invariants hold, guards all evaluated as false"""
+            STEP_TRANSITION = auto()
+            """guard/(s) satisfied during evaluation, transition selected, reset(s) applied if there are any
+            for the transition new discrete mode entered  
+            """
+            CONTINUOUS_FLOW_EXCEPTION = auto()
+            """continuous flow exception evaluation raised during integration
+            """
+            
+            STEP_SELF_INTEGRATION_EXCEPTION = auto()
+            """exception occured integration continuous dynamics generated for step
+            """
+            
+            STEP_TRANSITION_EXCEPTION = auto()
+            """an exception occured while attempting a discrete state jump
+            """
+            # NOTE: ENABLED_TRANSITION_CONFLICT ignored, handled by automaton definition requirements of non conflicting 
+            # discrete mode priorities when defining discrete state transiitons
+            # TIME BLOCK should not occur either, we check transitions have destinations 
+            # on definition initialization, but as for the automaton flow, lack of flow may be a design
+            # choice so there s no way for me to validate this, it's up to designer to determine through the 
+            # automaton results if time blocks occur.  JUNMPS ALWAYS possible, 
+            # but no continuous flow of dynamic not a worry of framework as may be intentional  
+            STEP_INVARIANT_VIOLATION = auto()
+            """invariant(s) bitwise ~| evaluated as without valid transition from current 
+            discrete mode being available therefore leaving automaton in a semantically invalid state
+            in an invalid state so run should stop
+            """
+            
+            STEP_TERMINAL_REACHED = auto()
+            """Entered a designated terminal / accepting discrete mode
+            no further evolution intended therefore automaton run complete
+            auto deactivate. 
+            in this automaton final mode is declared, when invariant violation occurs
+            and we are in a designated definition final state this is returned
+            """  
 
-        STEP_AUTOMATON_CANCELLED = auto()
-        """signifies that the automaton has been manually cancelled by the client 
-        """
-
-        class StepSeverity(Enum): 
+            STEP_AUTOMATON_CANCELLED = auto()
+            """signifies that the automaton has been manually cancelled by the client 
+            """
+        
+        class EvalStepSeverity(Enum): 
             STEP_OK = auto()
             """ step worked as expected, continue normal operation as expected
             """
@@ -239,61 +245,22 @@ f"""# ------------------------------------------------------------
                 when this occurs something has went fatally wrong with the code, for evaluation_step 
                 should contact the developer if this severity occurs
             """
-    
-    class StepSeverity(Enum): 
-        STEP_OK = auto()
-        """ step worked as expected, continue normal operation as expected
-        """
-        STEP_WARNING = auto()
-        """ a non critical issue during step, just need to prompt the end user of this
-        """
-        STEP_ERROR = auto()
-        """ error raised, these are typically critical related to the automaton definition being mishandled,
-        when raised should close automaton handle and raise exception to stop the run
-        """
-        STEP_FATAL = auto()
-        """ fatal raised, this is an unexpected exception most likely related to code implementations, 
-            when this occurs something has went fatally wrong with the code, for evaluation_step 
-            should contact the developer if this severity occurs
-        """
-    
-    @dataclass
-    class StepResult:
-        """
-        a struct for returning information regarding evaluation steps
-        in the runtime.
-        """
         
-        severity: "_Runtime.StepSeverity"
-        result: "_Runtime.StepResultCode" = None
+        severity: "_Runtime.EvalStepResult.EvalStepSeverity" = None
+        result: "_Runtime.EvalStepResult.EvalStepResultCode" = None
         message: str = ""
         
-    class RunResultCode(Enum): 
-        SUCCESS = auto()
-        FAILURE = auto()
-
     @dataclass
     class RunResult:
         """   
         a return obj for showing results of the runtime
         """
         run_signature:'_Runtime.Signature' = None 
-        result:'_Runtime.RunResultCode' = None
+        result:bool = False
         reason: '_Runtime.StepResult' = None # if failure then returns previous step result which caused
         message: str = ""
         dwell_time: float = 0.0
         
-    @dataclass
-    class TaskResults: 
-        runner_task_result = None
-        timeout_watchdog_task_result = None
-        continuous_state_sampler_task_result = None
-        auxiliary_state_sampler_task_result = None
-        control_inputs_state_sampler_task_result = None
-        continuous_state_provider_task_result = None
-        auxiliary_state_provider_task_result = None
-        control_input_states_provider_task_result = None
-
     class Context: 
         class Clock:
             """clock, runs a clock instance that is utilized
@@ -1007,7 +974,7 @@ f"""# ------------------------------------------------------------
         self._ctx: _Runtime.Context = None
         self._xdot: List = None
     
-    def _evaluation_step(self, logger: Logger, runtime_context: Context) -> StepResult:
+    def _evaluation_step(self, logger: Logger, runtime_context: Context) -> EvalStepResult:
         """
         Perform one timestep evaluation of the hybrid automaton.
         this is a purely syncronis function.
@@ -1346,7 +1313,7 @@ f"""# ------------------------------------------------------------
             
             async with asyncio.TaskGroup() as tg: 
                 # Runner Task
-                task_results.runner_task_result = tg.create_task(
+                runner_results = tg.create_task(
                     self._run(logger=run_logger, run_context=run_context), # TODO: pass run ID which should contain cfg hash and custom id and automaton name for logging
                     name="runner_task"
                 )
@@ -1372,7 +1339,7 @@ f"""# ------------------------------------------------------------
             
             print (sampler_results)
             print (provider_results)
-            print (task_results.runner_task_result)
+            print (runner_results)
             
             return None
             # return task_results.runner_task_result.result() if task_results.runner_task_result.result() else RunResult()
