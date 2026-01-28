@@ -10,7 +10,7 @@ import pytest
 import numpy as np
 from unittest.mock import MagicMock, AsyncMock, patch
 
-from hybrid_automaton.automaton import Automaton
+from hybrid_automaton._automaton import Automaton
 from hybrid_automaton.automaton_runtime_context import Context
 from hybrid_automaton.automaton_clock import Clock
 
