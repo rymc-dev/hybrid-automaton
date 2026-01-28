@@ -191,7 +191,7 @@ async def main():
             initial_continuous_state=np.array([5.0, 5.0]),
             enable_real_time_mode=False,
             continuous_state_sampler_enabled=True,
-            continuous_state_provision_rate=0.01,
+            continuous_state_sampler_rate=100,
             enable_self_integration=True,
             delta_time=0.001,
             timeout_sec=30.0,
