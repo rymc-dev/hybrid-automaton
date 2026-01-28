@@ -702,64 +702,98 @@ f"""# ------------------------------------------------------------
             self.status = _Runtime.Context.Status = _Runtime.Context.Status.ACTIVE
             self.events: _Runtime.Context.EventFlags = _Runtime.Context.EventFlags()
     
-    class StateProvider: 
-
-        class ContinuousStateProvider:
-            """Injects continuous state updates for open-loop operation."""
-            
-            def __init__(self, fn: Callable[[], Dict[str, np.ndarray]], update_rate: float = 0.001): 
-                self.fn = fn
-                self.update_rate = update_rate
-            
-            async def inject(self, ha):
-                """Continuously inject state updates while automaton is active."""
-                while ha._runtime and ha._runtime._active:
-                    try:
-                        new_state = self.fn()
-                        ha.set_runtime_continuous_state(new_state)
-                    except Exception as e:
-                        print(f"State injection error: {e}")
-                        break
-                    
-                    await asyncio.sleep(self.update_rate)
-
-        class AuxiliaryStateProvider:
-            """Injects auxiliary state updates for open-loop operation."""
+    class StateProviders: 
         
-            def __init__(self, fn: Callable[[], Dict[str, np.ndarray]], update_rate: float = 0.001):
-                self.fn = fn
-                self.update_rate = update_rate 
-    
-            async def inject(self, ha):
-                """Continuously inject auxiliary state updates while automaton is active."""
-                while ha._runtime and ha._runtime._active:
-                    try:
-                        new_aux_state = self.fn()
-                        ha.set_runtime_auxiliary_continuous_states(new_aux_state)
-                    except Exception as e:
-                        print(f"Auxiliary state injection error: {e}")
-                        break
-                    
-                    await asyncio.sleep(self.update_rate)
+        class BaseStateProvider:
+            def __init__(
+                self,
+                fn: Callable[[], Dict[str, np.ndarray]],
+                update_rate: float,
+            ):
+                self._fn = fn
+                self._update_rate = update_rate
 
-        class ControlInputProvider:
-            """Injects control input updates for open-loop operation."""
-            def __init__(self, fn: Callable[[], Dict[str, np.ndarray]], update_rate: float = 0.001):
-                self.fn = fn
-                self.update_Rate = update_rate
+                self._active_event = asyncio.Event()
+                self._task: Optional[asyncio.Task] = None
+
+            # ---------- lifecycle ----------
+
+            async def activate(self, ha):
+                self._active_event.set()
+                self._task = asyncio.create_task(self._inject_loop(ha))
+
+            async def deactivate(self):
+                self._active_event.clear()
+
+                if self._task:
+                    self._task.cancel()
+                    await asyncio.gather(self._task, return_exceptions=True)
+
+            # ---------- core loop ----------
+
+            async def _inject_loop(self, ha):
+                try:
+                    while self._active_event.is_set():
+                        try:
+                            value = self._fn()
+                            self._inject(ha, value)
+                        except Exception as e:
+                            print(f"{self.__class__.__name__} injection error: {e}")
+                            break
+
+                        await asyncio.sleep(self._update_rate)
+
+                except asyncio.CancelledError:
+                    pass
+
+            # ---------- override hook ----------
+
+            def _inject(self, ha, value: Dict[str, np.ndarray]):
+                raise NotImplementedError
             
-            async def inject(self, ha):
-                """Continuously inject control input updates while automaton is active."""
-                while ha._runtime and ha._runtime._active:
-                    try:
-                        new_control = self.fn()
-                        ha.set_runtime_control_inputs(new_control)
-                    except Exception as e:
-                        print(f"Control input injection error: {e}")
-                        break
-                    
-                    await asyncio.sleep(self.update_rate)
-    
+        class ContinuousStateProvider(BaseStateProvider):
+            def _inject(self, ha, value):
+                ha.set_runtime_continuous_state(value)
+
+        class AuxiliaryStateProvider(BaseStateProvider):
+            def _inject(self, ha, value):
+                ha.set_runtime_auxiliary_continuous_states(value)
+
+        class ControlInputProvider(BaseStateProvider):
+            def _inject(self, ha, value):
+                ha.set_runtime_control_inputs(value)
+
+        def __init__(
+            self,
+            *,
+            continuous_fn: Optional[Callable[[], Dict[str, np.ndarray]]] = None,
+            auxiliary_fn: Optional[Callable[[], Dict[str, np.ndarray]]] = None,
+            control_fn: Optional[Callable[[], Dict[str, np.ndarray]]] = None,
+            update_rate: float = 0.001,
+        ):
+            self._providers: List[_Runtime.StateProviders.StateProvider.BaseStateProvider] = []
+
+            if continuous_fn:
+                self._providers.append(
+                    _Runtime.StateProviders.ContinuousStateProvider(continuous_fn, update_rate)
+                )
+
+            if auxiliary_fn:
+                self._providers.append(
+                    _Runtime.StateProviders.AuxiliaryStateProvider(auxiliary_fn, update_rate)
+                )
+
+            if control_fn:
+                self._providers.append(
+                    _Runtime.StateProviders.ControlInputProvider(control_fn, update_rate)
+                )
+
+        async def activate(self, ha):
+            await asyncio.gather(*(p.activate(ha) for p in self._providers))
+
+        async def deactivate(self):
+            await asyncio.gather(*(p.deactivate() for p in self._providers))
+
     class StateSamplers:   
          
         class BaseStateSampler:
