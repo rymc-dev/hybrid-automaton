@@ -39,59 +39,9 @@ class _Runtime:
     utilizes these to evaluate transition guards, invariants and 
     execute transitions to different discrete modes if activated.
     It utilizies a coro async activation function to do this.
-    
-    Args: 
-        automaton_definition: 'Automaton.Definition'
-            the injected static representation of the automaton 
-            structure for use by the runtime
-        x0: Optional[np.array]
-            A scalar/vector/matrix representation of the initial continous
-            state of the agent the automaton is acting on optional as not 
-            necessailty needed automaton can be created without the need
-            for x values for example a traffic light system
-        aux_x0: Optional[Dict[str, np.array]]
-            A dicionary representation of key value: auxiliary state name 
-            to scalar/vector/matrix represnetsation of the state of the 
-            auxiliary state at time 0 when the runtime is started optional 
-            as may not be needed
-        u0: Optional[Dict[str, np.array]]
-            A dictionary reprensetaion of the key value: control input name
-            to scalra/vector/matrix representation of the state of the 
-            control input at time 0 when the rutnime is started optional 
-            as may not be needed
-        real_time_mode: bool
-            real time mode is a flag that tells the autoamton clock that 
-            it should update time on each evaluation step at increments
-            of dt, while true signifies that automaton should operate on real time
-        integrate: bool
-            a flag that tells the automaton runtime evaluation stepper that 
-            the continous state of the automaton should have it's value integrated
-            using the current discrete state generated continuous dynamics
-        dt: float
-            the delta time expected between evaluation time steps, in real time mode
-            we use dt to control the rate at which the evaluation stepper executes
-            while in integration mode we run evaluation steps continously each evaluation step
-            incrementing time by dt
 
-        
-    functions: 
-        get_active_discrete_state
-        get_previous_transition_name
-        get_continuous_state
-        get_auxiliary_states
-        get_control_inputs
-        get_continuous_dynamics
-        get_elapsed_time
-        get_elapsed_time_since_transition
-        set_continuous_state
-        set_auxiliary_states
-        set_control_inputs
-        
-        _evaluation_step
-        _run_automaton_loop
-        
-        activate
-        deactivate    
+    Args: 
+        TODO: 
     """
     _VERSION = "0.0.1"
     
@@ -344,7 +294,13 @@ f"""# ------------------------------------------------------------
         class Clock:
             """clock, runs a clock instance that is utilized
             for real-time/simulation time for the automaton runtime"""
-            def __init__(self, dt: float, real_time_mode: bool):
+            def __init__(
+                self, 
+                dt: float, 
+                real_time_mode: bool,
+                timeout_event:asyncio.Event, # A reference to the context timeout event
+                timeout_sec: float = np.inf
+            ):
                 self._real_time_mode: bool = real_time_mode
                 self._dt: float = dt
 
@@ -353,6 +309,9 @@ f"""# ------------------------------------------------------------
                 self._elapsed_time_active: float = 0.0
                 self._time_elapsed_since_last_transition: float = 0.0
                 self._last_transition_time: float = 0.0
+                
+                self._timeout_sec = timeout_sec
+                self._timeout_event:asyncio.Event = timeout_event
 
                 self._running: bool = False  # Add running flag for start/stop
 
@@ -413,6 +372,18 @@ f"""# ------------------------------------------------------------
             def deactivate(self):
                 """Stops the clock timer loop."""
                 self._running = False
+              
+            async def _timeout_watchdog(self):
+                """Monitor automaton and set timeout if elapsed."""
+                try:
+                    while self.get_elapsed_time_active() < self._timeout_sec:
+                        if self._run_completed_event.is_set() or self._deactivate_event.is_set():
+                            return
+                        await asyncio.sleep(0.05)
+                    # Timeout triggered
+                    self._timeout_event.set()
+                except asyncio.CancelledError:
+                    return  
                 
         class ContinuousState:
             """Continuous state representation with time-buffering and integration."""
@@ -708,24 +679,28 @@ f"""# ------------------------------------------------------------
             initial_continuous_state: Optional[np.array] = None,
             initial_auxiliary_states: Optional[Dict[str, np.array]] = {},
             initial_control_input_states: Optional[Dict[str, np.array]] = {},
-            clock: Clock = Clock,
+            delta_time: float = 0.001,
+            real_time_mode: bool = False,
             configuration: Optional[Dict[str, Any]] = {},
             timeout_sec: Optional[float] = np.inf,
             should_integrate: bool = True 
         ):
-            from .automaton_state import State
+            from .definition import State
             self.discrete_state: State = initial_state
-            self.clock: Clock = clock
-            self.continuous_state: ContinuousState = ContinuousState(name='agent_state', x0=initial_continuous_state)
-            self.auxiliary_states: Dict[str, AuxiliaryState] = {k:AuxiliaryState(name=k, aux0=v) for k, v in initial_auxiliary_states.items()} if initial_auxiliary_states is not None else {}
-            self.control_input_states: Dict[str, ControlInput] = {k: ControlInput(name=k, u0=v) for k, v in initial_control_input_states.items()} if initial_control_input_states is not None else {}
+            self.clock: _Runtime.Context.Clock = _Runtime.Context.Clock(
+                dt=delta_time,
+                real_time_mode=True
+            ) 
+            self.continuous_state: _Runtime.Context.ContinuousState = _Runtime.Context.ContinuousState(name='agent_state', x0=initial_continuous_state)
+            self.auxiliary_states: Dict[str, _Runtime.Context.AuxiliaryState] = {k:_Runtime.Context.AuxiliaryState(name=k, aux0=v) for k, v in initial_auxiliary_states.items()} if initial_auxiliary_states is not None else {}
+            self.control_input_states: Dict[str, _Runtime.Context.ControlInput] = {k: _Runtime.Context.ControlInput(name=k, u0=v) for k, v in initial_control_input_states.items()} if initial_control_input_states is not None else {}
             self.configuration: Dict[str, Any] = configuration | {
                 "timeout_sec": timeout_sec,
                 "should_integrate": should_integrate
             }
             
-            self.status = Context.Status = Context.Status.ACTIVE
-            self.events: Context.EventFlags = Context.EventFlags()
+            self.status = _Runtime.Context.Status = _Runtime.Context.Status.ACTIVE
+            self.events: _Runtime.Context.EventFlags = _Runtime.Context.EventFlags()
     
     class StateProvider: 
 
@@ -967,207 +942,6 @@ f"""# ------------------------------------------------------------
         async def deactivate(self):
             await asyncio.gather(*(s.deactivate() for s in self._samplers))
 
-    
-    
-    class StateSamplers:
-        """Base class for state collectors."""
-        FILE_EXTENSION = "csv"
-        _last_automaton_run_id_sampled: str = None
-        _last_automaton_run_id_sampled_time_complete: int = None
-        _last_automaton_run_id_sampled: int = None
-        output_dir = "./log_hybrid_automaton"
-        
-        def _create_file(self, file_path):
-            os.makedirs(os.path.dirname(file_path), exist_ok=True) 
-            with open(file_path, "w") as f: 
-                writer = csv.writer(f)
-                writer.writerow(["timestamp", "state"])
-        
-        def __init__(
-            self, 
-            continuous_state_sampler_enabled: bool = False,
-            continuous_state_sampler_rate: Optional[int] = 1,
-            continuous_state_sampler_samples_per_write: Optional[int] = 1000,
-            auxiliary_states_sampler_enabled: bool = False,
-            auxiliary_states_sampler_rate: Optional[int] = 1,
-            auxiliary_states_sampler_samples_per_write: Optional[int] = 1000,
-            control_input_states_sampler_enabled: bool = False,
-            control_input_states_sampler_rate: Optional[int] = 1,
-            control_input_states_samplers_per_write: Optional[int] = 1000,
-            dir_path: str = "./log_hybrid_automaton",
-            sampling_rate: int = 100,
-            samples_per_write: int = 1000
-        ):
-            """
-            Args:
-                sampling_rate: Time between samples in seconds (default 0.01 = 100 Hz)
-            """
-            # Editing this to have an activation for the state samplers. if used.
-            self._dir_path = dir_path 
-            self._sampling_rate = sampling_rate
-            self._samples_per_write = samples_per_write
-            self._samples_collected = 0
-            self._samples: List[List[Any]] = []
-            
-            self._dump_samples_event = asyncio.Event()
-            self._active_event = asyncio.Event()
-           
-
-            self._aux_sampler = None
-            
-            self._create_file(self._file_path)        
-
-        async def activate(self, automaton_run_id: str, ha):
-            
-            try: 
-                self._active_event.set() 
-                await asyncio.gather(
-                    self._state_sampler(ha),        # call the coroutine
-                    self._watch_for_state_dump_event(),  # another coroutine or awaitable
-                    self._watch_for_events()
-                )
-            except asyncio.CancelledError():
-                pass
-            finally:
-                self._post_run_hook(automaton_run_id)
-                    
-        def _watch_for_events(self): 
-            # lets inject the events that can occur from the runtime
-            # so that the activation can close silently when done
-            ... 
-        
-        def _post_run_hook(self, automaton_run_id): 
-            self._dump_samples()
-            self._samples = 0
-            self._last_automaton_run_id_sampled = automaton_run_id 
-            
-        async def deactivate(self): 
-            self._active_event.clear()
-
-        async def _state_sampler(self, ha):
-            try:
-                next_sample_time = ha.get_runtime_time_elapsed() + self._sampling_rate
-
-                while self._active_event.is_set():
-                    now = ha.get_runtime_time_elapsed()
-                    drift = max(0, next_sample_time - now)
-                    await asyncio.sleep(drift)
-
-                    if not self._dump_samples_event.is_set():
-                        state_data = self._get_state_sample(ha)
-                        self._samples.append([ha.get_runtime_time_elapsed(), state_data])
-                        self._samples_collected += 1
-
-                        if self._samples_collected >= self._samples_per_write:
-                            self._dump_samples_event.set()
-
-                    # schedule next sample
-                    next_sample_time += self._sampling_rate
-
-            except asyncio.CancelledError:
-                print("State sampler cancelled")
-                raise
-            except Exception as e:
-                print(f"State sampler exception: {e}")
-
-                
-        def _get_state_sample(self, ha) -> Any: 
-            raise NotImplementedError("Collect method must be implemented by subclasses.")
-        
-        async def _watch_for_state_dump_event(self):
-            """
-            Coroutine that watches for the dump-to-file event indefinitely.
-            When _dump_samples_event is set, writes current samples to file 
-            and clears the event.
-            """
-            try:
-                while self._active_event.is_set():
-                    # Wait until _dump_samples_event is set or task is cancelled
-                    await self._dump_samples_event.wait()
-
-                    # Dump samples to file
-                    self._dump_samples()
-
-                    # Clear the event for next round
-                    self._dump_samples_event.clear()
-
-            except asyncio.CancelledError as e:
-                # Handle graceful cancellation
-                raise e
-            
-        def _dump_samples(self):
-            def to_serializable(obj):
-                """Recursively convert np arrays to lists so JSON can handle them."""
-                if isinstance(obj, np.ndarray):
-                    return obj.tolist()
-                elif isinstance(obj, dict):
-                    return {k: to_serializable(v) for k, v in obj.items()}
-                else:
-                    return obj
-
-            # append data from samples to file
-            with open(self._file_path, "a", newline="") as f:
-                writer = csv.writer(f)
-                for timestamp, state in self._samples:
-                    writer.writerow([str(timestamp), json.dumps(to_serializable(state))])
-            
-            # clear data in struct 
-            self._samples.clear() 
-        
-        def is_active(self):
-            return True if self._active_event.is_set() else False
-            
-        def get_sampler_metadata(self) -> json:
-            """return metadata regarding the sampler, including previous run ID, time, file_path associated with it"""
-            return json.dump({
-                'file_path': f'{self._file_path}',
-                'last_automaton_run_id_sampled': f'{self._last_automaton_run_id_sampled}' 
-            })     
-        
-        class ContinuousState(StateSampler):
-            """Collects continuous states over time."""
-            
-            def __init__(self, sampling_rate = 0.01, samples_per_write = 1000):
-                super().__init__(sampling_rate, "continuous_state", samples_per_write)
-            
-            def _get_state_sample(self, ha):
-                """Collect continuous states from hybrid automaton."""
-                try:
-                    return ha.get_runtime_continuous_state().latest()
-                except Exception as e:
-                    return None
-
-        class AuxiliaryStates(StateSampler):
-            """Collects auxiliary states over time."""
-
-            def __init__(self, sampling_rate = 0.01, samples_per_write = 1000):
-                super().__init__(sampling_rate, "auxiliary_state", samples_per_write)
-            
-            def _get_state_sample(self, ha):
-                """
-                Collect auxiliary states from hybrid automaton.
-                
-                Args:
-                    ha: Hybrid automaton instance
-                    get_auxiliary_fn: Optional function to get auxiliary state
-                """
-                try:
-                    return ha.get_runtime_auxiliary_state()
-                except Exception as e: 
-                    return None
-
-        class ControlInputStates(_Runtime.StateSampler):
-            """Collects control inputs over time."""
-            
-            def __init__(self, sampling_rate = 0.01, samples_per_write = 1000):
-                super().__init__(sampling_rate, "control_input_state", samples_per_write)
-                
-            def _get_state_sample(self, ha):
-                try:
-                    return ha.get_runtime_control_input().latest()
-                except Exception as e: 
-                    return None
-        
     def __init__(
             self,
             definition: _Definition,
@@ -1600,17 +1374,7 @@ f"""# ------------------------------------------------------------
             run_logger.ERROR("FATAL Exception", str(e))
             raise e
         
-    async def _timeout_watchdog(self, runtime_context: Context, timeout_sec: float):
-        """Monitor automaton and set timeout if elapsed."""
-        try:
-            while runtime_context.clk.get_elapsed_time_active() < timeout_sec:
-                if self._run_completed_event.is_set() or self._deactivate_event.is_set():
-                    return
-                await asyncio.sleep(0.05)
-            # Timeout triggered
-            self._timeout_event.set()
-        except asyncio.CancelledError:
-            return
+
  
     def deactivate(self): 
         print ("Client deactivation request received!") 
