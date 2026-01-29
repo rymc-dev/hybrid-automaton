@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-# standard library
 import asyncio
 import csv
 import hashlib
@@ -17,10 +16,8 @@ from datetime import datetime, timezone
 from enum import Enum, auto
 from typing import Any, Callable, Dict, List, Optional
 
-# third-party
 import numpy as np
 
-# local imports
 from .definition import State, Transition, _Definition
 
 
