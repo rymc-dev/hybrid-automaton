@@ -36,7 +36,7 @@ class _Runtime:
     this class handles the state space states of the automaton
     `continuous_state`, `auxiliary_states`, `control_inputs` and 
     utilizes these to evaluate transition guards, invariants and 
-    execute transitions to different discrete modes if activated.
+    axecute transitions to different discrete modes if activated.
     It utilizies a coro async activation function to do this.
 
     Args: 
@@ -278,6 +278,8 @@ f"""# ------------------------------------------------------------
         
         # Status
         status: '_Runtime.RunStatus' = None
+
+        run_logs_dir_path: str = ""
         
         # Termination details
         termination_code: '_Runtime.StepResultCode' = None
@@ -311,6 +313,7 @@ f"""# ------------------------------------------------------------
                 f"{'='*60}",
                 f"Run ID: {self.run_signature.run_id if self.run_signature else 'N/A'}",
                 f"Status: {self.status.name if self.status else 'UNKNOWN'}",
+                f"logs directory: {self.run_logs_dir_path}",
                 f"",
                 f"Termination:",
                 f"  Code: {self.termination_code.name if self.termination_code else 'N/A'}",
@@ -921,7 +924,7 @@ f"""# ------------------------------------------------------------
                 os.makedirs(self._output_dir, exist_ok=True)
                 self._file_path = os.path.join(
                     self._output_dir,
-                    f"{automaton_run_id}_{self._name}.{self.FILE_EXTENSION}",
+                    f"{self._name}.{self.FILE_EXTENSION}",
                 )
 
                 with open(self._file_path, "w", newline="") as f:
@@ -1406,6 +1409,7 @@ f"""# ------------------------------------------------------------
                 run_context=run_context
             )
             run_result.run_signature = run_signature
+            run_result.run_logs_dir_path = output_dir
             
             # CRITICAL: Deactivate samplers/providers (triggers final dump)
             if state_samplers.is_samplers():

@@ -111,15 +111,15 @@ def bouncing_ball(gravity: float = -9.81, restitution: float = 0.8):
         name="FLYING",
         initial=True,
         flow=flying_flow,
-        on_enter=lambda: print(f"[{time.time()}] [ENTER] FLYING"),
-        on_exit=lambda: print(f"[{time.time()}] [EXIT] FLYING"),
+        on_enter=lambda: print(f"[ENTER] FLYING"),
+        on_exit=lambda: print(f"[EXIT] FLYING"),
     )
 
     ground = State(
         name="GROUND",
         flow=ground_flow,
-        on_enter=lambda: print(f"[{time.time()}] [ENTER] GROUND"),
-        on_exit=lambda: print(f"[{time.time()}] [EXIT] GROUND"),
+        on_enter=lambda: print(f"[ENTER] GROUND"),
+        on_exit=lambda: print(f"[EXIT] GROUND"),
     )
 
     resting = State(
