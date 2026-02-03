@@ -8,7 +8,9 @@ from hybrid_automaton import Automaton
 from hybrid_automaton.definition import State
 from hybrid_automaton.definition import Transition
 from hybrid_automaton.definition import guard
-from hybrid_automaton import RuntimeContext 
+from hybrid_automaton import RuntimeContext
+
+ 
 def traffic_lights(time_in_green: float = 8.0, time_in_red: float = 5.0, time_in_yellow:float = 3.0) -> Automaton:
     """
     Docstring for traffic_lights
