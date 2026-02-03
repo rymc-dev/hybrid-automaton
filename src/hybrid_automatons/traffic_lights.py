@@ -114,18 +114,16 @@ def traffic_lights(time_in_green: float = 8.0, time_in_red: float = 5.0, time_in
 async def main(): 
     try:
         results = await ha.activate(
-            x0 = None, 
-            real_time_mode=False, 
-            integrate=True, 
-            duration=100.0, 
-            dt=0.01, 
-            collect_automaton=True,
-            collect_continuous=True,
-            collect_transitions=True,
-            collect_control=False, 
-            collect_auxiliary=False
-        )
-
+            initial_continuous_state = None, 
+            enable_real_time_mode=False, 
+            enable_self_integration=True, 
+            timeout_sec=5.0, 
+            delta_time=0.01, 
+            continuous_state_sampler_enabled=True,
+            continuous_state_sampler_rate=0.01,
+            control_input_states_sampler_enabled=True,
+            control_input_states_sampler_rate=1, 
+        ) 
     except Exception as e: 
         print (str(e))
         sys.exit(1)

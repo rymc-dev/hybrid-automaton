@@ -351,11 +351,12 @@ f"""# ------------------------------------------------------------
                 dt: float, 
                 real_time_mode: bool,
                 timeout_event:asyncio.Event,
+                deactivate_event:asyncio.Event,
                 timeout_sec: float = np.inf
             ):
                 self._real_time_mode: bool = real_time_mode
                 self._dt: float = dt
-
+                self._deactivate_event:asyncio.Event = deactivate_event
                 self._global_time: float = 0.0
                 self._global_time_start: float = 0.0
                 self._elapsed_time_active: float = 0.0
@@ -402,34 +403,53 @@ f"""# ------------------------------------------------------------
                 else:
                     self._time_elapsed_since_last_transition = 0.0
 
-            async def activate(self): 
-                if not self._real_time_mode:
-                    raise SystemError(
-                    "Attempted to start clock in simulation mode, which is invalid."
+            async def activate(
+                self
+            ): 
+                tasks = []
+                if self._real_time_mode:
+                    tasks.append(self._clock_task())
+                    
+                if self._timeout_sec != np.inf: 
+                    tasks.append(
+                        self._timeout_watchdog()
                     )
-
-                self._global_time_start = time.perf_counter()
-                self._elapsed_time_active = 0.0
-                self._time_elapsed_since_last_transition = 0.0
-                self._last_transition_time = self._global_time_start
-
-                self._running = True
-                while self._running: 
-                    await asyncio.sleep(0.001)
-                    now = time.perf_counter()
-                    self._global_time = now
-                    self._elapsed_time_active = now - self._global_time_start
-                    self._time_elapsed_since_last_transition = now - self._last_transition_time
-
+                    
+                     
+                if len(tasks) == 0: 
+                    return None
+                else:
+                    return await asyncio.gather(
+                        *tasks
+                    )
+            
             def deactivate(self):
                 """Stops the clock timer loop."""
                 self._running = False
               
+            async def _clock_task(self): 
+                """Clock task for real-time mode."""
+                try:
+                    self._global_time_start = time.perf_counter()
+                    self._elapsed_time_active = 0.0
+                    self._time_elapsed_since_last_transition = 0.0
+                    self._last_transition_time = self._global_time_start
+
+                    self._running = True
+                    while self._running: 
+                        await asyncio.sleep(0.001)
+                        now = time.perf_counter()
+                        self._global_time = now
+                        self._elapsed_time_active = now - self._global_time_start
+                        self._time_elapsed_since_last_transition = now - self._last_transition_time
+                except asyncio.CancelledError:
+                    return
+             
             async def _timeout_watchdog(self):
                 """Monitor automaton and set timeout if elapsed."""
                 try:
                     while self.get_elapsed_time_active() < self._timeout_sec:
-                        if self._run_completed_event.is_set() or self._deactivate_event.is_set():
+                        if self._deactivate_event.is_set(): 
                             return
                         await asyncio.sleep(0.05)
                     # Timeout triggered
@@ -742,6 +762,7 @@ f"""# ------------------------------------------------------------
                 dt=delta_time,
                 real_time_mode=real_time_mode,
                 timeout_event=self.events.timeout_event,
+                deactivate_event=self.events.deactivate_event,
                 timeout_sec=timeout_sec
             )
             
@@ -1191,9 +1212,7 @@ f"""# ------------------------------------------------------------
         run_result = _Runtime.RunResult()
         start_time = time.perf_counter()
 
-        clock_task = None
-        if run_context.clock.is_real_time():
-            clock_task = asyncio.create_task(run_context.clock.activate())
+        clock_task = asyncio.create_task(run_context.clock.activate())
 
         try:
             while run_context.status is _Runtime.Context.Status.ACTIVE:
@@ -1349,6 +1368,7 @@ f"""# ------------------------------------------------------------
             initial_continuous_state=initial_continuous_state,
             initial_auxiliary_states=initial_auxiliary_states,
             initial_control_input_states=initial_control_input_states,
+            real_time_mode=enable_real_time_mode,
             delta_time=delta_time,
             timeout_sec=timeout_sec,
             configuration=self._automaton_definition._configuration,
