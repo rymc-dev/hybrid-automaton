@@ -119,9 +119,16 @@ async def main():
     except Exception as e:
         print (f"Caught a critical Exception in automaton run: {str(e)}")
         sys.exit(1)
+        
+    from matplotlib import pyplot as plt
+    from hybrid_automaton_evaluation.visualization import continuous_states_over_time_fig
+    
+    
     
     print ("Complete!")
-    print (results)
+    print (results[1])
+    fig = continuous_states_over_time_fig(results[1])
+    plt.show()
     
 if __name__ == '__main__': 
 
