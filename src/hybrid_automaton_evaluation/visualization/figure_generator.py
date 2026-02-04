@@ -2,9 +2,12 @@ import matplotlib.pyplot as plt
 from typing import List, Tuple
 import numpy as np
 from typing import List
+from hybrid_automaton import RunResult
+import os
+import csv
+import ast
 
-
-def continuous_states_over_time_fig(continuous_states: List[Tuple[float, np.array]], state_labels: List[str] = None): 
+def continuous_states_over_time_fig(run_result: RunResult): 
     """  
     
     Args: 
@@ -16,52 +19,49 @@ def continuous_states_over_time_fig(continuous_states: List[Tuple[float, np.arra
     """
     #TODO: Add checks for invalid contiuous_states input and state labels, currently
     #      assumes valid logic, if no continuous states are provided exception will be thrown
-    timestamps = [continuous_state[0] for continuous_state in continuous_states]
-    continuous_state_values = np.array([continuous_state[1] for continuous_state in continuous_states])
     
+    
+    timestamps = []
+    states = []
+    with open(os.path.join(run_result.run_logs_dir_path, "continuous_state.csv"), newline="") as f:
+        reader = csv.reader(f)
+        header = next(reader) 
+        
+        for timestamp_str, state_str in reader:
+            timestamp = float(timestamp_str)
+            state = ast.literal_eval(state_str)
+            
+            timestamps.append(timestamp)
+            states.append(state)
+            
+    
+    states = np.array(states)
     fig, ax = plt.subplots(figsize=(12, 6))
     
     # Plot each dimension separately
-    num_dimensions = continuous_state_values.shape[1]
+    num_dimensions = states.shape[1]
     for i in range(num_dimensions):
-        ax.plot(timestamps, continuous_state_values[:, i], label=f'x[{i}]')
+        ax.plot(timestamps, states[:, i], label=f'x[{i}]')
     
-    ax.set_title('Hybrid Automaton <v0.0.4> - Continuous State Over Time', fontsize=16, y=1.02)
-    ax.set_xlabel("Time Active Elapsed (s)", fontsize=12)
-    ax.set_ylabel("Continuous State Values", fontsize=12)
-    if state_labels is not None:
-        ax.legend(state_labels)
-    else:
-        ax.legend() 
-    ax.grid(True, alpha=0.3)
-    fig.tight_layout()
-    
-    return fig
+    ax.set_title(
+        f"{run_result.run_signature.model_name} v{run_result.run_signature.model_version} — Run {run_result.run_signature.run_id}: Continuous State Over Time",
+        fontsize=16,
+        y=1.02
+    )
 
-def transitions_times_over_time_fig(transition_times: List[Tuple[float, float]]):
-    """
-    
-    Args: 
-        transition_times: 
-            ...
-    """
-    timestamps = [transition_time[0] for transition_time in transition_times]
-    transition_times = [transition_time[1] for transition_time in transition_times]
-    
-    fig, ax = plt.subplots(figsize=(12, 6))
-    
-    ax.plot(timestamps, transition_times, label=f'transition_time (s)')
-    
-    ax.set_title('Hybrid Automaton <v0.0.4> - transition times over time active elapsed', fontsize=16, y=1.02)
-    ax.set_xlabel("time active elapsed (s)", fontsize=12)
-    ax.set_ylabel("transition times (s)", fontsize=12)
+    ax.set_xlabel("Time Elapsed (seconds)", fontsize=12)
+    ax.set_ylabel("Continuous State", fontsize=12)
+    # if state_labels is not None: # TODO: UPDATE THIS 
+    #     ax.legend(state_labels)
+    # else:
+        # ax.legend() 
     ax.legend()
     ax.grid(True, alpha=0.3)
     fig.tight_layout()
     
     return fig
 
-def auxiliary_states_over_time_fig(auxilary_states: List):
+def auxiliary_states_over_time_fig(run_result: RunResult):
     """  
     
     Args: 
@@ -69,7 +69,7 @@ def auxiliary_states_over_time_fig(auxilary_states: List):
             ...
     """
     ...
-    
+     
 def control_inputs_over_time_fig(control_inputs: List):
     """   
     Args: 
@@ -78,25 +78,37 @@ def control_inputs_over_time_fig(control_inputs: List):
     """
     ...
 
-def automaton_states_over_time(automaton_states: List[Tuple[float, str]]):
+def automaton_states_over_time(run_result: RunResult):
     """  
     
     Args: 
         automaton_states: 
             List[Tuple[float, str]]
     """
-    timestamps = [automaton_state[0] for automaton_state in automaton_states]
-    states = [automaton_state[1] for automaton_state in automaton_states]
     
-    fig, ax = plt.subplots(figsize=(12, 6))
+    events = []
+    with open(os.path.join(run_result.run_logs_dir_path, "temporal_automaton.log"), "r") as f:
+        for line in f: 
+            line = line.strip()
+            if not line or line.startswith("#"): 
+                continue
+            events.append(line)
+            
+    # Parse the automaton events
+    print (events) # TODO: Complete this
     
-    ax.plot(timestamps, states, label=f'automaton state (q)')
+    # timestamps = [automaton_state[0] for automaton_state in automaton_states]
+    # states = [automaton_state[1] for automaton_state in automaton_states]
     
-    ax.set_title('Hybrid Automaton <v0.0.4> - automaton states over time active elapsed', fontsize=16, y=1.02)
-    ax.set_xlabel("time active elapsed (s)", fontsize=12)
-    ax.set_ylabel("Automaton State (q)", fontsize=12)
-    ax.legend()
-    ax.grid(True, alpha=0.3)
-    fig.tight_layout()
+    # fig, ax = plt.subplots(figsize=(12, 6))
     
-    return fig
+    # ax.plot(timestamps, states, label=f'automaton state (q)')
+    
+    # ax.set_title('Hybrid Automaton <v0.0.4> - automaton states over time active elapsed', fontsize=16, y=1.02)
+    # ax.set_xlabel("time active elapsed (s)", fontsize=12)
+    # ax.set_ylabel("Automaton State (q)", fontsize=12)
+    # ax.legend()
+    # ax.grid(True, alpha=0.3)
+    # fig.tight_layout()
+    
+    # return fig

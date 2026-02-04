@@ -185,9 +185,11 @@ def bouncing_ball(gravity: float = -9.81, restitution: float = 0.8):
     )
     
      
-async def main(): 
+async def main():
+    
+    from hybrid_automaton import RunResult 
     try:        
-        results = await ha.activate(
+        results: RunResult = await ha.activate(
             initial_continuous_state=np.array([5.0, 5.0]),
             enable_real_time_mode=False,
             continuous_state_sampler_enabled=True,
@@ -198,12 +200,19 @@ async def main():
             control_input_states_sampler_rate=1,
             enable_self_integration=True,
             delta_time=0.001,
-            timeout_sec=30.0,
-            output_dir = "./log_hybrid_automaton/bouncing_ball/"
+            timeout_sec=5.0,
+            output_dir = "/home/ryan/hybrid-automaton/log_hybrid_automaton/bouncing_ball" # TODO: Have the
         ) 
     except Exception as e:
         print(f"Exception: Automaton execution terminated with exception: {e}")
         sys.exit(1)
+        
+    from matplotlib import pyplot as plt
+    from hybrid_automaton_evaluation.visualization.figure_generator import continuous_states_over_time_fig, automaton_states_over_time
+    
+    fig1 = continuous_states_over_time_fig(results)
+    fig2 = automaton_states_over_time(results) 
+    plt.show()
     
     print (results)
     print ('Complete!')
