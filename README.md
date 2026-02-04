@@ -33,9 +33,8 @@ pip install hybrid-automaton
 
 ## Usage
 
-Below is a sample of one of the demonstration hybrid automaton implementations being ran in simulation mode,
-for custom hybrid-automaton definition and running please checkout our further documentation and 
-please read the source code. 
+Below is a sample of how one of the demonstration hybrid automaton (`bouncing ball`) definitions are ran in simulation mode. The definition of the Automaton
+using the framework can be found here: [bouncing ball automaton definition](./src/hybrid_automatons/bouncing_ball.py)
 
 ```python
 from hybrid_automatons import bouncing_ball
