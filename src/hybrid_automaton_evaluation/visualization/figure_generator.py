@@ -5,7 +5,6 @@ from hybrid_automaton import RunResult
 import os
 import csv
 import ast
-import re
 
 def continuous_states_over_time_fig(run_result: RunResult): 
     """  
