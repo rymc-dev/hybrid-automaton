@@ -1,3 +1,8 @@
+# hybrid automaton logs
+log_hybrid_automaton/
+
+notebooks/logs/
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[codz]

@@ -2,10 +2,15 @@ import os
 import sys
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
-from hybrid_automaton import Automaton, State, Transition, guard
-from hybrid_automaton.automaton_runtime_context import Context
 import numpy as np
 
+from hybrid_automaton import Automaton
+from hybrid_automaton.definition import State
+from hybrid_automaton.definition import Transition
+from hybrid_automaton.definition import guard
+from hybrid_automaton import RuntimeContext
+
+ 
 def traffic_lights(time_in_green: float = 8.0, time_in_red: float = 5.0, time_in_yellow:float = 3.0) -> Automaton:
     """
     Docstring for traffic_lights
@@ -24,16 +29,16 @@ def traffic_lights(time_in_green: float = 8.0, time_in_red: float = 5.0, time_in
     # Guards
     # ================
     @guard
-    def red_to_green_guard(ctx: Context) -> bool: 
-        return ctx.clk.get_time_elapsed_since_transition() >= ctx.cfg['time_in_red']
+    def red_to_green_guard(ctx: RuntimeContext) -> bool: 
+        return ctx.clock.get_time_elapsed_since_transition() >= ctx.configuration['time_in_red']
 
     @guard
-    def green_to_yellow_guard(ctx: Context) -> bool:
-        return ctx.clk.get_time_elapsed_since_transition() >= ctx.cfg['time_in_green']
+    def green_to_yellow_guard(ctx: RuntimeContext) -> bool:
+        return ctx.clock.get_time_elapsed_since_transition() >= ctx.configuration['time_in_green']
     
     @guard
-    def yellow_to_red_guard(ctx: Context) -> bool: 
-        return ctx.clk.get_time_elapsed_since_transition() >= ctx.cfg['time_in_yellow']
+    def yellow_to_red_guard(ctx: RuntimeContext) -> bool: 
+        return ctx.clock.get_time_elapsed_since_transition() >= ctx.configuration['time_in_yellow']
     
     # ================
     # On entry hook functions
@@ -98,6 +103,7 @@ def traffic_lights(time_in_green: float = 8.0, time_in_red: float = 5.0, time_in
     
     return Automaton(
         name="Traffic Light Automaton",
+        version="0.0.1",
         states=[red_state, green_state, yellow_state],
         configuration={
             'time_in_red': time_in_red,
@@ -106,6 +112,26 @@ def traffic_lights(time_in_green: float = 8.0, time_in_red: float = 5.0, time_in
         }
     )
     
+  
+async def main(): 
+    try:
+        results = await ha.activate(
+            initial_continuous_state = None, 
+            enable_real_time_mode=False, 
+            enable_self_integration=True, 
+            timeout_sec=5.0, 
+            delta_time=0.01, 
+            continuous_state_sampler_enabled=True,
+            continuous_state_sampler_rate=0.01,
+            control_input_states_sampler_enabled=True,
+            control_input_states_sampler_rate=1, 
+        ) 
+    except Exception as e: 
+        print (str(e))
+        sys.exit(1)
+    
+    print ("Complete!")
+    print (results)
   
 if __name__ == '__main__': 
 
@@ -117,30 +143,5 @@ if __name__ == '__main__':
     print (ha)
     print (repr(ha))
     
-    from hybrid_automaton_runner import AutomatonRunner
     import asyncio
-    ha_runner: AutomatonRunner = AutomatonRunner(hybrid_automaton=ha, sampling_rate=0.001)
-    async def main(): 
-        await ha_runner.run(
-            x0 = None, 
-            real_time_mode=False, 
-            integrate=True, 
-            duration=100.0, 
-            dt=0.01, 
-            collect_automaton=True,
-            collect_continuous=True,
-            collect_transitions=True,
-            collect_control=False, 
-            collect_auxiliary=False
-        )
-        
-        ha_runner.print_summary()
-        results = ha_runner.get_results()
-        from matplotlib import pyplot as plt
-        from hybrid_automaton_evaluation.visualization import  automaton_states_over_time, continuous_states_over_time_fig, transitions_times_over_time_fig
-        # fig1 = continuous_states_over_time_fig(results['continuous_states'], state_labels=["traffic light state \{RED, GREEN, YELLOW \}"])
-        # fig2 = transitions_times_over_time_fig(results['transition_times']) # TODO: Need to fix this
-        fig5 = automaton_states_over_time(results['automaton_states'])
-        plt.show()
-
     asyncio.run(main())
