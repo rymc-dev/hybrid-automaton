@@ -7,7 +7,7 @@
 
 | Field         | Value        |
 |---------------|--------------|
-| Last Updated  | 2026-01-28   |
+| Last Updated  | 2026-02-06   |
 | Version       | 0.0.6        |
 
 ## Overview
