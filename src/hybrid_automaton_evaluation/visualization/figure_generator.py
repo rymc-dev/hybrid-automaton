@@ -1,11 +1,11 @@
 import matplotlib.pyplot as plt
-from typing import List, Tuple
+from typing import List, Tuple, Dict
 import numpy as np
-from typing import List
 from hybrid_automaton import RunResult
 import os
 import csv
 import ast
+import re
 
 def continuous_states_over_time_fig(run_result: RunResult): 
     """  
@@ -112,3 +112,86 @@ def automaton_states_over_time(run_result: RunResult):
     # fig.tight_layout()
     
     # return fig
+
+def time_spend_in_each_mode(run_result: RunResult) -> Dict[str, float]:
+    """Deserializes the temporal automaton log to extract time spent in each mode for a given run.
+
+    Returns a dict mapping mode name -> time spent (seconds).
+    """
+    log_path = os.path.join(run_result.run_logs_dir_path, 'temporal_automaton.log')
+    initial_mode = None
+    raw_events = []  # list of (timestamp: float, event_type: str, details: str)
+
+    time_re = re.compile(r'^\[.*\]\s*\[(?P<time>[0-9]+(?:\.[0-9]+)?)\]:\s*\[(?P<etype>[^\]]+)\]\s*(?P<details>.*)$')
+    transition_re = re.compile(r"'(?P<from>[^']+)'\s*--\[[^\]]+\]--?>\s*'(?P<to>[^']+)'")
+
+    with open(log_path, 'r') as f:
+        for raw in f:
+            line = raw.rstrip('\n')
+            if line.strip().startswith('#'):
+                # detect initial mode from header comments
+                if line.strip().startswith('#   Initial mode:'):
+                    # split only on first ':' to keep robustness
+                    parts = line.split(':', 1)
+                    if len(parts) > 1:
+                        initial_mode = parts[1].strip()
+                continue
+
+            if not line.strip():
+                continue
+
+            m = time_re.match(line)
+            if not m:
+                continue
+
+            t = float(m.group('time'))
+            etype = m.group('etype').strip()
+            details = m.group('details').strip()
+            raw_events.append((t, etype, details))
+
+    if initial_mode is None:
+        # fallback: try to infer from first Transition's 'from' field
+        for _, etype, details in raw_events:
+            if etype.lower() == 'transition':
+                tm = transition_re.search(details)
+                if tm:
+                    initial_mode = tm.group('from')
+                    break
+
+    if initial_mode is None:
+        raise RuntimeError('Could not determine initial mode from temporal_automaton.log')
+
+    # Sort events by time to be safe
+    raw_events.sort(key=lambda x: x[0])
+
+    durations: Dict[str, float] = {}
+    current_mode = initial_mode
+    last_t = 0.0
+
+    for t, etype, details in raw_events:
+        low = etype.lower()
+        if low == 'transition':
+            # compute time in current mode up to this transition
+            dt = t - last_t
+            durations[current_mode] = durations.get(current_mode, 0.0) + dt
+
+            # parse target mode
+            tm = transition_re.search(details)
+            if tm:
+                target = tm.group('to')
+                current_mode = target
+                last_t = t
+            else:
+                # If parsing fails, just advance last_t
+                last_t = t
+
+        elif 'deactivation' in low or 'deactivated' in details.lower():
+            # deactivation: account remaining time up to deactivation and stop
+            dt = t - last_t
+            durations[current_mode] = durations.get(current_mode, 0.0) + dt
+            last_t = t
+            break
+
+        # other events (timeouts, warnings) do not change mode but might mark time; ignore
+
+    return durations
