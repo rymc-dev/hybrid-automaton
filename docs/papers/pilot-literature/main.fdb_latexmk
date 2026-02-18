@@ -1,16 +1,16 @@
 # Fdb version 4
-["bibtex main"] 0 "main.aux" "main.bbl" "main" 0 -1
-  "./references.bib" 1771416986.22926 8251 69a0274f34b02bfaf313abc232640b6e ""
+["bibtex main"] 1771430129.86188 "main.aux" "main.bbl" "main" 1771430130.37108 0
+  "./references.bib" 1771428903.29409 7854 e60ca7669aaa6963ac14422823317a56 ""
   "/usr/share/texlive/texmf-dist/bibtex/bst/base/plain.bst" 1292289607 20613 bd3fbfa9f64872b81ac57a0dd2ed855f ""
-  "main.aux" 1771417059.78753 1283 627054c69cb6e499bf96553939124d11 "pdflatex"
+  "main.aux" 1771430130.25736 1215 8d2e04f87c806a70a9f588ee258a61c6 "pdflatex"
   (generated)
   "main.bbl"
   "main.blg"
   (rewritten before read)
-["pdflatex"] 1771417059.53257 "/home/ryan/hybrid-automaton/docs/papers/pilot-literature/main.tex" "main.pdf" "main" 1771417059.89933 2
-  "/etc/texmf/web2c/texmf.cnf" 1770200293.87224 475 c0e671620eb5563b2130f56340a5fde8 ""
-  "/home/ryan/.texlive2023/texmf-var/fonts/pk/ljfour/jknappen/ec/tcrm1000.600pk" 1771414789.65697 11524 b871c6632c2c9a392fe6deb1825791f8 ""
-  "/home/ryan/hybrid-automaton/docs/papers/pilot-literature/main.tex" 1771417056.69859 12683 1e3af3796daeba2cfc09b58356ef856d ""
+["pdflatex"] 1771430129.92356 "/home/ryan/hybrid-automaton/docs/papers/pilot-literature/main.tex" "main.pdf" "main" 1771430130.3714 0
+  "/etc/texmf/web2c/texmf.cnf" 1771428000.11152 475 c0e671620eb5563b2130f56340a5fde8 ""
+  "/home/ryan/.texlive2023/texmf-var/fonts/pk/ljfour/jknappen/ec/tcrm1000.600pk" 1771428242.08652 11524 f2dd519acfd6f2dce1d8604f77b055e8 ""
+  "/home/ryan/hybrid-automaton/docs/papers/pilot-literature/main.tex" 1771430128.80795 11510 3d7c07d4d0a8e026b51c0c88817215b2 ""
   "/usr/share/texlive/texmf-dist/fonts/map/fontname/texfonts.map" 1577235249 3524 cb3e574dea2d1052e39280babc910dc8 ""
   "/usr/share/texlive/texmf-dist/fonts/tfm/jknappen/ec/tcrm1000.tfm" 1136768653 1536 e07581a4bb3136ece9eeb4c3ffab8233 ""
   "/usr/share/texlive/texmf-dist/fonts/tfm/public/cm/cmbx10.tfm" 1136768653 1328 c834bbb027764024c09d3d2bf908b5f0 ""
@@ -48,11 +48,11 @@
   "/usr/share/texlive/texmf-dist/tex/latex/parskip/parskip.sty" 1615762720 4288 94714aa7f535440f33181fec52a31963 ""
   "/usr/share/texlive/texmf-dist/web2c/texmf.cnf" 1707919699 40399 f2c302f7d2af602abb742093540a5834 ""
   "/usr/share/texmf/web2c/texmf.cnf" 1707919699 40399 f2c302f7d2af602abb742093540a5834 ""
-  "/var/lib/texmf/fonts/map/pdftex/updmap/pdftex.map" 1771345109.41242 165012 f177baa1c39a3ebd62c3096a43521a0d ""
-  "/var/lib/texmf/web2c/pdftex/pdflatex.fmt" 1771345143 6830986 e723b5e378dcb7bda8110a89fafc19e8 ""
-  "main.aux" 1771417059.78753 1283 627054c69cb6e499bf96553939124d11 "pdflatex"
-  "main.bbl" 1771416984.44943 4726 cc1d436a75cf3164b7b79706feb7360c "bibtex main"
-  "main.tex" 1771417056.69859 12683 1e3af3796daeba2cfc09b58356ef856d ""
+  "/var/lib/texmf/fonts/map/pdftex/updmap/pdftex.map" 1771428017.98078 165012 f177baa1c39a3ebd62c3096a43521a0d ""
+  "/var/lib/texmf/web2c/pdftex/pdflatex.fmt" 1771428041 6830948 f885e2633da22b927935af33b7b12cec ""
+  "main.aux" 1771430130.25736 1215 8d2e04f87c806a70a9f588ee258a61c6 "pdflatex"
+  "main.bbl" 1771430129.91462 4726 cc1d436a75cf3164b7b79706feb7360c "bibtex main"
+  "main.tex" 1771430128.80795 11510 3d7c07d4d0a8e026b51c0c88817215b2 ""
   (generated)
   "main.aux"
   "main.log"

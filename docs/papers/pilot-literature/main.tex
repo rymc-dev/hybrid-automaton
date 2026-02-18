@@ -42,31 +42,16 @@
     the current gaps in the field and propose a unified framework for hybrid automata development and simulation that can be adopted across research and industry to standardize the development process and enable more efficient and effective use of hybrid automata in real-world applications.
 \end{abstract}
 
-
+\
 
 %% ==================================== Introduction of the paper and motivation =================
 \section{introduction}
-    Hybrid automata are formal models for a dynamical system with discrete and continuous components~\cite{561342} widely adopted across research \& industry for a variety of use cases
-    ranging from control systems to stock trading algorithms, and from robotics to cyber-physical systems a recent example of this is for solving COLREG compliant autonomy for maritime vehicles~\cite{SINGH2026123919} 
-    where the hybrid automata is used to model the discrete decision making process of the vessel and the continuous dynamics of the vessel's movement.
+Hybrid automata are formal models for dynamical systems that combine discrete modes with continuous dynamics~\cite{561342}. 
+They have been widely adopted in both research and industry for modeling complex hybrid systems such as control systems, autonomous vehicles,
+and cyber-physical applications.  For example, hybrid automata have been used to model decision-making and motion dynamics in maritime autonomy under COLREG rules.  
+This modeling framework provides a transparent, modular way to design and analyze systems where logic transitions and physical processes interact.
 
-    This theoritical framework provides a powerful method for modeling complex systems that can solve real world problems algorithmically without 
-    the need for human intervention during the execution of the system in a way that is efficient and effective and totally transparent for the human-in-the-loop to 
-    comprehend the decision making process of the system.
-
-    While in recent years there has been significant progress in the development of Artifical Intelligence (AI) through the rise of large-scale models 
-    like OpenAI's GPT series~\cite{openai2024gpt4technicalreport} that have shown the ability to imitate human-like reasoning further blurring the lines 
-    between huamn and machine intellgence therefore reducing the gap between what huamns and machines can do there is still issues with AI 
-    that make it difficult to deploy in real world application such as lack of transparency and explainability due to the black-box nature of decision making 
-    caused by the topology of deep-neural networks (dnn) and also an issue with the reliability of AI systems due to their sensitivity 
-    to mistakes in novel situations that they have not been trained on and undefined emergent behviours arrising from outliers in there training 
-    data.  
-
-    for the reasons presented above, hybrid automaton is still one of the most powerful tools for complex system design however, the theoretical framework has been laid there seems to be a lack of stadnardization in converting the theoretical framework into real world 
-    applications with several papers implementing there own versions of hybrid automaton with different algorithms enabling them. 
-
-    In this pilot literature review, we will explore the current state of the art in hybrid automata development and simulation to identify 
-    the current gaps in the field and propose a unified framework for hybrid automata development and simulation that can be adopted across research and industry to standardize the development process and enable more efficient and effective use of hybrid automata in real-world applications.
+In recent years, machine learning (ML) and large AI models (e.g.\ GPT-4) have demonstrated remarkable capabilities on many tasks, but they often act as “black boxes” with limited interpretability.  In contrast, hybrid automata yield inherently explainable models (states and transitions are explicit) and can provide formal guarantees on behavior.  Consequently, hybrid automata remain a powerful tool for safety-critical and complex system design.  However, despite a rich theoretical foundation, there is a lack of standardization in how hybrid automata are implemented and deployed.  Different research groups and industries often develop their own modeling frameworks or code libraries, without a common API or data format.  In this review, we survey the state-of-the-art in hybrid automaton development and simulation to identify gaps and motivate the need for a unified framework.
 
 %% ==================================== Discuss the background of automaton =============    
 \section{background}
@@ -169,10 +154,12 @@ The gap in research/industry prevented outlines the need for a unified frameowor
 I propose the development of a unified framework and definition langauge for programatically converting automaton to 
 real world application that can be adopted across research and industry. I propose that initially to make this a simple 
 frameowrk anyone can use to create a python-based framework for simulating and running automata in real-time and offline settings.
-It should provide a lightweight, flexible foundation for defining & evaluating custom automata whether that be 
+It should provide a lightweight, flexible foundation for defining \& evaluating custom automata whether that be 
 for research of real world application, whether is be a simple thermostate system or an autonomy stack. It should not only 
 be able to simulate the automaton but also provide tools for visualizing the automaton like in figureand also provide tools 
 for evaluating the automaton in real world settings with real world data. 
+
+blah blah blah
 
 \bibliographystyle{plain}
 \bibliography{references}
