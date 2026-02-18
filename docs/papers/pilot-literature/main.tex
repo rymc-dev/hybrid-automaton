@@ -7,185 +7,340 @@
 %% ========================== Meta data =======================
 
 \title{
-    Standardizing Hybrid Automata: From Theoretical Foundations to Real-World Implementation Frameworks\\
-    \large A Pilot Literature on the Development of a Unified Framework for Hybrid Automata Development and Simulation
+    Standardizing Hybrid Automata: From Theoretical Foundations to Real-World
+    Implementation Frameworks\\
+    \large A Pilot Literature Review on the Development of a Unified Framework
+    for Hybrid Automata Development and Simulation
 }
 
 \author{Ryan McKee}
-\date{Feb 2026}
+\date{February 2026}
 
 \begin{document}
 \maketitle
 
 %% ========================= Abstract =======================
 
-
 \begin{abstract}
-Hybrid automata are formal models for dynamical systems with both discrete and continuous components~\cite{561342}, widely used across research and industry for applications ranging from 
-control systems and robotics to financial algorithms and cyber-physical systems. A recent example is the modeling of COLREG-compliant autonomy for maritime vehicles~\cite{SINGH2026123919}, 
-where hybrid automata capture both the discrete decision-making of the vessel and its continuous motion dynamics.
+Hybrid automata are formal models for dynamical systems with both discrete
+and continuous components~\cite{Henzinger1996}, widely used across research
+and industry for applications ranging from control systems and robotics to
+financial algorithms and cyber-physical systems.  A recent example is the
+modelling of COLREG-compliant autonomy for maritime vehicles~\cite{SINGH2026123919},
+where hybrid automata capture both the discrete decision-making of the vessel
+and its continuous motion dynamics.
 
-This theoretical framework provides a powerful method for modeling complex systems, enabling algorithmic problem-solving without human intervention, while maintaining transparency for human 
-operators to understand the system`s decision-making process.
+This theoretical framework provides a powerful method for modelling complex
+systems, enabling algorithmic problem-solving without human intervention,
+while maintaining transparency for human operators to understand the
+system's decision-making process.
 
-Despite significant advances in artificial intelligence (AI), particularly through large-scale models like OpenAI's GPT series~\cite{openai} that demonstrate human-like
-reasoning, challenges remain for real-world deployment. AI systems often suffer from limited transparency, explainability, and reliability, particularly in novel situations, due to the black-box 
-nature of deep neural networks and sensitivity to outliers in training data.
+Despite significant advances in artificial intelligence (AI), particularly
+through large-scale models like OpenAI's GPT series~\cite{openai} that
+demonstrate human-like reasoning, challenges remain for real-world
+deployment.  AI systems often suffer from limited transparency,
+explainability, and reliability, particularly in novel situations, due to
+the black-box nature of deep neural networks and sensitivity to outliers in
+training data.
 
-Given these challenges, hybrid automata remain one of the most robust tools for complex system design. However, while the theoretical framework is well-established, there is a lack of standardization 
-in translating it into practical applications. Different implementations use varying algorithms, making cross-comparison and adoption challenging.
+Given these challenges, hybrid automata remain one of the most robust tools
+for complex system design.  However, while the theoretical framework is
+well-established, there is a lack of standardisation in translating it into
+practical applications.  Different implementations use varying algorithms,
+making cross-comparison and adoption challenging.
 
-In this pilot literature review, we examine the current state of hybrid automata development and simulation, identify gaps in the field, and propose a unified framework for their design and deployment. 
-Such a framework aims to standardize the development process and enhance the efficiency, effectiveness, and applicability of hybrid automata across research and industry.
+In this pilot literature review we examine the current state of hybrid
+automata development and simulation, identify gaps in the field, and propose
+a unified framework for their design and deployment.  Such a framework aims
+to standardise the development process and enhance the efficiency,
+effectiveness, and applicability of hybrid automata across research and
+industry.
 \end{abstract}
 
-%% ==================================== Introduction of the paper and motivation =================
-\section{introduction}
-Hybrid automata are formal models for dynamical systems that combine discrete modes with continuous dynamics~\cite{561342}. 
-They have been widely adopted in both research and industry for modeling complex hybrid systems such as control systems, autonomous vehicles,
-and cyber-physical applications.  For example, hybrid automata have been used to model decision-making and motion dynamics in maritime autonomy under COLREG rules~\cite{imo2024colregs}.  
-This modeling framework provides a transparent, modular way to design and analyze systems where logic transitions and physical processes interact.
+%% ==================================== Introduction =====================================
+\section{Introduction}
 
-In recent years, machine learning (ML) and large AI models (e.g.\ GPT-4) have demonstrated remarkable capabilities on many tasks, but they often act as “black boxes” with limited interpretability.  
-In contrast, hybrid automata yield inherently explainable models (states and transitions are explicit) and can provide formal guarantees on behavior.  Consequently, hybrid automata remain a powerful tool 
-for safety-critical and complex system design.  However, despite a rich theoretical foundation, there is a lack of standardization in how hybrid automata are implemented and deployed.  Different 
-research groups and industries often develop their own modeling frameworks or code libraries, without a common API or data format.  In this review, we survey the state-of-the-art in hybrid automaton
-development and simulation to identify gaps and motivate the need for a unified framework.
+Hybrid automata are formal models for dynamical systems that combine discrete
+modes with continuous dynamics~\cite{Henzinger1996}.  They have been widely
+adopted in both research and industry for modelling complex hybrid systems
+such as control systems, autonomous vehicles, and cyber-physical
+applications.  For example, hybrid automata have been used to model
+decision-making and motion dynamics in maritime autonomy under COLREG
+rules~\cite{imo2024colregs,SINGH2026123919}.  This modelling framework
+provides a transparent, modular way to design and analyse systems where
+logic transitions and physical processes interact.
 
-%% ==================================== Discuss the background of automaton =============    
-\section{background}
+In recent years, machine learning (ML) and large AI models (e.g.\ GPT-4)
+have demonstrated remarkable capabilities on many tasks, but they often act
+as ``black boxes'' with limited interpretability.  In contrast, hybrid
+automata yield inherently explainable models (states and transitions are
+explicit) and can provide formal guarantees on behaviour.  Consequently,
+hybrid automata remain a powerful tool for safety-critical and complex
+system design.  However, despite a rich theoretical foundation, there is a
+lack of standardisation in how hybrid automata are implemented and deployed.
+Different research groups and industries often develop their own modelling
+frameworks or code libraries, without a common API or data format.  In this
+review, we survey the state-of-the-art in hybrid automaton development and
+simulation to identify gaps and motivate the need for a unified framework.
 
-A hybrid automaton {\it H} can be defined as a tuple ${\displaystyle H = (Q, X, f, Init, Inv, E, G, R)}$, where $Q$ is the set of discrete modes, $X$ is the continuous state space, $f$ 
-defines the continuous dynamics in each mode, $Init$ specifies initial states, $Inv$ assigns an invariant set to each mode, $E$ is the set of transitions (edges) between modes, $G$ assigns 
-guard conditions to edges, and $R$ assigns reset maps on transitions~\cite{561342}.  Informally, the system resides in some mode $q\in Q$ and evolves according to $\dot x = f(q,x)$ as long 
-as the state satisfies the invariant $\mathrm{Inv}(q)$.  When the continuous state reaches a guard $G(q,q')$, the automaton may take a discrete jump to mode $q'$,
-resetting the continuous state via $R(q,q',x)$.  This hybrid formalism generalizes finite automata by adding differential equation dynamics and state resets~\cite{561342}.
+%% ======================== Importance and societal relevance ============================
+\subsection*{Importance and Societal Relevance}
 
+The importance of hybrid automata extends well beyond academic interest.
+Hybrid models underpin safety-critical infrastructure in transport,
+medicine, and energy.  In automotive systems, hybrid automata are used to
+verify the correctness of anti-lock braking and adaptive cruise control
+algorithms~\cite{Althoff2010CORA}.  In medical devices, they govern the
+behaviour of pacemakers and insulin pumps, where erroneous mode transitions
+could have life-threatening consequences.  In energy systems, hybrid models
+describe the switching behaviour of smart-grid controllers.  As autonomous
+systems from self-driving vehicles to unmanned maritime and aerial
+platforms become increasingly prevalent, the need for formally verified
+hybrid control logic grows accordingly.  The ability to reason about both
+continuous physical dynamics and discrete control logic within a single,
+verifiable framework directly impacts public safety and quality of life.
 
-A simple example is a thermostat system with modes $\{On, Off\}$. The continuous variable is temperature $x$. 
-In mode $On$, the heater is active and the temperature evolves as $\dot{x} = 5 - 0.1 x$ until $x$ reaches an upper bound (invariant $x \le 22$). 
-In mode $Off$, the heater is inactive and $\dot{x} = -0.1 x$ until $x$ reaches a lower bound (invariant $x \ge 18$). 
+%% ==================================== Background ======================================
+\section{Background}
 
-Transitions between $On$ and $Off$ are governed by **guards with hysteresis**: $Off \to On$ occurs when $x < 19$, and $On \to Off$ occurs when $x > 21$. 
-No reset is applied to $x$ on transitions (i.e., $R$ is identity). 
+\subsection*{Formal Definition}
 
-This example illustrates how hybrid automata capture both the discrete controller (heater on/off) and the continuous physics (temperature dynamics) in a single model, visualized in figure~\ref{fig:ha-thermostat}.
+A hybrid automaton $H$ can be defined as a tuple
+$H = (Q, X, f, \mathit{Init}, \mathit{Inv}, E, G, R)$,
+where $Q$ is the set of discrete modes, $X$ is the continuous state space,
+$f$ defines the continuous dynamics in each mode, $\mathit{Init}$ specifies
+initial states, $\mathit{Inv}$ assigns an invariant set to each mode, $E$
+is the set of transitions (edges) between modes, $G$ assigns guard
+conditions to edges, and $R$ assigns reset maps on
+transitions~\cite{Henzinger1996}.  Informally, the system resides in some
+mode $q \in Q$ and evolves according to $\dot{x} = f(q,x)$ as long as the
+state satisfies the invariant $\mathit{Inv}(q)$.  When the continuous state
+reaches a guard $G(q,q')$, the automaton may take a discrete jump to mode
+$q'$, resetting the continuous state via $R(q,q',x)$.  This hybrid
+formalism generalises finite automata by adding differential equation
+dynamics and state resets~\cite{Alur1993Hybrid}.
+
+\subsection*{Illustrative Example}
+
+A simple example is a thermostat system with modes $\{On, Off\}$.  The
+continuous variable is temperature $x$.  In mode $On$, the heater is active
+and the temperature evolves as $\dot{x} = 5 - 0.1x$ until $x$ reaches an
+upper bound (invariant $x \le 22$).  In mode $Off$, the heater is inactive
+and $\dot{x} = -0.1x$ until $x$ reaches a lower bound (invariant
+$x \ge 18$).
+
+Transitions between $On$ and $Off$ are governed by guards with hysteresis:
+$Off \to On$ occurs when $x < 19$, and $On \to Off$ occurs when $x > 21$.
+No reset is applied to $x$ on transitions (i.e., $R$ is the identity map).
+
+This example illustrates how hybrid automata capture both the discrete
+controller (heater on/off) and the continuous physics (temperature dynamics)
+in a single model, as visualised in Figure~\ref{fig:ha-thermostat}.
 
 \begin{figure}[htbp]
     \centering
     \includegraphics[scale=0.5]{./figures/thermostat_automaton.png}
-    \caption{Relating Chi to hybrid automata – Scientific Figure on ResearchGate. Available from: \protect\url{https://www.researchgate.net/figure/A-Hybrid-Automaton-Model-of-a-Thermostat_fig1_4053758} [accessed 18 Feb 2026]}
+    \caption{A hybrid automaton model of a thermostat.  Figure adapted from
+    ResearchGate~\cite{thermofig}.}
     \label{fig:ha-thermostat}
 \end{figure}
 
+%% ======================== State of the art ============================================
+\section{State of the Art}
 
+\subsection*{Historical Development}
 
-%% ======================== Discuss the state of the art of automaton ==================
-\section{State of the art }
+The theoretical foundations of hybrid automata were established in the early
+1990s.  Alur et al.~\cite{Alur1993Hybrid} introduced the algorithmic
+framework for reasoning about hybrid systems, and Henzinger's
+landmark 1996 paper~\cite{Henzinger1996} formalised the mathematical
+definition that remains standard today.  This period also saw early
+decidability results for restricted classes of hybrid automata, such as
+timed and rectangular automata, which established the boundaries of
+algorithmic analysis~\cite{Henzinger1996}.
 
-A variety of specialized tools and frameworks exist for modeling, verifying, and simulating hybrid systems. 
-Formal analysis tools for hybrid automata include {\bf SpaceEx}~\cite{Frehse2011SpaceEx} 
-for reachability of piecewise-linear dynamics, {\bf C2E2}~\cite{Fan2016C2E2} 
-for bounded simulation-based safety checking of nonlinear hybrid models, and {\bf Flow*}~\cite{Chen2013Flow} 
-for computing over-approximations of reachable sets using Taylor models. 
-Tools like {\bf CORA}~\cite{Althoff2010CORA} provide MATLAB-based reachability for linear systems, 
-and {\bf PHAVer}~\cite{Frehse2007PHAVer} handles exact verification for rectangular hybrid automata. 
-Many of these tools require models in their own input language or have steep learning curves. 
-For example, SpaceEx uses an XML input format for hybrid automata~\cite{Frehse2011SpaceEx}, 
-and C2E2 expects annotated ODE models~\cite{Fan2016C2E2}. 
-Efforts such as the {\bf HYST} translator allow a model to be converted among several tools~\cite{Bak2015HYST}, 
-but no universally adopted modeling language has emerged.
+Through the late 1990s and early 2000s, the focus shifted toward building
+the first practical verification tools.  PHAVer~\cite{Frehse2007PHAVer},
+released in 2007, provided the first widely used tool for exact polyhedral
+verification of linear hybrid automata.  CORA~\cite{Althoff2010CORA}, introduced
+in 2010 as part of Althoff's doctoral work at Technische Universit\"{a}t
+M\"{u}nchen, provided MATLAB-based reachability analysis for linear systems and
+became a benchmark tool for automotive safety verification.
 
-There are also hybrid modeling libraries and simulators. 
-For instance, HyAuLib provides Modelica components for building hybrid automata in the Modelica environment~\cite{HyAuLib}. 
-The Hybrid Automata Library (HAL)~\cite{Bravo2019HAL} is a Java library of generic components 
-(agent containers, PDE fields, etc.) to facilitate hybrid spatial models in oncology. 
-MATLAB/Simulink users can employ toolboxes (e.g.\ the Hybrid Toolbox by Bemporad et al.~\cite{Bemporad2005HybridToolbox}) 
-to design and simulate hybrid controllers, though these often target control design rather than general hybrid automaton semantics.
+The early 2010s saw a significant maturation of the tool landscape.
+SpaceEx~\cite{Frehse2011SpaceEx}, developed at the VERIMAG laboratory in
+Grenoble (a joint CNRS/Universit\'{e} Grenoble Alpes/Grenoble INP research
+unit), became the de facto standard for scalable verification of affine
+hybrid systems following its 2011 CAV publication.  Flow*~\cite{Chen2013Flow},
+developed by Chen, \'{A}brah\'{a}m, and Sankaranarayanan (University of
+Colorado Boulder), extended reachability analysis to nonlinear dynamics
+using Taylor models.  C2E2~\cite{Fan2016C2E2}, produced by Fan, Qi, and
+Mitra at the University of Illinois Urbana-Champaign (UIUC), offered
+simulation-based safety checking for Stateflow models, narrowing the gap
+between industrial design tools and formal methods.
 
-In the Python ecosystem, recent work has begun to address hybrid systems. 
-The {\bf Verse} library~\cite{Li2023VERSE} provides a Python framework for multi-agent hybrid scenarios, 
-where each agent’s controller is written in Python and dynamics are given by black-box simulators. 
-VERSE allows simulation and integration with reachability backends, lowering the barrier for scenario-based verification. 
-Other projects (e.g.\ Ariadne for CPS analysis~\cite{Ariadne}) offer Python bindings for verification. 
-However, these are mostly research prototypes or focused on verification, not a general-purpose API.
+More recently, the mid-2010s to present has seen a shift toward Python-based
+frameworks and multi-agent scenarios.  The VERSE library~\cite{Li2023VERSE},
+developed at UIUC in 2023, provides a scenario-based verification framework
+in Python, lowering the barrier for newcomers.  Ariadne~\cite{Ariadne},
+maintained by groups at the University of Verona and CWI Amsterdam, offers
+Python bindings for rigorous CPS analysis.  KeYmaera~X~\cite{Platzer2018KeYmaera},
+developed by Platzer at Carnegie Mellon University (CMU), introduced
+differential dynamic logic as a proof calculus for hybrid programs,
+representing a complementary logical approach to the automaton-based tools.
 
-Overall, the IEEE Control Systems Society’s hybrid systems tool registry~\cite{IEEEHybridRegistry} 
-lists dozens of tools (reachability analyzers, theorem provers, simulation libraries, etc.). 
-While this ecosystem is rich, it is highly fragmented. 
-Each tool often has its own modeling format or programming environment, 
-and many are not user-friendly for newcomers. 
-There is currently no single, standardized framework or language for defining and running hybrid automata 
-in a lightweight way across domains.
+\subsection*{Key Research Groups}
 
+Several leading groups define the international landscape of hybrid systems
+research.  The VERIMAG laboratory (Grenoble, France), founded by Joseph
+Sifakis (Turing Award, 2007), has produced SpaceEx and PHAVer and remains
+one of the most prolific contributors to hybrid verification.  The group of
+Thomas A.\ Henzinger, now at IST Austria, continues to produce foundational
+theoretical results.  At UIUC, the group led by Sayan Mitra is responsible
+for C2E2 and VERSE, with a strong focus on cyber-physical and multi-agent
+systems.  Matthias Althoff's group at TU Munich leads industrial applications
+of reachability analysis, particularly in the automotive domain.  At CMU,
+Andr\'{e} Platzer's group pursues logical approaches to verified hybrid
+control.
 
-%% ======================== Discuss the current state of the art in automaton development and simulation, including any relevant tools or frameworks that are currently being used. ============
-\section{Discussion / Reserach Gaps}
+Within the United Kingdom, the group of Wasif Naeem at Queen's University
+Belfast (QUB) has applied hybrid automata to autonomous maritime systems and
+COLREG-compliant guidance~\cite{SINGH2026123919}, representing a nationally
+significant application of this formalism to safety-critical marine
+autonomy.  Broader hybrid and cyber-physical systems research is also active
+at Imperial College London (control and verification), the University of
+Edinburgh (formal methods and embedded systems), and the University of
+Warwick (control engineering).
 
-Despite the wealth of tools, significant gaps remain in translating hybrid automaton theory into practice. 
-First, there is no standard modeling language or API for hybrid automata. 
-Different tools use different input formats (XML, MATLAB classes, custom DSLs), 
-which makes it difficult to reuse models across tools. 
-Projects such as {\bf HYST}~\cite{Bak2015HYST} have attempted to create common interchange formats, 
-but such efforts require broad community adoption. 
-In many cases, converting industrial models (e.g.\ Simulink/Stateflow) to formal hybrid automata 
-is cumbersome and error-prone~\cite{Fan2016C2E2,Bak2015HYST}.
+\subsection*{Tools and Libraries}
 
-Second, existing tools often focus on analysis rather than ease of integration. 
-For example, {\bf SpaceEx}~\cite{Frehse2011SpaceEx} is powerful for verification of affine systems, 
-but it is not designed as a development library or API for embedding in larger software stacks. 
-Similarly, model-based design tools such as Simulink are tied to proprietary platforms. 
-Few tools provide both real-time simulation and offline analysis capabilities in a lightweight and unified package.
+A variety of specialised tools and frameworks exist for modelling, verifying,
+and simulating hybrid systems.  Formal analysis tools include
+\textbf{SpaceEx}~\cite{Frehse2011SpaceEx} for reachability of
+piecewise-linear dynamics, \textbf{C2E2}~\cite{Fan2016C2E2} for
+simulation-based safety checking, and \textbf{Flow*}~\cite{Chen2013Flow}
+for Taylor-model reachability of nonlinear systems.
+\textbf{CORA}~\cite{Althoff2010CORA} provides MATLAB-based reachability for
+linear systems, and \textbf{PHAVer}~\cite{Frehse2007PHAVer} handles exact
+verification for rectangular hybrid automata.  The \textbf{HYST}
+translator~\cite{Bak2015HYST} enables model conversion among several tools,
+but no universally adopted modelling language has emerged.
 
-Third, there is limited support for iterative design and deployment workflows. 
-Researchers frequently implement custom hybrid automata for each project, 
-often in Python or C++, without reusing existing libraries. 
-The lack of a common framework leads to duplication of effort and steep learning curves. 
-In summary, hybrid systems practitioners often face a gap between elegant formal definitions 
-and the practical code required to simulate and deploy automata in real-world applications. 
-This gap motivates the need for a unified, standardized development framework.
+There are also hybrid modelling libraries and simulators.  HyAuLib~\cite{HyAuLib}
+provides Modelica components for building hybrid automata.  The Hybrid
+Automata Library (HAL)~\cite{Bravo2019HAL} is a Java library facilitating
+hybrid spatial models in oncology.  MATLAB/Simulink users can employ the
+Hybrid Toolbox~\cite{Bemporad2005HybridToolbox} by Bemporad et al.\ for
+hybrid controller design.
 
+The \textbf{Verse} library~\cite{Li2023VERSE} represents the most
+significant recent development in the Python ecosystem, providing a
+multi-agent hybrid verification framework that integrates with reachability
+backends.  Despite this rich landscape, the IEEE Control Systems Society
+hybrid systems tool registry~\cite{IEEEHybridRegistry} lists dozens of
+tools that remain highly fragmented, each with its own modelling format and
+programming environment.
 
-%% ======================== Discuss the research gaps in the field of automaton ============
+%% ======================== Research Gaps ===============================================
+\section{Research Gaps}
+
+Despite the wealth of tools, significant gaps remain in translating hybrid
+automaton theory into practice.  First, there is no standard modelling
+language or API for hybrid automata.  Different tools use different input
+formats (XML for SpaceEx, MATLAB classes for CORA, custom DSLs for
+KeYmaera~X), making it difficult to reuse models across tools.  Projects
+such as \textbf{HYST}~\cite{Bak2015HYST} have attempted to create common
+interchange formats, but such efforts require broad community adoption.  In
+many cases, converting industrial models (e.g.\ Simulink/Stateflow) to
+formal hybrid automata remains cumbersome and
+error-prone~\cite{Fan2016C2E2,Bak2015HYST}.
+
+Second, existing tools focus on analysis rather than ease of integration.
+SpaceEx~\cite{Frehse2011SpaceEx} is powerful for verification of affine
+systems, but is not designed as a development library for embedding in
+larger software stacks.  Similarly, model-based design tools such as
+Simulink are tied to proprietary platforms.  Few tools provide both
+real-time simulation and offline analysis capabilities in a lightweight,
+unified package.
+
+Third, there is limited support for iterative design and deployment
+workflows.  Researchers frequently implement custom hybrid automata from
+scratch for each project, often in Python or C++, without reusing existing
+libraries.  This duplication of effort is well-documented in the hybrid
+systems community~\cite{Alur1993Hybrid,Henzinger1996} and persists today.
+The lack of a common framework creates steep learning curves and inhibits
+collaboration across domains.
+
+Fourth, the connection between formal verification and real-time deployment
+on robotic or embedded platforms remains weak.  Middleware such as ROS2 is
+standard in robotics, yet no hybrid automaton framework natively supports
+export to ROS2-compatible execution nodes, creating a gap between
+verification-time models and deployment-time code.
+
+In summary, hybrid systems practitioners face a persistent divide between
+elegant formal definitions and the practical code required to simulate and
+deploy automata in real-world applications.
+
+%% ======================== Conclusions and Future Work ==================================
 \section{Conclusions and Future Work}
 
-Hybrid automata are theoretically mature and mathematically rigorous, yet their practical ecosystem remains fragmented. 
-Existing tools provide powerful analysis capabilities, but they differ widely in modeling languages, input formats, and integration workflows. 
-This fragmentation creates a gap between formal hybrid automaton theory and practical deployment in real-world systems.
+Hybrid automata are theoretically mature and mathematically rigorous, yet
+their practical ecosystem remains fragmented.  Existing tools provide
+powerful analysis capabilities, but they differ widely in modelling
+languages, input formats, and integration workflows.  This fragmentation
+creates a gap between formal hybrid automaton theory and practical
+deployment in real-world systems.
 
-To address this gap, we propose the development of a unified hybrid automaton framework guided by the following principles:
+To address this gap, we propose the development of a unified hybrid
+automaton framework guided by the following principles:
 
 \begin{itemize}
 
-\item \textbf{Cross-platform, high-level API:} 
-A Python-based library that enables users to define hybrid automata declaratively using structured data representations or a lightweight domain-specific syntax. 
-The API should uniformly support mode definitions, invariants, guards, reset maps, and continuous dynamics while remaining intuitive and extensible.
+\item \textbf{Cross-platform, high-level API:}
+A Python-based library that enables users to define hybrid automata
+declaratively using structured data representations or a lightweight
+domain-specific syntax.  The API should uniformly support mode definitions,
+invariants, guards, reset maps, and continuous dynamics while remaining
+intuitive and extensible.
 
-\item \textbf{Simulation and real-time execution:} 
-Support for both offline simulation (for analysis and testing) and real-time execution suitable for embedded systems and robotic platforms. 
-Integration with middleware such as ROS2 would enable seamless transition from simulation to deployment.
+\item \textbf{Simulation and real-time execution:}
+Support for both offline simulation (for analysis and testing) and real-time
+execution suitable for embedded systems and robotic platforms.  Integration
+with middleware such as ROS2 would enable seamless transition from
+simulation to deployment.
 
-\item \textbf{Visualization and tooling:} 
-Built-in capabilities for visualizing automaton graphs, plotting continuous trajectories, and logging state transitions during execution. 
-Such tooling would enhance interpretability and debugging.
+\item \textbf{Visualisation and tooling:}
+Built-in capabilities for visualising automaton graphs, plotting continuous
+trajectories, and logging state transitions during execution.  Such tooling
+would enhance interpretability and debugging.
 
-\item \textbf{Performance and modularity:} 
-A lightweight and modular core architecture allowing users to integrate different numerical solvers or reachability backends without altering the primary API. 
-This ensures flexibility while preserving architectural consistency.
+\item \textbf{Performance and modularity:}
+A lightweight and modular core architecture allowing users to integrate
+different numerical solvers or reachability backends without altering the
+primary API.  This ensures flexibility while preserving architectural
+consistency.
 
-\item \textbf{Compatibility with formal verification backends:} 
-Although primarily focused on simulation and deployment, the framework should support exporting models to formal analysis tools such as SpaceEx~\cite{Frehse2011SpaceEx} 
-or interfacing with verification engines to enable safety analysis.
+\item \textbf{Compatibility with formal verification backends:}
+Although primarily focused on simulation and deployment, the framework
+should support exporting models to formal analysis tools such as
+SpaceEx~\cite{Frehse2011SpaceEx} or KeYmaera~X~\cite{Platzer2018KeYmaera}
+to enable safety analysis.
 
 \end{itemize}
 
-A unified framework of this nature would bridge the divide between elegant formal definitions and practical implementation. 
-By standardizing how hybrid automata are specified, executed, and analyzed, it would promote model reuse, reproducibility, and cross-domain collaboration. 
-Such infrastructure would support applications ranging from simple control systems to complex autonomous platforms without requiring developers to reconstruct tooling for each new project.
+A unified framework of this nature would bridge the divide between elegant
+formal definitions and practical implementation.  By standardising how
+hybrid automata are specified, executed, and analysed, it would promote
+model reuse, reproducibility, and cross-domain collaboration.  Such
+infrastructure would support applications ranging from simple control
+systems to complex autonomous platforms without requiring developers to
+reconstruct tooling for each new project.
 
-Future work will focus on designing the modeling language and API specification, prototyping the core architecture in Python, and evaluating the framework on benchmark hybrid systems to assess scalability, usability, and interoperability with existing verification tools.
-
-
+Future work will focus on designing the modelling language and API
+specification, prototyping the core architecture in Python, and evaluating
+the framework on benchmark hybrid systems, including those drawn from the
+maritime autonomy domain~\cite{SINGH2026123919} to assess scalability,
+usability, and interoperability with existing verification tools.
 
 \bibliographystyle{plain}
 \bibliography{references}

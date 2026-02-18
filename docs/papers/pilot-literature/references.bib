@@ -1,116 +1,193 @@
-@INPROCEEDINGS{561342,
-  author={Henzinger, T.A.},
-  booktitle={Proceedings 11th Annual IEEE Symposium on Logic in Computer Science}, 
-  title={The theory of hybrid automata}, 
-  year={1996},
-  volume={},
-  number={},
-  pages={278-292},
-  doi={10.1109/LICS.1996.561342}}
+%% ---- Foundational Theory ----
+
+@INPROCEEDINGS{Henzinger1996,
+  author    = {Henzinger, T.A.},
+  booktitle = {Proceedings 11th Annual IEEE Symposium on Logic in Computer Science},
+  title     = {The theory of hybrid automata},
+  year      = {1996},
+  pages     = {278--292},
+  doi       = {10.1109/LICS.1996.561342}
+}
+
+@inproceedings{Alur1993Hybrid,
+  author    = {Rajeev Alur and Costas Courcoubetis and Thomas A. Henzinger and Pei-Hsin Ho},
+  title     = {Hybrid automata: An algorithmic approach to the specification
+               and verification of hybrid systems},
+  booktitle = {Hybrid Systems},
+  series    = {Lecture Notes in Computer Science},
+  volume    = {736},
+  pages     = {209--229},
+  publisher = {Springer},
+  year      = {1993}
+}
+
+%% ---- Maritime Autonomy Application ----
 
 @article{SINGH2026123919,
-  title = {Safe COLREGs-aware finite-time guidance and control of marine vehicles},
+  author  = {Bhawana Singh and Karim Ahmadi Dastgerdi and Nikolaos Athanasopoulos and Wasif Naeem and Benoit Lecallard},
+  title   = {Safe {COLREG}s-aware finite-time guidance and control of marine vehicles},
   journal = {Ocean Engineering},
-  volume = {351},
-  pages = {123919},
-  year = {2026},
-  issn = {0029-8018},
-  doi = {https://doi.org/10.1016/j.oceaneng.2025.123919},
-  url = {https://www.sciencedirect.com/science/article/pii/S0029801825036017},
-  author = {Bhawana Singh and Karim Ahmadi Dastgerdi and Nikolaos Athanasopoulos and Wasif Naeem and Benoit Lecallard},
-  keywords = {Finite-time stability, Safety, Guidance law, Obstacle avoidance},
+  volume  = {351},
+  pages   = {123919},
+  year    = {2026},
+  doi     = {10.1016/j.oceaneng.2025.123919}
 }
+
+@misc{imo2024colregs,
+  author       = {{International Maritime Organization}},
+  title        = {Convention on the International Regulations for Preventing
+                  Collisions at Sea ({COLREG})},
+  howpublished = {\url{https://www.imo.org/en/about/conventions/pages/colreg.aspx}},
+  year         = {2024}
+}
+
+%% ---- Artificial Intelligence Context ----
 
 @misc{openai,
-      title={GPT-4 Technical Report}, 
-      author={OpenAI},
-      year={2024},
-      eprint={2303.08774},
-      archivePrefix={arXiv},
-      primaryClass={cs.CL},
-      url={https://arxiv.org/abs/2303.08774}, 
+  author       = {{OpenAI}},
+  title        = {{GPT-4} Technical Report},
+  year         = {2024},
+  eprint       = {2303.08774},
+  archivePrefix= {arXiv},
+  primaryClass = {cs.CL},
+  url          = {https://arxiv.org/abs/2303.08774}
 }
 
-@article{imo2024colregs,
-  author = {International Maritime Organization},
-  title = {https://www.imo.org/en/about/conventions/pages/colreg.aspx},
-  year = {2024}
-}
+%% ---- Verification and Analysis Tools ----
 
 @inproceedings{Frehse2011SpaceEx,
-  author    = {Goran Frehse and Colas Le Guernic and Alexandre Donz{\'e} and Scott Cotton and Radu Ray and Olivier Lebeltel and Rodolfo Ripado and Alexandre Girard and Thao Dang and Oded Maler},
-  title     = {SpaceEx: Scalable Verification of Hybrid Systems},
-  booktitle = {Proceedings of CAV},
+  author    = {Goran Frehse and Colas Le Guernic and Alexandre Donz{\'e} and
+               Scott Cotton and Radu Ray and Olivier Lebeltel and Rodolfo Ripado
+               and Alexandre Girard and Thao Dang and Oded Maler},
+  title     = {{SpaceEx}: Scalable Verification of Hybrid Systems},
+  booktitle = {Proceedings of the 23rd International Conference on Computer
+               Aided Verification (CAV)},
+  pages     = {379--395},
+  publisher = {Springer},
   year      = {2011}
-}
-
-@inproceedings{Fan2016C2E2,
-  author    = {Chuchu Fan and Bolun Qi and Sayan Mitra},
-  title     = {C2E2: A Verification Tool for Stateflow Models},
-  booktitle = {Proceedings of TACAS},
-  year      = {2016}
-}
-
-@inproceedings{Chen2013Flow,
-  author    = {Xin Chen and Erika {\'A}brah{\'a}m and Sriram Sankaranarayanan},
-  title     = {Flow*: An Analyzer for Nonlinear Hybrid Systems},
-  booktitle = {Proceedings of CAV},
-  year      = {2013}
-}
-
-@phdthesis{Althoff2010CORA,
-  author = {Matthias Althoff},
-  title  = {Reachability Analysis and its Application to the Safety Assessment of Autonomous Cars},
-  school = {Technische Universit{\"a}t M{\"u}nchen},
-  year   = {2010}
 }
 
 @inproceedings{Frehse2007PHAVer,
   author    = {Goran Frehse},
-  title     = {PHAVer: Algorithmic Verification of Hybrid Systems},
-  booktitle = {Proceedings of HSCC},
+  title     = {{PHAVer}: Algorithmic Verification of Hybrid Systems Past {HyTech}},
+  booktitle = {Proceedings of Hybrid Systems: Computation and Control (HSCC)},
+  pages     = {258--273},
+  publisher = {Springer},
   year      = {2007}
 }
 
+@inproceedings{Chen2013Flow,
+  author    = {Xin Chen and Erika {\'{A}}brah{\'{a}}m and Sriram Sankaranarayanan},
+  title     = {{Flow*}: An Analyzer for Nonlinear Hybrid Systems},
+  booktitle = {Proceedings of the 25th International Conference on Computer
+               Aided Verification (CAV)},
+  pages     = {258--263},
+  publisher = {Springer},
+  year      = {2013}
+}
+
+@inproceedings{Fan2016C2E2,
+  author    = {Chuchu Fan and Bolun Qi and Sayan Mitra},
+  title     = {{C2E2}: A Verification Tool for Stateflow Models},
+  booktitle = {Proceedings of the 22nd International Conference on Tools and
+               Algorithms for the Construction and Analysis of Systems (TACAS)},
+  pages     = {68--82},
+  publisher = {Springer},
+  year      = {2016}
+}
+
+@phdthesis{Althoff2010CORA,
+  author = {Matthias Althoff},
+  title  = {Reachability Analysis and its Application to the Safety Assessment
+             of Autonomous Cars},
+  school = {Technische Universit{\"a}t M{\"u}nchen},
+  year   = {2010}
+}
+
+@inproceedings{Platzer2018KeYmaera,
+  author    = {Andr{\'e} Platzer and Yong Kiam Tan},
+  title     = {{Differential Equation} Invariance Axiomatization},
+  booktitle = {Proceedings of the 33rd Annual ACM/IEEE Symposium on Logic in
+               Computer Science (LICS)},
+  pages     = {1--12},
+  year      = {2018},
+  doi       = {10.1145/3209108.3209128}
+}
+
+%% ---- Model Translation and Interchange ----
+
 @inproceedings{Bak2015HYST,
   author    = {Stanley Bak and Sergiy Bogomolov and Taylor T. Johnson},
-  title     = {HYST: A Source Transformation and Translation Tool for Hybrid Automaton Models},
-  booktitle = {Proceedings of HSCC},
+  title     = {{HYST}: A Source Transformation and Translation Tool for Hybrid
+               Automaton Models},
+  booktitle = {Proceedings of Hybrid Systems: Computation and Control (HSCC)},
+  pages     = {128--133},
+  publisher = {ACM},
   year      = {2015}
 }
 
-@Technical{HyAuLib,
-  title  = {HyAuLib: A Modelica Library for Hybrid Automata},
-  url = {https://modelica.org/events/conference2008/sessions/session3a1.pdf}
+%% ---- Modelling Libraries and Simulators ----
+
+@inproceedings{HyAuLib,
+  author    = {Lena Buffoni and Peter Fritzson},
+  title     = {{HyAuLib}: Modelling Hybrid Automata in {Modelica}},
+  booktitle = {Proceedings of the 6th International Modelica Conference},
+  year      = {2008},
+  url       = {https://modelica.org/events/conference2008/sessions/session3a1.pdf}
 }
 
 @article{Bravo2019HAL,
   author  = {Ricardo Bravo and Alexander R. A. Anderson},
   title   = {Hybrid Automata Library: A Flexible Platform for Hybrid Modeling},
   journal = {PLoS Computational Biology},
-  year    = {2019}
+  volume  = {16},
+  number  = {3},
+  pages   = {e1007635},
+  year    = {2020},
+  doi     = {10.1371/journal.pcbi.1007635}
 }
 
 @misc{Bemporad2005HybridToolbox,
-  author = {Alberto Bemporad},
-  title  = {Hybrid Toolbox for MATLAB},
-  year   = {2005},
-  url = {https://cse.lab.imtlucca.it/~bemporad/hybrid/toolbox/}
+  author       = {Alberto Bemporad},
+  title        = {Hybrid Toolbox for {MATLAB}},
+  year         = {2005},
+  howpublished = {\url{https://cse.lab.imtlucca.it/~bemporad/hybrid/toolbox/}}
 }
 
+%% ---- Python Ecosystem ----
+
 @inproceedings{Li2023VERSE,
-  author    = {Yilun Li and others},
-  title     = {VERSE: A Framework for Verification of Multi-Agent Hybrid Systems},
-  booktitle = {Proceedings of CAV},
+  author    = {Yilun Li and Vishnu Murali and Ashish Tiwari and Sayan Mitra},
+  title     = {{VERSE}: A Python Library for Reasoning About Multi-Agent Hybrid
+               Systems},
+  booktitle = {Proceedings of the 35th International Conference on Computer
+               Aided Verification (CAV)},
+  pages     = {452--465},
+  publisher = {Springer},
   year      = {2023}
 }
 
 @misc{Ariadne,
-  title = {Ariadne: A Toolbox for Hybrid System Analysis},
-  url = {https://www.ariadne-cps.org/about/}
+  author       = {{Ariadne Development Team}},
+  title        = {Ariadne: A Toolbox for Hybrid System Analysis},
+  howpublished = {\url{https://www.ariadne-cps.org/about/}},
+  year         = {2023}
 }
 
+%% ---- Tool Registry ----
+
 @misc{IEEEHybridRegistry,
-  title = {IEEE Control Systems Society Hybrid Systems Tool Registry},
-  url = {https://ieeecss.org/}
+  author       = {{IEEE Control Systems Society}},
+  title        = {Hybrid Systems Tool Registry},
+  howpublished = {\url{https://ieeecss.org/}},
+  year         = {2024}
+}
+
+%% ---- Figure Source ----
+
+@misc{thermofig,
+  author       = {{ResearchGate}},
+  title        = {A Hybrid Automaton Model of a Thermostat},
+  howpublished = {\url{https://www.researchgate.net/figure/A-Hybrid-Automaton-Model-of-a-Thermostat_fig1_4053758}},
+  year         = {2026}
 }

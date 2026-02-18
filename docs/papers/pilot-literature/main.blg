@@ -3,51 +3,44 @@ Capacity: max_strings=200000, hash_size=200000, hash_prime=170003
 The top-level auxiliary file: main.aux
 The style file: plain.bst
 Database file #1: references.bib
-Warning--entry type for "HyAuLib" isn't style-file defined
---line 82 of file references.bib
-Warning--to sort, need author or key in HyAuLib
-Warning--to sort, need author or key in Ariadne
-Warning--to sort, need author or key in IEEEHybridRegistry
-Warning--empty journal in imo2024colregs
-You've used 16 entries,
+You've used 19 entries,
             2118 wiz_defined-function locations,
-            577 strings with 6074 characters,
-and the built_in function-call counts, 4240 in all, are:
-= -- 367
-> -- 206
-< -- 1
-+ -- 85
-- -- 68
-* -- 232
-:= -- 695
-add.period$ -- 40
-call.type$ -- 16
-change.case$ -- 80
+            619 strings with 7606 characters,
+and the built_in function-call counts, 6923 in all, are:
+= -- 698
+> -- 283
+< -- 10
++ -- 115
+- -- 94
+* -- 403
+:= -- 1070
+add.period$ -- 63
+call.type$ -- 19
+change.case$ -- 103
 chr.to.int$ -- 0
-cite$ -- 20
-duplicate$ -- 182
-empty$ -- 396
-format.name$ -- 68
-if$ -- 903
+cite$ -- 19
+duplicate$ -- 289
+empty$ -- 590
+format.name$ -- 94
+if$ -- 1542
 int.to.chr$ -- 0
-int.to.str$ -- 16
-missing$ -- 10
-newline$ -- 75
-num.names$ -- 26
-pop$ -- 132
+int.to.str$ -- 19
+missing$ -- 12
+newline$ -- 97
+num.names$ -- 38
+pop$ -- 147
 preamble$ -- 1
-purify$ -- 65
+purify$ -- 85
 quote$ -- 0
-skip$ -- 137
+skip$ -- 236
 stack$ -- 0
-substring$ -- 127
-swap$ -- 31
-text.length$ -- 1
+substring$ -- 406
+swap$ -- 106
+text.length$ -- 10
 text.prefix$ -- 0
 top$ -- 0
-type$ -- 64
-warning$ -- 4
-while$ -- 29
-width$ -- 18
-write$ -- 145
-(There were 5 warnings)
+type$ -- 76
+warning$ -- 0
+while$ -- 67
+width$ -- 21
+write$ -- 210
