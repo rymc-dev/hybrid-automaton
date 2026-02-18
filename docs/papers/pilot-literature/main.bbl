@@ -1,0 +1,75 @@
+\begin{thebibliography}{10}
+
+\bibitem{Ariadne}
+Ariadne: A toolbox for hybrid system analysis.
+
+\bibitem{HyAuLib}
+Hyaulib: A modelica library for hybrid automata.
+
+\bibitem{IEEEHybridRegistry}
+Ieee control systems society hybrid systems tool registry.
+
+\bibitem{Althoff2010CORA}
+Matthias Althoff.
+\newblock {\em Reachability Analysis and its Application to the Safety Assessment of Autonomous Cars}.
+\newblock PhD thesis, Technische Universit{\"a}t M{\"u}nchen, 2010.
+
+\bibitem{Bak2015HYST}
+Stanley Bak, Sergiy Bogomolov, and Taylor~T. Johnson.
+\newblock Hyst: A source transformation and translation tool for hybrid automaton models.
+\newblock In {\em Proceedings of HSCC}, 2015.
+
+\bibitem{Bemporad2005HybridToolbox}
+Alberto Bemporad.
+\newblock Hybrid toolbox for matlab, 2005.
+
+\bibitem{Bravo2019HAL}
+Ricardo Bravo and Alexander R.~A. Anderson.
+\newblock Hybrid automata library: A flexible platform for hybrid modeling.
+\newblock {\em PLoS Computational Biology}, 2019.
+
+\bibitem{Chen2013Flow}
+Xin Chen, Erika {\'A}brah{\'a}m, and Sriram Sankaranarayanan.
+\newblock Flow*: An analyzer for nonlinear hybrid systems.
+\newblock In {\em Proceedings of CAV}, 2013.
+
+\bibitem{Fan2016C2E2}
+Chuchu Fan, Bolun Qi, and Sayan Mitra.
+\newblock C2e2: A verification tool for stateflow models.
+\newblock In {\em Proceedings of TACAS}, 2016.
+
+\bibitem{Frehse2007PHAVer}
+Goran Frehse.
+\newblock Phaver: Algorithmic verification of hybrid systems.
+\newblock In {\em Proceedings of HSCC}, 2007.
+
+\bibitem{Frehse2011SpaceEx}
+Goran Frehse, Colas~Le Guernic, Alexandre Donz{\'e}, Scott Cotton, Radu Ray, Olivier Lebeltel, Rodolfo Ripado, Alexandre Girard, Thao Dang, and Oded Maler.
+\newblock Spaceex: Scalable verification of hybrid systems.
+\newblock In {\em Proceedings of CAV}, 2011.
+
+\bibitem{561342}
+T.A. Henzinger.
+\newblock The theory of hybrid automata.
+\newblock In {\em Proceedings 11th Annual IEEE Symposium on Logic in Computer Science}, pages 278--292, 1996.
+
+\bibitem{Li2023VERSE}
+Yilun Li et~al.
+\newblock Verse: A framework for verification of multi-agent hybrid systems.
+\newblock In {\em Proceedings of CAV}, 2023.
+
+\bibitem{openai}
+OpenAI.
+\newblock Gpt-4 technical report, 2024.
+
+\bibitem{imo2024colregs}
+International~Maritime Organization.
+\newblock https://www.imo.org/en/about/conventions/pages/colreg.aspx.
+\newblock 2024.
+
+\bibitem{SINGH2026123919}
+Bhawana Singh, Karim~Ahmadi Dastgerdi, Nikolaos Athanasopoulos, Wasif Naeem, and Benoit Lecallard.
+\newblock Safe colregs-aware finite-time guidance and control of marine vehicles.
+\newblock {\em Ocean Engineering}, 351:123919, 2026.
+
+\end{thebibliography}
