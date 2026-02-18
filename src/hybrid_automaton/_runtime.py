@@ -599,6 +599,9 @@ f"""# ------------------------------------------------------------
                 self.last_update_stamp = now / 1_000_000_000
                 self.input_step += 1
 
+            def pop(self): 
+                self.aux_buffer.pop()
+            
             def __repr__(self):
                 return (
                     f"AuxiliaryState(name={self.name}, "

@@ -1,6 +1,10 @@
 \documentclass{report}
 \usepackage[parfill]{parskip}
 \usepackage{float}
+
+
+%% ========================== Meta data =======================
+
 \title{
     Standardizing Hybrid Automata: From Theoretical Foundations to Real-World Implementation Frameworks\\
     \large A Pilot Literature on the Development of a Unified Framework for Hybrid Automata Development and Simulation
@@ -11,6 +15,8 @@
 
 \begin{document}
 \maketitle
+
+%% ========================= Abstract =======================
 
 \begin{abstract}
     Hybrid automata are formal models for a dynamical system with discrete and continuous components~\cite{561342} widely adopted across research \& industry for a variety of use cases
@@ -38,7 +44,7 @@
 
 
 
-
+%% ==================================== Introduction of the paper and motivation =================
 \section{introduction}
     Hybrid automata are formal models for a dynamical system with discrete and continuous components~\cite{561342} widely adopted across research \& industry for a variety of use cases
     ranging from control systems to stock trading algorithms, and from robotics to cyber-physical systems a recent example of this is for solving COLREG compliant autonomy for maritime vehicles~\cite{SINGH2026123919} 
@@ -62,7 +68,7 @@
     In this pilot literature review, we will explore the current state of the art in hybrid automata development and simulation to identify 
     the current gaps in the field and propose a unified framework for hybrid automata development and simulation that can be adopted across research and industry to standardize the development process and enable more efficient and effective use of hybrid automata in real-world applications.
 
-    
+%% ==================================== Discuss the background of automaton =============    
 \section{background}
 
     Hybrid automata are extensions of finite automata therefore if you are familiar with them
@@ -115,16 +121,58 @@
         \label{fig:thermostat_ha}
     \end{figure}
 
-    
+
+    %% ======================== TODO: Not sure how to import texs libarary in local TEX env
+    % \begin{figure}[h]
+    % \begin{center}
+    % \begin{tikzpicture}[->,>=stealth',shorten >=2pt,auto,node distance=2.8cm, font=\small, semithick]
+    % \tikzstyle{every state}=[fill=gray!20,draw=black,thick,text=black,scale=1]
+    % \node[state,draw=black,scale=1.1, line width=0.4mm]         (A)  {\texttt{CR}\color{blue}{$(1)$}};
+    % \node[state,draw=black,scale=1, line width=0.4mm]         (B) [ right =3cm of A] {\texttt{T2LOS}\color{blue}{$(2)$}};
+    % \node[state,draw=black,scale=1, line width=0.4mm]         (C) [ below  =2cm  of A] {\texttt{FB}\color{blue}{$(3)$}};
+    % %\node[state,draw=black,scale=1, line width=0.4mm, left =3cm of A] (F) {\texttt{WU}\color{blue}{$(4)$}};
+    % \node[state,draw=black,scale=0.9, line width=0.4mm, below left =2cm of A] (E) {\texttt{G}\color{blue}{$(4)$}};
+    % \path (C) edge [bend left=10] node {$v_{31}(t)$} (A);
+    % \path (A) edge [bend left =10] node {$e_4$} (C);
+    % \path (A) edge [bend left = 10] node {$e_2$} (B);
+    % \path (A) edge [bend left = 30] node {$e_1$} (B);
+    % \path (B) edge [bend left=10] node [swap] {$e_5$} (A);
+    % %\path (A) edge [bend left=30] node  {$e_3$} (F);
+    % \path (A) edge [loop left]   node {$e_3$} (A);
+    % \path (B) edge [bend left=10] node [swap] {$e_6$} (C);
+    % \path (A) edge [bend left=10] node [swap] {$r$} (E);
+    % \end{tikzpicture}
+    % \end{center}
+    % \caption{The hybrid automaton defining our closed-loop system, i.e., it incorporates the ship dynamics with the decision algorithm for collision avoidance and waypoint reaching navigation. }
+    % \label{fig1}
+    % \end{figure}
+
+%% ======================== Discuss the state of the art of automaton ==================
 \section{State of the art }
 
 
+%% ======================== Discuss the current state of the art in automaton development and simulation, including any relevant tools or frameworks that are currently being used. ============
 \section{Discussion / Reserach Gaps}
 
+Currently there is alot of work on automaton, but there is a lack of stardaization in bridgin the gap between the 
+theoricial definition and the actual implementation of the autoamton in the real world. Projects like \cite{frehse2011spaceex} however 
+they arent really focused on stardization of development of hybrid automaton and are quite difficult to use, 
+Therefore there is a need for a unified framework for hybrid automata development and simulation that can be adopted across research and industry
+to standardize the development process and enable more efficient and effective use of hybrid automata in real-world applications.
+
+
+%% ======================== Discuss the research gaps in the field of automaton ============
 \section{conclusions / Future Work}
 
 
-\section{}
+The gap in research/industry prevented outlines the need for a unified frameowork for automaton Development, therefore
+I propose the development of a unified framework and definition langauge for programatically converting automaton to 
+real world application that can be adopted across research and industry. I propose that initially to make this a simple 
+frameowrk anyone can use to create a python-based framework for simulating and running automata in real-time and offline settings.
+It should provide a lightweight, flexible foundation for defining & evaluating custom automata whether that be 
+for research of real world application, whether is be a simple thermostate system or an autonomy stack. It should not only 
+be able to simulate the automaton but also provide tools for visualizing the automaton like in figureand also provide tools 
+for evaluating the automaton in real world settings with real world data. 
 
 \bibliographystyle{plain}
 \bibliography{references}
