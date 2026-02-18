@@ -1,6 +1,6 @@
 \documentclass{report}
 \usepackage[parfill]{parskip}
-
+\usepackage{float}
 \title{
     Standardizing Hybrid Automata: From Theoretical Foundations to Real-World Implementation Frameworks\\
     \large A Pilot Literature on the Development of a Unified Framework for Hybrid Automata Development and Simulation
@@ -40,8 +40,91 @@
 
 
 \section{introduction}
-something happens in here
+    Hybrid automata are formal models for a dynamical system with discrete and continuous components~\cite{561342} widely adopted across research \& industry for a variety of use cases
+    ranging from control systems to stock trading algorithms, and from robotics to cyber-physical systems a recent example of this is for solving COLREG compliant autonomy for maritime vehicles~\cite{SINGH2026123919} 
+    where the hybrid automata is used to model the discrete decision making process of the vessel and the continuous dynamics of the vessel's movement.
 
+    This theoritical framework provides a powerful method for modeling complex systems that can solve real world problems algorithmically without 
+    the need for human intervention during the execution of the system in a way that is efficient and effective and totally transparent for the human-in-the-loop to 
+    comprehend the decision making process of the system.
+
+    While in recent years there has been significant progress in the development of Artifical Intelligence (AI) through the rise of large-scale models 
+    like OpenAI's GPT series~\cite{openai2024gpt4technicalreport} that have shown the ability to imitate human-like reasoning further blurring the lines 
+    between huamn and machine intellgence therefore reducing the gap between what huamns and machines can do there is still issues with AI 
+    that make it difficult to deploy in real world application such as lack of transparency and explainability due to the black-box nature of decision making 
+    caused by the topology of deep-neural networks (dnn) and also an issue with the reliability of AI systems due to their sensitivity 
+    to mistakes in novel situations that they have not been trained on and undefined emergent behviours arrising from outliers in there training 
+    data.  
+
+    for the reasons presented above, hybrid automaton is still one of the most powerful tools for complex system design however, the theoretical framework has been laid there seems to be a lack of stadnardization in converting the theoretical framework into real world 
+    applications with several papers implementing there own versions of hybrid automaton with different algorithms enabling them. 
+
+    In this pilot literature review, we will explore the current state of the art in hybrid automata development and simulation to identify 
+    the current gaps in the field and propose a unified framework for hybrid automata development and simulation that can be adopted across research and industry to standardize the development process and enable more efficient and effective use of hybrid automata in real-world applications.
+
+    
+\section{background}
+
+    Hybrid automata are extensions of finite automata therefore if you are familiar with them
+    you will noticie many similiarties between the two, however, the key difference being the incorporation of 
+    continuous variables and dynamics as well as resets on transitions that effect auxiliary states. 
+
+    The syntax for modelling a hybrid automaton is as follows\dots
+    \begin{figure}[H]
+        \centering 
+            \[
+            H = (Q, X, f, Init, Inv, E, G, R)
+            \]
+
+            where:
+            \begin{itemize}
+                \item $Q$: a finite set of discrete states
+                \item $X$: a finite set of continuous variables
+                \item $f$: a function defining the continuous dynamics in each discrete state
+                \item $Init$: a set of initial conditions
+                \item $Inv$: a set of invariants for each discrete state
+                \item $E$: a set of edges defining transitions
+                \item $G$: guards enabling transitions
+                \item $R$: reset maps updating continuous variables during transitions
+            \end{itemize}
+            \caption{Syntax for modelling a hybrid automaton}
+            \label{fig:ha_syntax}
+    \end{figure}
+
+    A simple example for refereence is a thermostate system, to show the above syntax waye 
+    define the definition of a thermostat system utilizing hybrid automaton as follows: 
+    
+    \begin{figure}[H]
+        \centering 
+        \[
+        H = (Q, X, f, Init, Inv, E, G, R)
+        \]
+
+        where:
+        \begin{itemize}
+            \item $Q = \{ON, OFF\}$: the discrete states representing the thermostat being on or off
+            \item $X = \{T\}$: the continuous variable representing the temperature
+            \item $f$: the dynamics defined as $f(ON) = -k(T - T_{set})$ and $f(OFF) = k(T_{ambient} - T)$ where $k$ is a constant and $T_{set}$ and $T_{ambient}$ are the setpoint and ambient temperatures respectively
+            \item $Init$: the initial conditions could be defined as $Init = \{(OFF, T_0)\}$ where $T_0$ is the initial temperature
+            \item $Inv$: the invariants could be defined as $Inv(ON) = \{T < T_{set}\}$ and $Inv(OFF) = \{T > T_{ambient}\}$
+            \item $E$: the edges defining transitions could be defined as $E = \{(OFF, ON), (ON, OFF)\}$
+            \item $G$: the guards enabling transitions could be defined as $G(OFF, ON) = \{T < T_{set}\}$ and $G(ON, OFF) = \{T > T_{ambient}\}$
+            \item $R$: the reset maps updating continuous variables during transitions could be defined as $R(OFF, ON) = T$ and $R(ON, OFF) = T$
+        \end{itemize}
+        \caption{Example of a hybrid automaton for a thermostat system}
+        \label{fig:thermostat_ha}
+    \end{figure}
+
+    
+\section{State of the art }
+
+
+\section{Discussion / Reserach Gaps}
+
+\section{conclusions / Future Work}
+
+
+\section{}
 
 \bibliographystyle{plain}
 \bibliography{references}

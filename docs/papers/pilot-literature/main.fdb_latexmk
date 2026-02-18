@@ -1,16 +1,18 @@
 # Fdb version 4
-["bibtex main"] 0 "main.aux" "main.bbl" "main" 1771349746.26533 -1
-  "./references.bib" 1771349188.35572 7664 8251eba1df6c7fab8965fde911094694 ""
+["bibtex main"] 1771415721.13147 "main.aux" "main.bbl" "main" 1771415884.93475 0
+  "./references.bib" 1771414243.63545 7829 cebd2b4351d3dedd7e358452e9a221df ""
   "/usr/share/texlive/texmf-dist/bibtex/bst/base/plain.bst" 1292289607 20613 bd3fbfa9f64872b81ac57a0dd2ed855f ""
-  "main.aux" 1771349746.22443 307 dd70e4a239eb64f052eea3b5ebc9516a "pdflatex"
+  "main.aux" 1771415884.85032 1344 ba1490e71df29ce89f6f7a6922471e87 "pdflatex"
   (generated)
   "main.bbl"
   "main.blg"
   (rewritten before read)
-["pdflatex"] 1771349746.10696 "/home/ryan/hybrid-automaton/docs/papers/pilot-literature/main.tex" "main.pdf" "main" 1771349746.26544 0
+["pdflatex"] 1771415884.62153 "/home/ryan/hybrid-automaton/docs/papers/pilot-literature/main.tex" "main.pdf" "main" 1771415884.93508 0
   "/etc/texmf/web2c/texmf.cnf" 1770200293.87224 475 c0e671620eb5563b2130f56340a5fde8 ""
-  "/home/ryan/hybrid-automaton/docs/papers/pilot-literature/main.tex" 1771349746.17706 3172 7f73df3ce2906aaa266ef802b973218c ""
+  "/home/ryan/.texlive2023/texmf-var/fonts/pk/ljfour/jknappen/ec/tcrm1000.600pk" 1771414789.65697 11524 b871c6632c2c9a392fe6deb1825791f8 ""
+  "/home/ryan/hybrid-automaton/docs/papers/pilot-literature/main.tex" 1771415884.39132 8744 90d241e3698317fc16530834ca3203b6 ""
   "/usr/share/texlive/texmf-dist/fonts/map/fontname/texfonts.map" 1577235249 3524 cb3e574dea2d1052e39280babc910dc8 ""
+  "/usr/share/texlive/texmf-dist/fonts/tfm/jknappen/ec/tcrm1000.tfm" 1136768653 1536 e07581a4bb3136ece9eeb4c3ffab8233 ""
   "/usr/share/texlive/texmf-dist/fonts/tfm/public/cm/cmbx10.tfm" 1136768653 1328 c834bbb027764024c09d3d2bf908b5f0 ""
   "/usr/share/texlive/texmf-dist/fonts/tfm/public/cm/cmbx12.tfm" 1136768653 1324 c910af8c371558dc20f2d7822f66fe64 ""
   "/usr/share/texlive/texmf-dist/fonts/tfm/public/cm/cmmi12.tfm" 1136768653 1524 4414a8315f39513458b80dfc63bff03a ""
@@ -26,14 +28,19 @@
   "/usr/share/texlive/texmf-dist/fonts/tfm/public/cm/cmti10.tfm" 1136768653 1480 aa8e34af0eb6a2941b776984cf1dfdc4 ""
   "/usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmbx10.pfb" 1248133631 34811 78b52f49e893bcba91bd7581cdc144c0 ""
   "/usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmbx12.pfb" 1248133631 32080 340ef9bf63678554ee606688e7b5339d ""
+  "/usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi10.pfb" 1248133631 36299 5f9df58c2139e7edcf37c8fca4bd384d ""
+  "/usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi7.pfb" 1248133631 36281 c355509802a035cadc5f15869451dcee ""
   "/usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmr10.pfb" 1248133631 35752 024fb6c41858982481f6968b5fc26508 ""
   "/usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmr12.pfb" 1248133631 32722 d7379af29a190c3f453aba36302ff5a9 ""
   "/usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmr17.pfb" 1248133631 32362 179c33bbf43f19adbb3825bb4e36e57a ""
+  "/usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmr7.pfb" 1248133631 32762 224316ccc9ad3ca0423a14971cfa7fc1 ""
+  "/usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy10.pfb" 1248133631 32569 5e5ddc8df908dea60932f3c484a54c0d ""
   "/usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmti10.pfb" 1248133631 37944 359e864bd06cde3b1cf57bb20757fb06 ""
   "/usr/share/texlive/texmf-dist/tex/generic/ltxcmds/ltxcmds.sty" 1701727651 17865 1a9bd36b4f98178fa551aca822290953 ""
   "/usr/share/texlive/texmf-dist/tex/latex/base/report.cls" 1705352648 23203 f5d913095ece2233436f0e628619cd37 ""
   "/usr/share/texlive/texmf-dist/tex/latex/base/size10.clo" 1705352648 8448 dbc0dbf4156c0bb9ba01a1c685d3bad0 ""
   "/usr/share/texlive/texmf-dist/tex/latex/etoolbox/etoolbox.sty" 1601931149 46845 3b58f70c6e861a13d927bff09d35ecbc ""
+  "/usr/share/texlive/texmf-dist/tex/latex/float/float.sty" 1137110151 6749 16d2656a1984957e674b149555f1ea1d ""
   "/usr/share/texlive/texmf-dist/tex/latex/graphics/keyval.sty" 1654720880 2671 7e67d78d9b88c845599a85b2d41f2e39 ""
   "/usr/share/texlive/texmf-dist/tex/latex/kvoptions/kvoptions.sty" 1655478651 22555 6d8e155cfef6d82c3d5c742fea7c992e ""
   "/usr/share/texlive/texmf-dist/tex/latex/kvsetkeys/kvsetkeys.sty" 1665067230 13815 760b0c02f691ea230f5359c4e1de23a7 ""
@@ -43,9 +50,9 @@
   "/usr/share/texmf/web2c/texmf.cnf" 1707919699 40399 f2c302f7d2af602abb742093540a5834 ""
   "/var/lib/texmf/fonts/map/pdftex/updmap/pdftex.map" 1771345109.41242 165012 f177baa1c39a3ebd62c3096a43521a0d ""
   "/var/lib/texmf/web2c/pdftex/pdflatex.fmt" 1771345143 6830986 e723b5e378dcb7bda8110a89fafc19e8 ""
-  "main.aux" 1771349746.22443 307 dd70e4a239eb64f052eea3b5ebc9516a "pdflatex"
-  "main.bbl" 1771349188.5497 496 ef1396bbea39555056bba9e5854c6bb3 "bibtex main"
-  "main.tex" 1771349746.17706 3172 7f73df3ce2906aaa266ef802b973218c ""
+  "main.aux" 1771415884.85032 1344 ba1490e71df29ce89f6f7a6922471e87 "pdflatex"
+  "main.bbl" 1771415721.18425 4726 cc1d436a75cf3164b7b79706feb7360c "bibtex main"
+  "main.tex" 1771415884.39132 8744 90d241e3698317fc16530834ca3203b6 ""
   (generated)
   "main.aux"
   "main.log"
