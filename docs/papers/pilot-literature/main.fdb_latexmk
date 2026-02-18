@@ -1,16 +1,16 @@
 # Fdb version 4
-["bibtex main"] 1771434509.40869 "main.aux" "main.bbl" "main" 1771435134.32206 0
+["bibtex main"] 1771434509.40869 "main.aux" "main.bbl" "main" 1771435492.0666 0
   "./references.bib" 1771434489.20709 6522 10a8565b1b56f6ae312176a3a01619c2 ""
   "/usr/share/texlive/texmf-dist/bibtex/bst/base/plain.bst" 1292289607 20613 bd3fbfa9f64872b81ac57a0dd2ed855f ""
-  "main.aux" 1771435134.20673 2465 f221acec243f790a955f2c079ce2541a "pdflatex"
+  "main.aux" 1771435491.94165 2465 f221acec243f790a955f2c079ce2541a "pdflatex"
   (generated)
   "main.bbl"
   "main.blg"
   (rewritten before read)
-["pdflatex"] 1771435133.75857 "/home/ryan/hybrid-automaton/docs/papers/pilot-literature/main.tex" "main.pdf" "main" 1771435134.32243 0
+["pdflatex"] 1771435491.5003 "/home/ryan/hybrid-automaton/docs/papers/pilot-literature/main.tex" "main.pdf" "main" 1771435492.06693 0
   "/etc/texmf/web2c/texmf.cnf" 1771428000.11152 475 c0e671620eb5563b2130f56340a5fde8 ""
   "/home/ryan/.texlive2023/texmf-var/fonts/pk/ljfour/jknappen/ec/tcrm1200.600pk" 1771433482.2484 14040 064ad0d32ea18f0870158476fbe0c3b9 ""
-  "/home/ryan/hybrid-automaton/docs/papers/pilot-literature/main.tex" 1771435133.41524 18357 7c50dfcd27dd3fdc03213fec364e67f6 ""
+  "/home/ryan/hybrid-automaton/docs/papers/pilot-literature/main.tex" 1771435491.3807 18357 7c50dfcd27dd3fdc03213fec364e67f6 ""
   "/usr/share/texlive/texmf-dist/fonts/map/fontname/texfonts.map" 1577235249 3524 cb3e574dea2d1052e39280babc910dc8 ""
   "/usr/share/texlive/texmf-dist/fonts/tfm/jknappen/ec/tcrm1200.tfm" 1136768653 1536 74b7293ec3713bb7fdca8dd1bd1f469c ""
   "/usr/share/texlive/texmf-dist/fonts/tfm/public/amsfonts/cmextra/cmex7.tfm" 1246382020 1004 54797486969f23fa377b128694d548df ""
@@ -68,9 +68,9 @@
   "/var/lib/texmf/fonts/map/pdftex/updmap/pdftex.map" 1771428017.98078 165012 f177baa1c39a3ebd62c3096a43521a0d ""
   "/var/lib/texmf/web2c/pdftex/pdflatex.fmt" 1771428041 6830948 f885e2633da22b927935af33b7b12cec ""
   "figures/thermostat_automaton.png" 1771431484.625 4974 885ad11b66c539c841d38d7d83679db3 ""
-  "main.aux" 1771435134.20673 2465 f221acec243f790a955f2c079ce2541a "pdflatex"
+  "main.aux" 1771435491.94165 2465 f221acec243f790a955f2c079ce2541a "pdflatex"
   "main.bbl" 1771434509.43577 4494 a5ec4fcd5c463cd4c456fb0c70f64216 "bibtex main"
-  "main.tex" 1771435133.41524 18357 7c50dfcd27dd3fdc03213fec364e67f6 ""
+  "main.tex" 1771435491.3807 18357 7c50dfcd27dd3fdc03213fec364e67f6 ""
   (generated)
   "main.aux"
   "main.log"
