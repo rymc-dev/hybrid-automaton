@@ -146,7 +146,7 @@ async def main():
         )
     )
     print ("Complete!")
-    print (results)
+    print (results[1])
 
 if __name__ == '__main__': 
     ha = cruise_control()

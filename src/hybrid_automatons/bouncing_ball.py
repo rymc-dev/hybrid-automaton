@@ -208,10 +208,10 @@ async def main():
         sys.exit(1)
         
     from matplotlib import pyplot as plt
-    from hybrid_automaton_evaluation.visualization.figure_generator import continuous_states_over_time_fig, automaton_states_over_time
+    from hybrid_automaton_evaluation.visualization.figure_generator import continuous_states_over_time_fig
     
     fig1 = continuous_states_over_time_fig(results)
-    fig2 = automaton_states_over_time(results) 
+    # fig2 = automaton_states_over_time(results) 
     plt.show()
     
     print (results)
