@@ -7,12 +7,16 @@ from ._runtime import _Runtime
 
 RuntimeContext = _Runtime.Context
 RunResult = _Runtime.RunResult
+ContinuousState = RuntimeContext.ContinuousState
+IntegrationFunction = ContinuousState.IntegrationFcn
 
 __author__ = "Ryan McKee <R.McKee@liverpool.ac.uk>"
-__version__ = "0.0.6"
+__version__ = "0.0.7"
 
 __all__ = [
    'Automaton', 
    'RuntimeContext',
-   'RunResult'
+   'RunResult',
+   'ContinuousState',
+   'IntegrationFunction'
 ]
