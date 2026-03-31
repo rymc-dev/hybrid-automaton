@@ -118,7 +118,7 @@ async def main():
         results = await ha.activate(
             initial_continuous_state = None, 
             enable_real_time_mode=False, 
-            enable_self_integration=True, 
+            enable_self_integration=False, 
             timeout_sec=5.0, 
             delta_time=0.01, 
             continuous_state_sampler_enabled=True,

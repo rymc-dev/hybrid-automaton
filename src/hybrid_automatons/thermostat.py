@@ -11,6 +11,9 @@ from hybrid_automaton.definition import guard
 from hybrid_automaton.definition import continuous_dynamics
 from hybrid_automaton import RuntimeContext
 
+ContinuousState = RuntimeContext.ContinuousState
+
+
 def thermostat(too_cold_threshold: float = 18.0, too_hot_threshold: float = 22.0, 
                ambient_temp: float = 20.0, drift_rate: float = 0.5) -> Automaton: 
     """ 
@@ -107,7 +110,7 @@ async def main():
         results = await asyncio.gather(
             timeout(),
             ha.activate(
-                initial_continuous_state=np.array([25.0]),
+                initial_continuous_state=ContinuousState(name="temperature_state", x0 = np.array([25.0]), x_labels=["temperature"]),
                 enable_real_time_mode=False,
                 enable_self_integration=True,
                 timeout_sec=30.0,

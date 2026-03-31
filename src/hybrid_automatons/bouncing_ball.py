@@ -192,7 +192,7 @@ async def main():
     from hybrid_automaton import RunResult 
     try:        
         results: RunResult = await ha.activate(
-            initial_continuous_state=ContinuousState("bouncing_ball_state", x0=np.array([5.0, 5.0])),
+            initial_continuous_state=ContinuousState("bouncing_ball_state", x0=np.array([5.0, 5.0]), x_labels=['height', 'velocity']),
             enable_real_time_mode=False,
             continuous_state_sampler_enabled=True,
             continuous_state_sampler_rate=100,

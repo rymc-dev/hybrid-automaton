@@ -137,7 +137,7 @@ async def main():
     results = await asyncio.gather(
         timeout(),
         ha.activate(
-            initial_continuous_state=ContinuousState(name="ball", x0=np.array([5.0, 0.0]), integration_func=),
+            initial_continuous_state=ContinuousState(name="car", x0=np.array([5.0, 0.0]), x_labels=['velocity', 'distance']),
             continuous_state_sampler_enabled=True,
             continuous_state_sampler_rate=100,
             enable_real_time_mode=False,
