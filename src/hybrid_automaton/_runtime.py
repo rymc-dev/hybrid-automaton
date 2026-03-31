@@ -615,7 +615,7 @@ f"""# ------------------------------------------------------------
                 self.input_step += 1
 
             def pop(self): 
-                self.aux_buffer.pop()
+                self.aux_buffer.popleft()
             
             def __repr__(self):
                 return (
