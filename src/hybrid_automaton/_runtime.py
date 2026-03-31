@@ -1125,8 +1125,8 @@ f"""# ------------------------------------------------------------
                 error_guards = [[item[0], item[2]] for item in guard_evaluations if item[2] is not None]
                 
                 if error_guards and len(error_guards) >= len(active_guards):
-                    raise Exception(f"All guard evaluations failed - automaton may be stuck")
-                    
+                    logger.WARNING("GUARD WARNING", f"guard evaluation exceptions occured - automaton may be stuck")
+                     
                 if error_guards:
                     for g in error_guards:
                         logger.WARNING("Guard Evaluation", f"Guard '{g[0].name}' raised exception: {g[1]}")
