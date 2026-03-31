@@ -12,6 +12,8 @@ from hybrid_automaton.definition import Transition
 from hybrid_automaton.definition import guard 
 from hybrid_automaton.definition import continuous_dynamics
 
+ContinuousState = RuntimeContext.ContinuousState
+
 
 def cruise_control(target_speed: float = 30.0, safe_distance: float = 50.0,
                    danger_close: float = 20.0, car_ahead_speed: float = 20.0) -> Automaton:
@@ -135,7 +137,7 @@ async def main():
     results = await asyncio.gather(
         timeout(),
         ha.activate(
-            initial_continuous_state=np.array([5.0, 0.0]),
+            initial_continuous_state=ContinuousState(name="ball", x0=np.array([5.0, 0.0]), integration_func=),
             continuous_state_sampler_enabled=True,
             continuous_state_sampler_rate=100,
             enable_real_time_mode=False,

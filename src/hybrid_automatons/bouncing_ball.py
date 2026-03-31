@@ -17,6 +17,8 @@ from hybrid_automaton.definition import continuous_dynamics
 from hybrid_automaton.definition import State 
 from hybrid_automaton.definition import Transition
 
+ContinuousState = RuntimeContext.ContinuousState
+
 
 def bouncing_ball(gravity: float = -9.81, restitution: float = 0.8):
     """ 
@@ -190,7 +192,7 @@ async def main():
     from hybrid_automaton import RunResult 
     try:        
         results: RunResult = await ha.activate(
-            initial_continuous_state=np.array([5.0, 5.0]),
+            initial_continuous_state=ContinuousState("bouncing_ball_state", x0=np.array([5.0, 5.0])),
             enable_real_time_mode=False,
             continuous_state_sampler_enabled=True,
             continuous_state_sampler_rate=100,
@@ -200,7 +202,7 @@ async def main():
             control_input_states_sampler_rate=1,
             enable_self_integration=True,
             delta_time=0.001,
-            timeout_sec=5.0,
+            timeout_sec=20.0,
             output_dir = "/home/ryan/hybrid-automaton/log_hybrid_automaton/bouncing_ball" # TODO: Have the
         ) 
     except Exception as e:

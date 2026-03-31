@@ -87,7 +87,7 @@ class Automaton:
     async def activate(
         self,
         *,
-        initial_continuous_state: Optional[np.ndarray] = None,
+        initial_continuous_state: _Runtime.Context.ContinuousState = None,
         initial_auxiliary_states: Optional[Dict[str, np.ndarray]] = {},
         initial_control_input_states: Optional[Dict[str, np.ndarray]] = {},
         enable_real_time_mode: bool = False,

@@ -460,34 +460,55 @@ f"""# ------------------------------------------------------------
         class ContinuousState:
             """Continuous state representation with time-buffering and integration."""
 
+            class IntegrationFcn(Enum): 
+                @staticmethod
+                def _euler(x, xdot, dt): 
+                    return x + dt * xdot
+                
+                @staticmethod
+                def _rk4(x, xdot, dt): 
+                    k1 = xdot
+                    k2 = xdot
+                    k3 = xdot
+                    k4 = xdot
+                    return x + dt * (k1 + 2*k2 + 2*k3 + k4) / 6
+                        
+                EULER = _euler 
+                RK4 = _rk4
+                
+                def __call__(self, *args, **kwargs): 
+                    return self.value(*args, **kwargs)
+                 
             def __init__(
-                self, 
-                name: str, 
-                x0: np.ndarray, 
-                buffer_len: int = 10,
-                expected_update_hz: float = 10.0,
-                integration_func: Optional[Callable] = None
-            ):
-                self.name = name
-                self.x0 = x0
+                    self, 
+                    name: str, 
+                    x0: np.ndarray, 
+                    x_labels: List,
+                    buffer_len: int = 10,
+                    expected_update_hz: float = 10.0,
+                    integration_fnc: IntegrationFcn = IntegrationFcn.EULER
+                ):
+                    self.name = name
+                    self.x0 = x0
+                    self.x_labels = x_labels
 
-                # state buffers (just like AuxiliaryState)
-                self.x_buffer = deque(maxlen=buffer_len)
-                self.x_update_stamps = deque(maxlen=buffer_len)
+                    # state buffers (just like AuxiliaryState)
+                    self.x_buffer = deque(maxlen=buffer_len)
+                    self.x_update_stamps = deque(maxlen=buffer_len)
 
-                # timing stats
-                self.expected_update_hz = expected_update_hz
-                self.actual_update_hz = expected_update_hz
-                self.last_update_stamp: float = None
+                    # timing stats
+                    self.expected_update_hz = expected_update_hz
+                    self.actual_update_hz = expected_update_hz
+                    self.last_update_stamp: float = None
 
-                # integration
-                self._integration_function = integration_func
+                    # integration
+                    self._integration_function: _Runtime.Context.ContinuousState.IntegrationFcn = integration_fnc
 
-                # bookkeeping
-                self.input_step: int = 0
+                    # bookkeeping
+                    self.input_step: int = 0
 
-                # initialize
-                self._add_state(x0)
+                    # initialize
+                    self._add_state(x0)
 
             def _add_state(self, x: np.ndarray):
                 """Add new state + timestamp, updating timing statistics."""
@@ -526,15 +547,9 @@ f"""# ------------------------------------------------------------
                 self._add_state(x)
 
             def integrate(self, xdot: np.ndarray, dt: float):
-                """Integrate using custom function or Euler fallback."""
+                """Integration utilizing the integration function patched in"""
                 x_current = self.latest()
-
-                if self._integration_function is not None:
-                    x_next = self._integration_function(x_current, xdot, dt)
-                else:
-                    # Euler integration
-                    x_next = x_current + xdot * dt
-
+                x_next = self._integration_function(x_current, xdot, dt)
                 self._add_state(x_next)
 
             def __repr__(self):
@@ -728,7 +743,7 @@ f"""# ------------------------------------------------------------
         def __init__(
             self,
             initial_state,
-            initial_continuous_state: Optional[np.array] = None,
+            initial_continuous_state: ContinuousState = None,
             initial_auxiliary_states: Optional[Dict[str, np.array]] = None,
             initial_control_input_states: Optional[Dict[str, np.array]] = None,
             delta_time: float = 0.001,
@@ -740,10 +755,7 @@ f"""# ------------------------------------------------------------
             from .definition import State
             self.discrete_state: State = initial_state
 
-            self.continuous_state: _Runtime.Context.ContinuousState = _Runtime.Context.ContinuousState(
-                name='agent_state', 
-                x0=initial_continuous_state
-            )
+            self.continuous_state: _Runtime.Context.ContinuousState = initial_continuous_state 
             
             self.auxiliary_states: Dict[str, _Runtime.Context.AuxiliaryState] = {
                 k: _Runtime.Context.AuxiliaryState(name=k, aux0=v) 
