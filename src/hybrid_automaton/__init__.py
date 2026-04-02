@@ -8,6 +8,8 @@ from ._runtime import _Runtime
 RuntimeContext = _Runtime.Context
 RunResult = _Runtime.RunResult
 ContinuousState = RuntimeContext.ContinuousState
+AuxiliaryState = RuntimeContext.AuxiliaryState
+ControlState = RuntimeContext.ControlInput
 IntegrationFunction = ContinuousState.IntegrationFcn
 
 __author__ = "Ryan McKee <R.McKee@liverpool.ac.uk>"
@@ -18,5 +20,7 @@ __all__ = [
    'RuntimeContext',
    'RunResult',
    'ContinuousState',
+   'AuxiliaryState',
+   'ControlState',
    'IntegrationFunction'
 ]
