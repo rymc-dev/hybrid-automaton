@@ -744,8 +744,8 @@ f"""# ------------------------------------------------------------
             self,
             initial_state,
             initial_continuous_state: ContinuousState = None,
-            initial_auxiliary_states: Optional[Dict[str, np.array]] = None,
-            initial_control_input_states: Optional[Dict[str, np.array]] = None,
+            initial_auxiliary_states: Optional[List[AuxiliaryState]] = [],
+            initial_control_input_states: Optional[List[ControlInput]] = [],
             delta_time: float = 0.001,
             real_time_mode: bool = False,
             configuration: Optional[Dict[str, Any]] = None,
@@ -758,13 +758,13 @@ f"""# ------------------------------------------------------------
             self.continuous_state: _Runtime.Context.ContinuousState = initial_continuous_state 
             
             self.auxiliary_states: Dict[str, _Runtime.Context.AuxiliaryState] = {
-                k: _Runtime.Context.AuxiliaryState(name=k, aux0=v) 
-                for k, v in (initial_auxiliary_states or {}).items()
+                state.name: state 
+                for state in initial_auxiliary_states 
             }
             
             self.control_input_states: Dict[str, _Runtime.Context.ControlInput] = {
-                k: _Runtime.Context.ControlInput(name=k, u0=v) 
-                for k, v in (initial_control_input_states or {}).items()
+                state.name: state 
+                for state in initial_control_input_states
             }
             
             self.configuration: Dict[str, Any] = (configuration or {}) | {
@@ -981,7 +981,14 @@ f"""# ------------------------------------------------------------
                 with open(self._file_path, "a", newline="") as f:
                     writer = csv.writer(f)
                     for ts, state in self._samples:
-                        writer.writerow([ts, json.dumps(to_serializable(state))])
+                        if type(state) == dict: 
+                            value_string = ""
+                            for state_value in state.values():
+                                value_string += to_serializable(state_value)
+                                
+                            writer.writerow([ts, json.dumps(value_string)])
+                        else:                                        
+                            writer.writerow([ts, json.dumps(to_serializable(state))])
 
                 self._samples.clear()
                 self._samples_collected = 0
@@ -995,11 +1002,19 @@ f"""# ------------------------------------------------------------
 
         class AuxiliaryStateSampler(BaseStateSampler):
             def _get_state_sample(self, ctx: '_Runtime.Context'):
-                return ctx.auxiliary_states
+                sample_string = "{"
+                for value in ctx.auxiliary_states.values():
+                    sample_string += f"{value.name}:{value.latest()}, "
+                sample_string += "}"
+                return sample_string
 
         class ControlInputStateSampler(BaseStateSampler):
             def _get_state_sample(self, ctx: '_Runtime.Context'):
-                return ctx.control_input_states
+                sample_state = "{"
+                for value in ctx.control_input_states.values(): 
+                    sample_state += f"{value.name}:{value.latest()}, "
+                sample_state += "}"
+                return sample_state
               
         def __init__(
             self,
@@ -1342,9 +1357,9 @@ f"""# ------------------------------------------------------------
     async def activate(
         self,
         *,
-        initial_continuous_state: Optional[np.ndarray] = None,
-        initial_auxiliary_states: Optional[Dict[str, np.ndarray]] = None,
-        initial_control_input_states: Optional[Dict[str, np.ndarray]] = None,
+        initial_continuous_state: Optional[Context.ContinuousState] = None,
+        initial_auxiliary_states: Optional[List[Context.AuxiliaryState]] = [],
+        initial_control_input_states: Optional[List[Context.ControlInput]] = [],
         enable_real_time_mode: Optional[bool] = False,
         enable_self_integration: Optional[bool] = True,
         delta_time: Optional[float] = 0.01,
