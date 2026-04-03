@@ -1000,7 +1000,7 @@ f"""# ------------------------------------------------------------
             def _get_state_sample(self, ctx: '_Runtime.Context'):
                 sample_string = "{"
                 for value in ctx.auxiliary_states.values():
-                    sample_string += f"{value.name}:{value.latest()}, "
+                    sample_string += f"\"{value.name}\":{value.latest()}, "
                 sample_string += "}"
                 return sample_string
 
@@ -1008,7 +1008,7 @@ f"""# ------------------------------------------------------------
             def _get_state_sample(self, ctx: '_Runtime.Context'):
                 sample_state = "{"
                 for value in ctx.control_input_states.values(): 
-                    sample_state += f"{value.name}:{value.latest()}, "
+                    sample_state += f"\"{value.name}\":{value.latest()}, "
                 sample_state += "}"
                 return sample_state
               
