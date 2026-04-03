@@ -981,12 +981,8 @@ f"""# ------------------------------------------------------------
                 with open(self._file_path, "a", newline="") as f:
                     writer = csv.writer(f)
                     for ts, state in self._samples:
-                        if type(state) == dict: 
-                            value_string = ""
-                            for state_value in state.values():
-                                value_string += to_serializable(state_value)
-                                
-                            writer.writerow([ts, json.dumps(value_string)])
+                        if type(state) == str: 
+                            writer.writerow([ts, state])
                         else:                                        
                             writer.writerow([ts, json.dumps(to_serializable(state))])
 
