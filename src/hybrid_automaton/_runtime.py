@@ -19,6 +19,7 @@ from typing import Any, Callable, Dict, List, Optional
 import numpy as np
 
 from .definition import State, Transition, _Definition
+from .definition import continuous_state_provider, auxiliary_state_provider, control_input_states_provider
 
 
 # environment info
@@ -1346,11 +1347,11 @@ f"""# ------------------------------------------------------------
         control_input_states_sampler_enabled: bool = False,
         control_input_states_sampler_rate: Optional[int] = 1,
         control_input_states_samples_per_write: Optional[int] = 1000,
-        continuous_state_provider: Optional[Callable] = None,
+        continuous_state_provider: Optional[continuous_state_provider] = None,
         continuous_state_provision_rate: Optional[int] = None,
-        auxiliary_states_provider: Optional[Callable] = None,
+        auxiliary_states_provider: Optional[auxiliary_state_provider] = None,
         auxiliary_states_provision_rate: Optional[int] = None,
-        control_input_states_provider: Optional[Callable] = None,
+        control_input_states_provider: Optional[control_input_states_provider] = None,
         control_input_states_provision_rate: Optional[int] = None,
         should_write_logs: bool = True,
         output_dir: str = "./log_hybrid_automaton/"

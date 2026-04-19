@@ -43,7 +43,8 @@ class Automaton:
     functions:
         
     """
-
+        
+    
     def __init__(
         self,
         *, 
