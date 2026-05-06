@@ -8,11 +8,19 @@ from ._runtime import _Runtime
 RuntimeContext = _Runtime.Context
 RunResult = _Runtime.RunResult
 
+ContinuousState = _Runtime.Context.ContinuousState
+AuxiliaryState = _Runtime.Context.AuxiliaryState
+ControlState = _Runtime.Context.ControlInput
+
+
 __author__ = "Ryan McKee <R.McKee@liverpool.ac.uk>"
-__version__ = "0.0.6"
+__version__ = "0.0.8"
 
 __all__ = [
    'Automaton', 
    'RuntimeContext',
-   'RunResult'
+   'RunResult',
+   'ContinuousState',
+   'AuxiliaryState',
+   'ControlState'
 ]

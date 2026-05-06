@@ -729,9 +729,9 @@ f"""# ------------------------------------------------------------
         def __init__(
             self,
             initial_state,
-            initial_continuous_state: Optional[np.array] = None,
-            initial_auxiliary_states: Optional[Dict[str, np.array]] = None,
-            initial_control_input_states: Optional[Dict[str, np.array]] = None,
+            initial_continuous_state: Optional[ContinuousState] = None,
+            initial_auxiliary_states: Optional[List[AuxiliaryState]] = None,
+            initial_control_input_states: Optional[List[ControlInput]] = None,
             delta_time: float = 0.001,
             real_time_mode: bool = False,
             configuration: Optional[Dict[str, Any]] = None,
@@ -741,21 +741,9 @@ f"""# ------------------------------------------------------------
             from .definition import State
             self.discrete_state: State = initial_state
 
-            self.continuous_state: _Runtime.Context.ContinuousState = _Runtime.Context.ContinuousState(
-                name='agent_state', 
-                x0=initial_continuous_state
-            )
-            
-            self.auxiliary_states: Dict[str, _Runtime.Context.AuxiliaryState] = {
-                k: _Runtime.Context.AuxiliaryState(name=k, aux0=v) 
-                for k, v in (initial_auxiliary_states or {}).items()
-            }
-            
-            self.control_input_states: Dict[str, _Runtime.Context.ControlInput] = {
-                k: _Runtime.Context.ControlInput(name=k, u0=v) 
-                for k, v in (initial_control_input_states or {}).items()
-            }
-            
+            self.continuous_state: _Runtime.Context.ContinuousState = initial_continuous_state
+            self.auxiliary_states: List[_Runtime.Context.AuxiliaryState] = initial_auxiliary_states 
+            self.control_input_states: Dict[str, _Runtime.Context.ControlInput] = initial_control_input_states  
             self.configuration: Dict[str, Any] = (configuration or {}) | {
                 "should_integrate": should_integrate
             }
@@ -1338,9 +1326,9 @@ f"""# ------------------------------------------------------------
     async def activate(
         self,
         *,
-        initial_continuous_state: Optional[np.ndarray] = None,
-        initial_auxiliary_states: Optional[Dict[str, np.ndarray]] = None,
-        initial_control_input_states: Optional[Dict[str, np.ndarray]] = None,
+        initial_continuous_state: Optional[Context.ContinuousState] = None,
+        initial_auxiliary_states: Optional[List[Context.AuxiliaryState]] = None,
+        initial_control_input_states: Optional[List[Context.AuxiliaryState]] = None,
         enable_real_time_mode: Optional[bool] = False,
         enable_self_integration: Optional[bool] = True,
         delta_time: Optional[float] = 0.01,
