@@ -460,34 +460,55 @@ f"""# ------------------------------------------------------------
         class ContinuousState:
             """Continuous state representation with time-buffering and integration."""
 
+            class IntegrationFcn(Enum): 
+                @staticmethod
+                def _euler(x, xdot, dt): 
+                    return x + dt * xdot
+                
+                @staticmethod
+                def _rk4(x, xdot, dt): 
+                    k1 = xdot
+                    k2 = xdot
+                    k3 = xdot
+                    k4 = xdot
+                    return x + dt * (k1 + 2*k2 + 2*k3 + k4) / 6
+                        
+                EULER = _euler 
+                RK4 = _rk4
+                
+                def __call__(self, *args, **kwargs): 
+                    return self.value(*args, **kwargs)
+                 
             def __init__(
-                self, 
-                name: str, 
-                x0: np.ndarray, 
-                buffer_len: int = 10,
-                expected_update_hz: float = 10.0,
-                integration_func: Optional[Callable] = None
-            ):
-                self.name = name
-                self.x0 = x0
+                    self, 
+                    name: str, 
+                    x0: np.ndarray, 
+                    x_labels: List,
+                    buffer_len: int = 10,
+                    expected_update_hz: float = 10.0,
+                    integration_fnc: IntegrationFcn = IntegrationFcn.EULER
+                ):
+                    self.name = name
+                    self.x0 = x0
+                    self.x_labels = x_labels
 
-                # state buffers (just like AuxiliaryState)
-                self.x_buffer = deque(maxlen=buffer_len)
-                self.x_update_stamps = deque(maxlen=buffer_len)
+                    # state buffers (just like AuxiliaryState)
+                    self.x_buffer = deque(maxlen=buffer_len)
+                    self.x_update_stamps = deque(maxlen=buffer_len)
 
-                # timing stats
-                self.expected_update_hz = expected_update_hz
-                self.actual_update_hz = expected_update_hz
-                self.last_update_stamp: float = None
+                    # timing stats
+                    self.expected_update_hz = expected_update_hz
+                    self.actual_update_hz = expected_update_hz
+                    self.last_update_stamp: float = None
 
-                # integration
-                self._integration_function = integration_func
+                    # integration
+                    self._integration_function: _Runtime.Context.ContinuousState.IntegrationFcn = integration_fnc
 
-                # bookkeeping
-                self.input_step: int = 0
+                    # bookkeeping
+                    self.input_step: int = 0
 
-                # initialize
-                self._add_state(x0)
+                    # initialize
+                    self._add_state(x0)
 
             def _add_state(self, x: np.ndarray):
                 """Add new state + timestamp, updating timing statistics."""
@@ -526,15 +547,9 @@ f"""# ------------------------------------------------------------
                 self._add_state(x)
 
             def integrate(self, xdot: np.ndarray, dt: float):
-                """Integrate using custom function or Euler fallback."""
+                """Integration utilizing the integration function patched in"""
                 x_current = self.latest()
-
-                if self._integration_function is not None:
-                    x_next = self._integration_function(x_current, xdot, dt)
-                else:
-                    # Euler integration
-                    x_next = x_current + xdot * dt
-
+                x_next = self._integration_function(x_current, xdot, dt)
                 self._add_state(x_next)
 
             def __repr__(self):
@@ -600,7 +615,7 @@ f"""# ------------------------------------------------------------
                 self.input_step += 1
 
             def pop(self): 
-                self.aux_buffer.pop()
+                self.aux_buffer.popleft()
             
             def __repr__(self):
                 return (
@@ -728,9 +743,9 @@ f"""# ------------------------------------------------------------
         def __init__(
             self,
             initial_state,
-            initial_continuous_state: Optional[np.array] = None,
-            initial_auxiliary_states: Optional[Dict[str, np.array]] = None,
-            initial_control_input_states: Optional[Dict[str, np.array]] = None,
+            initial_continuous_state: ContinuousState = None,
+            initial_auxiliary_states: Optional[List[AuxiliaryState]] = [],
+            initial_control_input_states: Optional[List[ControlInput]] = [],
             delta_time: float = 0.001,
             real_time_mode: bool = False,
             configuration: Optional[Dict[str, Any]] = None,
@@ -740,19 +755,16 @@ f"""# ------------------------------------------------------------
             from .definition import State
             self.discrete_state: State = initial_state
 
-            self.continuous_state: _Runtime.Context.ContinuousState = _Runtime.Context.ContinuousState(
-                name='agent_state', 
-                x0=initial_continuous_state
-            )
+            self.continuous_state: _Runtime.Context.ContinuousState = initial_continuous_state 
             
             self.auxiliary_states: Dict[str, _Runtime.Context.AuxiliaryState] = {
-                k: _Runtime.Context.AuxiliaryState(name=k, aux0=v) 
-                for k, v in (initial_auxiliary_states or {}).items()
+                state.name: state 
+                for state in initial_auxiliary_states 
             }
             
             self.control_input_states: Dict[str, _Runtime.Context.ControlInput] = {
-                k: _Runtime.Context.ControlInput(name=k, u0=v) 
-                for k, v in (initial_control_input_states or {}).items()
+                state.name: state 
+                for state in initial_control_input_states
             }
             
             self.configuration: Dict[str, Any] = (configuration or {}) | {
@@ -969,7 +981,10 @@ f"""# ------------------------------------------------------------
                 with open(self._file_path, "a", newline="") as f:
                     writer = csv.writer(f)
                     for ts, state in self._samples:
-                        writer.writerow([ts, json.dumps(to_serializable(state))])
+                        if type(state) == str: 
+                            writer.writerow([ts, state])
+                        else:                                        
+                            writer.writerow([ts, json.dumps(to_serializable(state))])
 
                 self._samples.clear()
                 self._samples_collected = 0
@@ -983,11 +998,19 @@ f"""# ------------------------------------------------------------
 
         class AuxiliaryStateSampler(BaseStateSampler):
             def _get_state_sample(self, ctx: '_Runtime.Context'):
-                return ctx.auxiliary_states
+                sample_string = "{"
+                for value in ctx.auxiliary_states.values():
+                    sample_string += f"\"{value.name}\":{value.latest()}, "
+                sample_string += "}"
+                return sample_string
 
         class ControlInputStateSampler(BaseStateSampler):
             def _get_state_sample(self, ctx: '_Runtime.Context'):
-                return ctx.control_input_states
+                sample_state = "{"
+                for value in ctx.control_input_states.values(): 
+                    sample_state += f"\"{value.name}\":{value.latest()}, "
+                sample_state += "}"
+                return sample_state
               
         def __init__(
             self,
@@ -1113,8 +1136,8 @@ f"""# ------------------------------------------------------------
                 error_guards = [[item[0], item[2]] for item in guard_evaluations if item[2] is not None]
                 
                 if error_guards and len(error_guards) >= len(active_guards):
-                    raise Exception(f"All guard evaluations failed - automaton may be stuck")
-                    
+                    logger.WARNING("GUARD WARNING", f"guard evaluation exceptions occured - automaton may be stuck")
+                     
                 if error_guards:
                     for g in error_guards:
                         logger.WARNING("Guard Evaluation", f"Guard '{g[0].name}' raised exception: {g[1]}")
@@ -1330,9 +1353,9 @@ f"""# ------------------------------------------------------------
     async def activate(
         self,
         *,
-        initial_continuous_state: Optional[np.ndarray] = None,
-        initial_auxiliary_states: Optional[Dict[str, np.ndarray]] = None,
-        initial_control_input_states: Optional[Dict[str, np.ndarray]] = None,
+        initial_continuous_state: Optional[Context.ContinuousState] = None,
+        initial_auxiliary_states: Optional[List[Context.AuxiliaryState]] = [],
+        initial_control_input_states: Optional[List[Context.ControlInput]] = [],
         enable_real_time_mode: Optional[bool] = False,
         enable_self_integration: Optional[bool] = True,
         delta_time: Optional[float] = 0.01,

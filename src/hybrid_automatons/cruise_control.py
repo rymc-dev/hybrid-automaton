@@ -12,6 +12,9 @@ from hybrid_automaton.definition import Transition
 from hybrid_automaton.definition import guard 
 from hybrid_automaton.definition import continuous_dynamics
 
+ContinuousState = RuntimeContext.ContinuousState
+AuxiliaryState = RuntimeContext.AuxiliaryState
+
 
 def cruise_control(target_speed: float = 30.0, safe_distance: float = 50.0,
                    danger_close: float = 20.0, car_ahead_speed: float = 20.0) -> Automaton:
@@ -129,24 +132,23 @@ def cruise_control(target_speed: float = 30.0, safe_distance: float = 50.0,
 
 
 async def main(): 
-    async def timeout():
-        await asyncio.sleep(5.0)
-        ha.deactivate()
-    results = await asyncio.gather(
-        timeout(),
-        ha.activate(
-            initial_continuous_state=np.array([5.0, 0.0]),
+    result = await ha.activate(
+            initial_continuous_state=ContinuousState(name="car", x0=np.array([5.0, 0.0]), x_labels=['velocity', 'distance']),
+            initial_auxiliary_states=[
+                AuxiliaryState(name="test_aux_state", aux0=[0.0, 0.0], aux_buffer_len=10, expected_update_hz=10),
+                AuxiliaryState(name="dump state", aux0=np.array([10.0, 10.0]), aux_buffer_len=1, expected_update_hz=np.inf)
+            ],
             continuous_state_sampler_enabled=True,
             continuous_state_sampler_rate=100,
+            auxiliary_states_sampler_enabled=True,
+            auxiliary_states_sampler_rate=10,
             enable_real_time_mode=False,
             enable_self_integration=True,
             timeout_sec=30.0,
             delta_time=0.01,
             output_dir="log_hybrid_automaton/cruise_control/"
-        )
     )
-    print ("Complete!")
-    print (results[1])
+    print (result)
 
 if __name__ == '__main__': 
     ha = cruise_control()
