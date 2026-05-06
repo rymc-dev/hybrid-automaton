@@ -12,8 +12,13 @@ AuxiliaryState = RuntimeContext.AuxiliaryState
 ControlState = RuntimeContext.ControlInput
 IntegrationFunction = ContinuousState.IntegrationFcn
 
+ContinuousState = _Runtime.Context.ContinuousState
+AuxiliaryState = _Runtime.Context.AuxiliaryState
+ControlState = _Runtime.Context.ControlInput
+
+
 __author__ = "Ryan McKee <R.McKee@liverpool.ac.uk>"
-__version__ = "0.0.7"
+__version__ = "0.0.8"
 
 __all__ = [
    'Automaton', 

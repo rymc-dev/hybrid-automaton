@@ -30,6 +30,30 @@ class _Annotation:
             raise TypeError(f"{self.name}: ctx must be a Context instance")
         return self.func(ctx)
 
+def continuous_state_provider(func: Callable = None, *, name=None, description=""):
+    def wrapper(f):
+        if hasattr(f, "__annotations__") and "return" in f.__annotations__:
+            if f.__annotations__["return"] is not None:
+                raise TypeError(f"Continuous State provider:'{f.__name__}' must return none as this is an action class")
+        return _Annotation(f, name="continuous_state_sampler", priority=-1, description=description)
+    return wrapper(func) if func else wrapper
+
+def auxiliary_state_provider(func: Callable = None, *, name=None, description=""):
+    def wrapper(f): 
+        if hasattr(f, "__annotations__") and "return" in f.__annotations__:
+            if f.__annotations__["return"] is not Dict:
+                raise TypeError(f"Auxiliary States provider:'{f.__name__}' must return none as this is an action class")
+            return _Annotation(f, name="auxiliary_states_provider", priority=-1, description=description)
+    return wrapper(func) if func else wrapper 
+
+def control_input_states_provider(func: Callable = None, *, name=None, description=""):
+    def wrapper(f): 
+        if hasattr(f, "__annotations__") and "return" in f.__annotations__:
+            if f.__annotations__["return"] is not Dict:
+                raise TypeError(f"Control Inputs State provider:'{f.__name__}' must return none as this is an action class")
+            return _Annotation(f, name="control_inputs_state_provider", priority=-1, description=description)
+    return wrapper(func) if func else wrapper 
+
 def guard(func: Callable = None, *, name=None, priority=0, description=""):
     def wrapper(f):
         if hasattr(f, "__annotations__") and "return" in f.__annotations__:

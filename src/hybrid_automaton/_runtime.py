@@ -19,6 +19,7 @@ from typing import Any, Callable, Dict, List, Optional
 import numpy as np
 
 from .definition import State, Transition, _Definition
+from .definition import continuous_state_provider, auxiliary_state_provider, control_input_states_provider
 
 
 # environment info
@@ -819,7 +820,7 @@ f"""# ------------------------------------------------------------
                 try:
                     while self._active_event.is_set():
                         try:
-                            value = self._fn()
+                            value = self._fn(ctx)
                             self._inject(ctx, value)
                         except Exception as e:
                             print(f"{self.__class__.__name__} injection error: {e}")
@@ -835,15 +836,22 @@ f"""# ------------------------------------------------------------
             
         class ContinuousStateProvider(BaseStateProvider):
             def _inject(self, ctx: '_Runtime.Context', value):
-                ctx.continuous_state = value
+                # continuous state is just the value of 1
+                ctx.continuous_state.set_continuous_state(value)
 
         class AuxiliaryStateProvider(BaseStateProvider):
-            def _inject(self, ctx: '_Runtime.Context', value):
-                ctx.auxiliary_states = value
+            def _inject(self, ctx: '_Runtime.Context', value: Dict):
+                # since there can be several auxiliary states 
+                # we consider it a dictionary of items
+                for state_name, state in value.items():
+                    ctx.auxiliary_states[state_name].add(state)
 
         class ControlInputProvider(BaseStateProvider):
-            def _inject(self, ctx: '_Runtime.Context', value):
-                ctx.control_input_states = value
+            def _inject(self, ctx: '_Runtime.Context', value: Dict):
+                # since we consider control input state a dictionary of items
+                # we iterate through and inject
+                for state_name, state in value.items(): 
+                    ctx.control_input_states[state_name].add(state)
 
         def __init__(
             self,
@@ -1369,11 +1377,11 @@ f"""# ------------------------------------------------------------
         control_input_states_sampler_enabled: bool = False,
         control_input_states_sampler_rate: Optional[int] = 1,
         control_input_states_samples_per_write: Optional[int] = 1000,
-        continuous_state_provider: Optional[Callable] = None,
+        continuous_state_provider: Optional[continuous_state_provider] = None,
         continuous_state_provision_rate: Optional[int] = None,
-        auxiliary_states_provider: Optional[Callable] = None,
+        auxiliary_states_provider: Optional[auxiliary_state_provider] = None,
         auxiliary_states_provision_rate: Optional[int] = None,
-        control_input_states_provider: Optional[Callable] = None,
+        control_input_states_provider: Optional[control_input_states_provider] = None,
         control_input_states_provision_rate: Optional[int] = None,
         should_write_logs: bool = True,
         output_dir: str = "./log_hybrid_automaton/"
