@@ -105,27 +105,13 @@ def self_loop_detection(run_result: RunResult, window: int = 2) -> List[Dict]:
     return chattering_events
 
 
-def chattering_statistics(run_result: RunResult) -> Dict:
-    """
-    Provide summary statistics about chattering behavior.
-    
-    Returns:
-        Dictionary with chattering metrics including count, total time, and patterns.
-    """
-    chattering_events = self_loop_detection(run_result)
-    
-    if not chattering_events:
-        return {
-            'total_chattering_events': 0,
-            'total_chattering_time': 0.0,
-            'patterns': {}
-        }
-    
-    pattern_counts = defaultdict(int)
-    
-    
+# NOTE: a chattering_statistics() summary function (counts/total time/patterns on
+# top of self_loop_detection above) is planned for a future release but not
+# implemented yet.
+
+
 if __name__ == '__main__':
-    run_results = RunResult(run_logs_dir_path="/home/ryan/hybrid-automaton/log_hybrid_automaton/bouncing_ball")
+    run_results = RunResult(run_logs_dir_path="./log_hybrid_automaton/bouncing_ball")
 
     print ('\n')
     print (transition_count_between_modes(run_result=run_results))

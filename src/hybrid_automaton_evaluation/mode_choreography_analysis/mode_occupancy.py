@@ -8,8 +8,6 @@ number of visits per mode
 
 from hybrid_automaton import RunResult
 import os
-from typing import List
-
 from typing import List, Tuple, Dict
 from collections import Counter
 
@@ -92,7 +90,7 @@ def number_of_visits_per_mode(run_result: RunResult) -> Dict[str, int]:
 
     
 if __name__ == '__main__':
-    run_results = RunResult(run_logs_dir_path="/home/ryan/hybrid-automaton/log_hybrid_automaton/bouncing_ball")
+    run_results = RunResult(run_logs_dir_path="./log_hybrid_automaton/bouncing_ball")
     print (time_spent_in_each_mode(run_results))
     print (extract_mode_transitions(run_results))
     print (fraction_of_mission_in_each_mode(run_results))

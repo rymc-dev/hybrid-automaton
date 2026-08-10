@@ -8,11 +8,10 @@ structure of a hybrid automaton in this package.
 """
 
 
-from typing import List, Optional, Any, Dict, Callable,Tuple 
+from typing import List, Optional, Any, Dict, Callable, Tuple
 import hashlib
 import json
 import numpy as np
-from typing import Tuple
 # Definition Decorators
 
 # TODO: Need to investigate if there is a point in the _ANNOTATION class
@@ -39,20 +38,20 @@ def continuous_state_provider(func: Callable = None, *, name=None, description="
     return wrapper(func) if func else wrapper
 
 def auxiliary_state_provider(func: Callable = None, *, name=None, description=""):
-    def wrapper(f): 
+    def wrapper(f):
         if hasattr(f, "__annotations__") and "return" in f.__annotations__:
             if f.__annotations__["return"] is not Dict:
                 raise TypeError(f"Auxiliary States provider:'{f.__name__}' must return none as this is an action class")
-            return _Annotation(f, name="auxiliary_states_provider", priority=-1, description=description)
-    return wrapper(func) if func else wrapper 
+        return _Annotation(f, name="auxiliary_states_provider", priority=-1, description=description)
+    return wrapper(func) if func else wrapper
 
 def control_input_states_provider(func: Callable = None, *, name=None, description=""):
-    def wrapper(f): 
+    def wrapper(f):
         if hasattr(f, "__annotations__") and "return" in f.__annotations__:
             if f.__annotations__["return"] is not Dict:
                 raise TypeError(f"Control Inputs State provider:'{f.__name__}' must return none as this is an action class")
-            return _Annotation(f, name="control_inputs_state_provider", priority=-1, description=description)
-    return wrapper(func) if func else wrapper 
+        return _Annotation(f, name="control_inputs_state_provider", priority=-1, description=description)
+    return wrapper(func) if func else wrapper
 
 def guard(func: Callable = None, *, name=None, priority=0, description=""):
     def wrapper(f):
@@ -108,22 +107,6 @@ def continuous_dynamics(func: Callable = None, *, name=None, priority=0, descrip
         inner.description = description
         return inner
 
-    return wrapper(func) if func else wrapper
-
-def integration(func: Callable = None, *, name=None, priority=0, description=""):
-    def wrapper(f):
-        if hasattr(f, "__annotations__") and "return" in f.__annotations__:
-            if f.__annotations__["return"] is not np.ndarray:
-                raise TypeError(f"Integration '{f.__name__}' must return np.ndarray")
-        def inner(ctx):
-            result = f(ctx)
-            if not isinstance(result, np.ndarray):
-                raise TypeError(f"Integration '{f.__name__}' must return np.ndarray")
-            return result
-        inner.__name__ = name or f.__name__
-        inner.priority = priority
-        inner.description = description
-        return inner
     return wrapper(func) if func else wrapper
 
 
@@ -246,20 +229,20 @@ class Transition:
         ctx = self.apply_reset(ctx)
         return self._to_q, ctx
     
-    def __repr__(self): 
+    def __repr__(self):
         """Developer representation: unambiguous string useful for debugging."""
         to_name = getattr(self._to_q, "name", repr(self._to_q))
         guards_repr = None if self._G is None else [getattr(g, "__name__", repr(g)) for g in self._G]
         reset_repr = None if self._R is None else getattr(self._R, "__name__", repr(self._R))
         return (
-            f"HybridTransition(name={self._name!r}, value={self._value!r}, "
+            f"Transition(name={self._name!r}, "
             f"to={to_name!r}, guards={guards_repr!r}, reset={reset_repr!r}, "
             f"priority={self._priority!r})"
         )
-    
-    def __str__(self): 
+
+    def __str__(self):
         """User-friendly string: shows target, guard names and reset name."""
-        to_name = getattr(self._to_q, "name", repr(self.to_q))
+        to_name = getattr(self._to_q, "name", repr(self._to_q))
         if self._G:
             guards_list = [getattr(g, "__name__", repr(g)) for g in self._G]
             guards_str = ", ".join(guards_list)
@@ -267,36 +250,33 @@ class Transition:
             guards_str = "None"
         reset_str = getattr(self._R, "__name__", repr(self._R)) if self._R is not None else "None"
         return (
-            f"Transition '{self._name}' -> {to_name} (value={self._value}, priority={self._priority}, "
+            f"Transition '{self._name}' -> {to_name} (priority={self._priority}, "
             f"guards=[{guards_str}], reset={reset_str})"
         )
 
 class State:
-    """ 
-    HybridState is a discrete state represeting a control mode the hybrid
-    automaton can be in. 
+    """
+    State is a discrete state represeting a control mode the hybrid
+    automaton can be in.
 
-    Args: 
+    Args:
         name: str
-            A human-readable representation of the state. Default is derived
-            from the value
-        value: int
-            A specific value for representation of the state for retrieval/storage of it
+            A human-readable representation of the state.
         initial: Optional[bool]
             Set ``True`` if the state is the inital one, There must only be one
             state ever at a time, defaults to ``False``
-        final: Optional[bool] 
+        final: Optional[bool]
             Set ``True`` to represent a final state. FIle states have no :ref: to transition
             starting from it, Defaults to ``False``
-        flow: Optional[Callbable] 
-            flow function utilized for calculation of continous state of the hybrid automaton, 
+        flow: Optional[Callbable]
+            flow function utilized for calculation of continous state of the hybrid automaton,
             defaults to ``none`` meaning continous dynamics return nothing
-        invariants: Optional[List[Callable]] 
+        invariants: Optional[List[Callable]]
             invariant function utilzied while inside hybrid automaton state, can evaluate continous
             state and auxielary context of the environment and generate true/false values based on whether
             we should be in this state.
-        transitions: Optional[HybridTransition]
-            A list of HybridTransitions associated with this hybrid automaton state
+        transitions: Optional[List[Transition]]
+            A list of Transitions associated with this hybrid automaton state
         integration_method: Optional[Callable] 
             This is an optional function for continous dynamic simulation it is required if 
             automaton is simulation otherwise not if real time because continous state will be generated 
@@ -325,7 +305,7 @@ class State:
         flow: Optional[Callable] = None,
         invariants: Optional[List[Callable]] = None,
         transitions: Optional[List['Transition']] = None,
-        integartion_method: Optional[Callable] = None,
+        integration_method: Optional[Callable] = None,
         on_enter: Optional[Callable] = None,
         on_exit: Optional[Callable] = None
     ):
@@ -334,8 +314,8 @@ class State:
         State._id_counter += 1
         self.flow = flow
         self._Inv = invariants
-        self._D = [] if transitions == None else transitions
-        self.integration_method = integartion_method
+        self._D = [] if transitions is None else transitions
+        self.integration_method = integration_method
         self._is_init = initial
         self._is_final = final
         self.on_enter = on_enter
@@ -417,8 +397,6 @@ class State:
     def check_invariants(self, ctx: Any) -> bool:
         if not self._Inv:
             return False if self._is_final else True
-        # TODO: IMprove through dynamic programming
-        # try: return not any([i(ctx) for i in self.Inv]); except Exception: return False
         for i in self._Inv:
             try:
                 if not bool(i(ctx)):
@@ -553,7 +531,7 @@ class _Definition:
 
         lines = ["stateDiagram-v2"]
 
-        lines.append(f"    direction LR")
+        lines.append("    direction LR")
 
         # ---------------------------------------------------------
         # Initial state arrow

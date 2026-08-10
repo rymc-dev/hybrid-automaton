@@ -3,7 +3,8 @@
 # SPDX-License-Identifier: MIT
 
 from ._automaton import Automaton
-from ._runtime import _Runtime 
+from ._runtime import _Runtime
+from .__about__ import __version__
 
 RuntimeContext = _Runtime.Context
 RunResult = _Runtime.RunResult
@@ -12,20 +13,16 @@ AuxiliaryState = RuntimeContext.AuxiliaryState
 ControlState = RuntimeContext.ControlInput
 IntegrationFunction = ContinuousState.IntegrationFcn
 
-ContinuousState = _Runtime.Context.ContinuousState
-AuxiliaryState = _Runtime.Context.AuxiliaryState
-ControlState = _Runtime.Context.ControlInput
 
-
-__author__ = "Ryan McKee <R.McKee@liverpool.ac.uk>"
-__version__ = "0.0.8"
+__author__ = "Ryan McKee <ryanmckee47@icloud.com>"
 
 __all__ = [
-   'Automaton', 
+   'Automaton',
    'RuntimeContext',
    'RunResult',
    'ContinuousState',
    'AuxiliaryState',
    'ControlState',
-   'IntegrationFunction'
+   'IntegrationFunction',
+   '__version__'
 ]

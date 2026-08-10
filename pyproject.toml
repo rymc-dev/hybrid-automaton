@@ -14,7 +14,7 @@ authors = [
   { name = "Ryan McKee", email = "ryanmckee47@icloud.com" },
 ]
 classifiers = [
-  "Development Status :: 4 - Beta",
+  "Development Status :: 5 - Production/Stable",
   "Programming Language :: Python",
   "Programming Language :: Python :: 3.8",
   "Programming Language :: Python :: 3.9",
@@ -25,19 +25,24 @@ classifiers = [
   "Programming Language :: Python :: Implementation :: PyPy",
 ]
 
-# IMPORTANT FIXES HERE:
 dependencies = [
-  "numpy<1.28",
+  "numpy>=1.24,<3",
   "matplotlib",
   "pyyaml",
   "lark",
-  "pytest-asyncio"
+]
+
+[project.optional-dependencies]
+test = [
+  "pytest",
+  "pytest-asyncio",
+  "pytest-mock",
 ]
 
 [project.urls]
-Documentation = "https://github.com/Ryan McKee/hybrid-automaton#readme"
-Issues = "https://github.com/Ryan McKee/hybrid-automaton/issues"
-Source = "https://github.com/Ryan McKee/hybrid-automaton"
+Documentation = "https://github.com/rymc-dev/hybrid-automaton#readme"
+Issues = "https://github.com/rymc-dev/hybrid-automaton/issues"
+Source = "https://github.com/rymc-dev/hybrid-automaton"
 
 [tool.hatch.version]
 path = "src/hybrid_automaton/__about__.py"
@@ -47,38 +52,38 @@ extra-dependencies = [
   "mypy>=1.0.0",
 ]
 [tool.hatch.envs.types.scripts]
-check = "mypy --install-types --non-interactive {args:src/hybrid_automaton src/hybrid_automatons src/hybrid_automaton_evaluation src/hybrid_automaton_runner tests}"
+check = "mypy --install-types --non-interactive {args:src/hybrid_automaton src/hybrid_automatons src/hybrid_automaton_evaluation tests}"
 
 [tool.coverage.run]
-source_pkgs = ["hybrid_automaton", "hybrid_automatons", "hybrid_automaton_runner", "hybrid_autoamton_evaluation", "tests"]
+source_pkgs = ["hybrid_automaton", "hybrid_automatons", "hybrid_automaton_evaluation", "tests"]
 branch = true
 parallel = true
 omit = [
   "src/hybrid_automaton/__about__.py",
 ]
 
-# FIXED: Hatch packages listed by IMPORT NAME, not path
 [tool.hatch.build]
 packages = [
 "src/hybrid_automaton",
 "src/hybrid_automatons",
 "src/hybrid_automaton_evaluation",
-"src/hybrid_automaton_runner",
 ]
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/hybrid_automaton", "src/hybrid_automatons", "src/hybrid_automaton_evaluation", "src/hybrid_automaton_runner"]
+packages = ["src/hybrid_automaton", "src/hybrid_automatons", "src/hybrid_automaton_evaluation"]
 
 [tool.hatch.build.targets.sdist]
-packages = ["src/hybrid_automaton", "src/hybrid_automatons", "src/hybrid_automaton_evaluation", "src/hybrid_automaton_runner"]
+packages = ["src/hybrid_automaton", "src/hybrid_automatons", "src/hybrid_automaton_evaluation"]
 
 [tool.coverage.paths]
 hybrid_automaton = ["src/hybrid_automaton", "*/hybrid-automaton/src/hybrid_automaton"]
 hybrid_automatons = ["src/hybrid_automatons", "*hybrid-automaton/src/hybrid_automatons"]
 hybrid_automaton_evaluation = ["src/hybrid_automaton_evaluation", "*hybrid-automaton/src/hybrid_automaton_evaluation"]
-hybrid_automaton_runner = ["src/hybrid_automaton_runner", "*hybrid-automaton/src/hybrid_automaton_runner"]
 
 tests = ["tests", "*/hybrid-automaton/tests"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
 
 [tool.coverage.report]
 exclude_lines = [

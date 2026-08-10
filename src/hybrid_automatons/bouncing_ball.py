@@ -1,13 +1,11 @@
 """
-sample implementation using v0.0.4 of the hybrid automaton package for a bouncing ball
+sample implementation of the hybrid automaton package for a bouncing ball
 """
-import os 
 import sys
 import time
 
 import numpy as np
 
-sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 from hybrid_automaton import Automaton
 from hybrid_automaton import RuntimeContext 
 from hybrid_automaton.definition import guard 
@@ -113,15 +111,15 @@ def bouncing_ball(gravity: float = -9.81, restitution: float = 0.8):
         name="FLYING",
         initial=True,
         flow=flying_flow,
-        on_enter=lambda: print(f"[ENTER] FLYING"),
-        on_exit=lambda: print(f"[EXIT] FLYING"),
+        on_enter=lambda: print("[ENTER] FLYING"),
+        on_exit=lambda: print("[EXIT] FLYING"),
     )
 
     ground = State(
         name="GROUND",
         flow=ground_flow,
-        on_enter=lambda: print(f"[ENTER] GROUND"),
-        on_exit=lambda: print(f"[EXIT] GROUND"),
+        on_enter=lambda: print("[ENTER] GROUND"),
+        on_exit=lambda: print("[EXIT] GROUND"),
     )
 
     resting = State(
@@ -203,17 +201,16 @@ async def main():
             enable_self_integration=True,
             delta_time=0.001,
             timeout_sec=20.0,
-            output_dir = "/home/ryan/hybrid-automaton/log_hybrid_automaton/bouncing_ball" # TODO: Have the
-        ) 
+            output_dir="./log_hybrid_automaton/bouncing_ball"
+        )
     except Exception as e:
         print(f"Exception: Automaton execution terminated with exception: {e}")
         sys.exit(1)
         
     from matplotlib import pyplot as plt
     from hybrid_automaton_evaluation.visualization.figure_generator import continuous_states_over_time_fig
-    
-    fig1 = continuous_states_over_time_fig(results)
-    # fig2 = automaton_states_over_time(results) 
+
+    continuous_states_over_time_fig(results)
     plt.show()
     
     print (results)

@@ -3,6 +3,15 @@ log_hybrid_automaton/
 
 notebooks/logs/
 
+# LaTeX build byproducts
+*.aux
+*.bbl
+*.blg
+*.fdb_latexmk
+*.fls
+*.synctex.gz
+*.log
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[codz]

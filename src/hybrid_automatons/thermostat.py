@@ -1,6 +1,4 @@
-import os
 import sys
-sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
 import numpy as np
 
@@ -31,28 +29,28 @@ def thermostat(too_cold_threshold: float = 18.0, too_hot_threshold: float = 22.0
     # Guards
     # ================
     @guard
-    def too_cold(ctx: RuntimeContext) -> bool: 
-        return ctx.continuous_state.latest()[0] < ctx.configuration['too_cold_threshold']  # ← FIX: Use [0] not [-1]
-    
+    def too_cold(ctx: RuntimeContext) -> bool:
+        return ctx.continuous_state.latest()[0] < ctx.configuration['too_cold_threshold']
+
     @guard
-    def too_hot(ctx: RuntimeContext) -> bool: 
-        return ctx.continuous_state.latest()[0] > ctx.configuration['too_hot_threshold']  # ← FIX: Use [0] not [-1]
-    
+    def too_hot(ctx: RuntimeContext) -> bool:
+        return ctx.continuous_state.latest()[0] > ctx.configuration['too_hot_threshold']
+
     @guard
-    def temp_comfortable(ctx: RuntimeContext) -> bool: 
-        temp = ctx.continuous_state.latest()[0]  # ← FIX: Get the actual temperature value
+    def temp_comfortable(ctx: RuntimeContext) -> bool:
+        temp = ctx.continuous_state.latest()[0]
         return ctx.configuration['too_cold_threshold'] <= temp <= ctx.configuration['too_hot_threshold']
-    
+
     # ===============
     # Continuous Dynamics
     # ===============
     @continuous_dynamics
-    def heating_dynamics(ctx: RuntimeContext) -> np.ndarray: 
-        return np.array([2.0])  # ← FIX: Must be array with brackets
-    
+    def heating_dynamics(ctx: RuntimeContext) -> np.ndarray:
+        return np.array([2.0])
+
     @continuous_dynamics
-    def cooling_dynamics(ctx: RuntimeContext) -> np.ndarray: 
-        return np.array([-1.5])  # ← FIX: Must be array with brackets
+    def cooling_dynamics(ctx: RuntimeContext) -> np.ndarray:
+        return np.array([-1.5])
     
     @continuous_dynamics
     def idle_dynamics(ctx: RuntimeContext) -> np.ndarray: 
@@ -125,12 +123,10 @@ async def main():
         
     from matplotlib import pyplot as plt
     from hybrid_automaton_evaluation.visualization import continuous_states_over_time_fig
-    
-    
-    
+
     print ("Complete!")
     print (results[1])
-    fig = continuous_states_over_time_fig(results[1])
+    continuous_states_over_time_fig(results[1])
     plt.show()
     
 if __name__ == '__main__': 

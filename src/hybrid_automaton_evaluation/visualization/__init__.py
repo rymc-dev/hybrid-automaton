@@ -1,7 +1,5 @@
 from .figure_generator import (
     continuous_states_over_time_fig,
-    auxiliary_states_over_time_fig,
-    control_inputs_over_time_fig,
     mode_timeline_fig,
     mode_duration_pie_chart_fig,
     mode_visit_count_bar_chart_fig,
@@ -9,14 +7,11 @@ from .figure_generator import (
     chattering_detection_fig
 )
 
-__author__ = "Ryan Mckee"
-__version__ = "v0.0.1"
+__author__ = "Ryan McKee"
+__version__ = "1.0.0"
 
 __all__ = [
     'continuous_states_over_time_fig',
-    'auxiliary_states_over_time_fig',
-    'control_inputs_over_time_fig',
-    'automaton_states_over_time',
     'mode_timeline_fig',
     'mode_duration_pie_chart_fig',
     'mode_visit_count_bar_chart_fig',

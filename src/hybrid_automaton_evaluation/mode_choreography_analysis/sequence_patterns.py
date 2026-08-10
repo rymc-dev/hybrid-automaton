@@ -1,8 +1,8 @@
 from typing import List, Tuple, Dict, Set
-from collections import defaultdict, Counter
+from collections import defaultdict
 
 from hybrid_automaton import RunResult
-from hybrid_automaton_evaluation.mode_choreography_analysis import extract_mode_transitions, transition_stats 
+from hybrid_automaton_evaluation.mode_choreography_analysis import extract_mode_transitions
 from hybrid_automaton_evaluation.mode_choreography_analysis.transition_stats import transition_count_between_modes
 
 def find_repeating_sequences(run_result: RunResult, min_length: int = 2, max_length: int = 5) -> Dict[Tuple[str, ...], int]:
@@ -240,7 +240,7 @@ def detect_mode_oscillations(run_result: RunResult, max_cycle_length: int = 10) 
 
 
 if __name__ == '__main__':
-    run_results = RunResult(run_logs_dir_path="/home/ryan/hybrid-automaton/log_hybrid_automaton/bouncing_ball")
+    run_results = RunResult(run_logs_dir_path="./log_hybrid_automaton/bouncing_ball")
     
     print("Repeating sequences:")
     print(find_repeating_sequences(run_results))

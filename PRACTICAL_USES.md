@@ -6,20 +6,19 @@ The `hybrid-automaton` framework is a **production-ready Python library** design
 
 ## Framework Maturity Assessment
 
-**Current Status: Beta (v0.0.6) - Production-Ready for Many Use Cases**
+**Current Status: v1.0.0 - Stable API, Production-Ready for Many Use Cases**
 
 ### Strengths
 - ✅ **Solid Core Architecture**: Well-designed separation between definition and runtime
 - ✅ **Async-Native**: Built with Python `asyncio` for modern concurrent applications
 - ✅ **Real-Time & Simulation Modes**: Supports both offline analysis and real-time execution
 - ✅ **ROS2 Integration Ready**: Designed for easy integration with robotics stacks
-- ✅ **Comprehensive Testing**: Test suite covers core functionality
-- ✅ **Active Development**: Regular updates and improvements (v0.0.6 as of Jan 2026)
+- ✅ **Tested Core Lifecycle**: Test suite covers automaton activation, stepping, and the example automatons
+- ✅ **Active Development**: Regular updates and improvements (v1.0.0 as of Aug 2026)
 - ✅ **Practical Examples**: Multiple working examples (bouncing ball, cruise control, thermostat, traffic lights)
 - ✅ **Evaluation Tools**: Built-in visualization and analysis capabilities
 
 ### Current Limitations
-- ⚠️ Early-stage maturity (v0.0.6) - API may evolve
 - ⚠️ Documentation could be more extensive for advanced use cases
 - ⚠️ Performance benchmarks not yet published
 - ⚠️ Community is still growing - as the creator notes, this is "the first implementation of its kind"
@@ -276,7 +275,7 @@ async def start_automaton(initial_state: State):
 1. **Start Small**: Implement a proof-of-concept with one subsystem
 2. **Test Thoroughly**: Use the simulation mode extensively before real-time deployment
 3. **Monitor Carefully**: Add logging and telemetry to track mode transitions
-4. **Version Lock**: Pin the version in production (e.g., `hybrid-automaton==0.0.6`)
+4. **Version Lock**: Pin the version in production (e.g., `hybrid-automaton==1.0.0`)
 5. **Contribute Back**: Report issues and suggest improvements (framework welcomes collaborators)
 
 ### Best Practices
@@ -330,7 +329,7 @@ Based on the framework's architecture, likely future enhancements:
 
 **Yes, this framework has significant practical use cases.**
 
-The `hybrid-automaton` framework fills an important niche in the Python ecosystem: a clean, modern, async-native library for hybrid systems. While it's still in active development (v0.0.6), it demonstrates:
+The `hybrid-automaton` framework fills an important niche in the Python ecosystem: a clean, modern, async-native library for hybrid systems. As of v1.0.0, it demonstrates:
 
 1. **Solid fundamentals**: Well-architected, tested core
 2. **Real-world applicability**: Already used in USV projects
@@ -346,7 +345,7 @@ The `hybrid-automaton` framework fills an important niche in the Python ecosyste
 | **Robotics Prototyping** | ✅ Ready Now | Great for ROS2 integration, test in simulation first |
 | **Industrial Automation** | ⚠️ Pilot Projects | Start with non-critical systems, extensive testing |
 | **Production Systems** | ⚠️ With Caution | Pin versions, thorough validation, have contingency plans |
-| **Safety-Critical** | ❌ Not Yet | Wait for v1.0+ and additional certification efforts |
+| **Safety-Critical** | ❌ Not Yet | Requires independent certification/validation efforts beyond this framework's scope |
 
 ### Final Verdict
 
@@ -357,7 +356,7 @@ This framework is **production-capable for many use cases**, particularly in:
 - Educational applications
 - Rapid iteration and testing
 
-For mission-critical or safety-critical systems, wait for the framework to mature (v1.0+) or invest in extensive validation efforts.
+For mission-critical or safety-critical systems, invest in extensive independent validation and certification efforts beyond what this framework provides.
 
 **The framework creator welcomes collaborators** - if you find this useful, consider contributing to accelerate its development!
 
@@ -379,6 +378,6 @@ For questions, contributions, or collaboration:
 
 ---
 
-*Document Version: 1.0*  
-*Last Updated: February 4, 2026*  
-*Framework Version: 0.0.6*
+*Document Version: 1.1*  
+*Last Updated: August 10, 2026*  
+*Framework Version: 1.0.0*
