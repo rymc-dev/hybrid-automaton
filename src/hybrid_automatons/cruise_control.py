@@ -1,8 +1,3 @@
-import os
-import sys
-
-sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
-
 import numpy as np
 
 from hybrid_automaton import RuntimeContext
@@ -18,14 +13,19 @@ AuxiliaryState = RuntimeContext.AuxiliaryState
 
 def cruise_control(target_speed: float = 30.0, safe_distance: float = 50.0,
                    danger_close: float = 20.0, car_ahead_speed: float = 20.0) -> Automaton:
-    """ 
-    Args: 
+    """
+    Args:
         target_speed: float
             m/s speed target
-        safe distance: float
+        safe_distance: float
             meters safe distance
+        danger_close: float
+            meters distance at which emergency braking engages
         car_ahead_speed: float
             m/s speed of car ahead
+
+    Output:
+        Automaton
     """
     
     # =========================

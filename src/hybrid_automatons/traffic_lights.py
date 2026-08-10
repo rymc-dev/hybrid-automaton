@@ -1,8 +1,4 @@
-import os
 import sys
-sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
-
-import numpy as np
 
 from hybrid_automaton import Automaton
 from hybrid_automaton.definition import State
@@ -13,16 +9,19 @@ from hybrid_automaton import RuntimeContext
  
 def traffic_lights(time_in_green: float = 8.0, time_in_red: float = 5.0, time_in_yellow:float = 3.0) -> Automaton:
     """
-    Docstring for traffic_lights
-    
-    :param time_in_green: Description
-    :type time_in_green: float
-    :param time_in_red: Description
-    :type time_in_red: float
-    :param time_in_yellow: Description
-    :type time_in_yellow: float
-    :return: Description
-    :rtype: Automaton
+    Sample traffic lights hybrid automaton: RED -> GREEN -> YELLOW -> RED,
+    where each transition fires once its state's configured dwell time elapses.
+
+    Args:
+        time_in_green: float
+            seconds spent in the GREEN state before transitioning to YELLOW
+        time_in_red: float
+            seconds spent in the RED state before transitioning to GREEN
+        time_in_yellow: float
+            seconds spent in the YELLOW state before transitioning to RED
+
+    Output:
+        Automaton
     """
     
     # ================

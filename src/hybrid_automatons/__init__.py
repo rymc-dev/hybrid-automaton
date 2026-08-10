@@ -4,8 +4,7 @@ from .traffic_lights import traffic_lights
 from .thermostat import thermostat
 
 __author__ = "Ryan McKee"
-__version__ = "v0.0.1"
-__hybrid_automaton_version__ = "v0.0.4"
+__version__ = "1.0.0"
 
 __all__ = [
     'bouncing_ball',

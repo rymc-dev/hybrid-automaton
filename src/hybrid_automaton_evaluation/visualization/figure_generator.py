@@ -1,13 +1,13 @@
 import matplotlib.pyplot as plt
-from typing import List, Tuple, Dict
+from matplotlib.patches import Rectangle
 import numpy as np
 from hybrid_automaton import RunResult
 import os
 import csv
+import ast
 from hybrid_automaton_evaluation.mode_choreography_analysis import extract_mode_transitions, time_spent_in_each_mode, number_of_visits_per_mode
 from hybrid_automaton_evaluation.mode_choreography_analysis import self_loop_detection
-from hybrid_automaton_evaluation.mode_choreography_analysis.transition_stats import transition_count_between_modes, extract_mode_transitions
-import ast
+from hybrid_automaton_evaluation.mode_choreography_analysis.transition_stats import transition_count_between_modes
 
 def continuous_states_over_time_fig(run_result: RunResult): 
     """  
@@ -19,16 +19,14 @@ def continuous_states_over_time_fig(run_result: RunResult):
     Output:
         pyplot.figure
     """
-    #TODO: Add checks for invalid contiuous_states input and state labels, currently
-    #      assumes valid logic, if no continuous states are provided exception will be thrown
-    
-    
+    # NOTE: assumes valid input; if no continuous states are provided in the run
+    # logs, this will raise when reading the CSV.
     timestamps = []
     states = []
     with open(os.path.join(run_result.run_logs_dir_path, "continuous_state.csv"), newline="") as f:
         reader = csv.reader(f)
-        header = next(reader) 
-        
+        next(reader)  # skip header row
+
         for timestamp_str, state_str in reader:
             timestamp = float(timestamp_str)
             state = ast.literal_eval(state_str)
@@ -53,39 +51,34 @@ def continuous_states_over_time_fig(run_result: RunResult):
 
     ax.set_xlabel("Time Elapsed (seconds)", fontsize=12)
     ax.set_ylabel("Continuous State", fontsize=12)
-    # if state_labels is not None: # TODO: UPDATE THIS 
-    #     ax.legend(state_labels)
-    # else:
-        # ax.legend() 
     ax.legend()
     ax.grid(True, alpha=0.3)
     fig.tight_layout()
     
     return fig
 
-def auxiliary_states_over_time_fig(run_result: RunResult):
-    """  
-    
-    Args: 
-        auxilary_states: 
-            ...
-    """
-    ...
-     
-def control_inputs_over_time_fig(control_inputs: List):
-    """   
-    Args: 
-        control_inputs: 
-            ...
-    """
-    ...
+# TODO(v1.1): auxiliary_states_over_time_fig and control_inputs_over_time_fig are
+# not implemented yet (analogous to continuous_states_over_time_fig above) and are
+# intentionally not exported from hybrid_automaton_evaluation.visualization until
+# they're finished. Tracked for a future release.
 
-import matplotlib.pyplot as plt
-from matplotlib.patches import Rectangle
-import numpy as np
-from typing import List, Tuple, Dict
-from hybrid_automaton import RunResult
-import os
+def auxiliary_states_over_time_fig(run_result: RunResult):
+    """
+    Not yet implemented.
+
+    Args:
+        run_result: RunResult
+    """
+    raise NotImplementedError("auxiliary_states_over_time_fig is not implemented yet")
+
+def control_inputs_over_time_fig(run_result: RunResult):
+    """
+    Not yet implemented.
+
+    Args:
+        run_result: RunResult
+    """
+    raise NotImplementedError("control_inputs_over_time_fig is not implemented yet")
 
 def mode_timeline_fig(run_result: RunResult):
     """
@@ -276,8 +269,8 @@ def transition_matrix_heatmap_fig(run_result: RunResult):
     for i in range(n):
         for j in range(n):
             if matrix[i, j] > 0:
-                text = ax.text(j, i, int(matrix[i, j]),
-                             ha="center", va="center", color="black", fontsize=11, fontweight='bold')
+                ax.text(j, i, int(matrix[i, j]),
+                        ha="center", va="center", color="black", fontsize=11, fontweight='bold')
     
     ax.set_xlabel("To Mode", fontsize=12)
     ax.set_ylabel("From Mode", fontsize=12)
@@ -291,92 +284,8 @@ def transition_matrix_heatmap_fig(run_result: RunResult):
     return fig
 
 
-# def guard_activation_timeline_fig(run_result: RunResult):
-#     """
-#     Timeline showing when each guard was activated.
-    
-#     Returns:
-#         pyplot.figure with guard activation events
-#     """
-#     transition_events = extract_transition_events(run_result)
-    
-#     if not transition_events:
-#         return None
-    
-#     # Get unique guards
-#     unique_guards = sorted(list(set([event['guard_name'] for event in transition_events])))
-#     guard_to_y = {guard: i for i, guard in enumerate(unique_guards)}
-    
-#     fig, ax = plt.subplots(figsize=(14, 6))
-    
-#     colors = plt.cm.Set2(np.linspace(0, 1, len(unique_guards)))
-#     guard_colors = {guard: colors[i] for i, guard in enumerate(unique_guards)}
-    
-#     # Plot vertical lines for each activation
-#     for event in transition_events:
-#         guard = event['guard_name']
-#         timestamp = event['timestamp']
-#         y_pos = guard_to_y[guard]
-        
-#         ax.plot([timestamp, timestamp], [y_pos - 0.3, y_pos + 0.3], 
-#                color=guard_colors[guard], linewidth=3, marker='o', markersize=6)
-    
-#     ax.set_yticks(range(len(unique_guards)))
-#     ax.set_yticklabels(unique_guards)
-#     ax.set_xlabel("Time (seconds)", fontsize=12)
-#     ax.set_ylabel("Guard", fontsize=12)
-#     ax.set_title(
-#         f"{run_result.run_signature.model_name} v{run_result.run_signature.model_version} — Run {run_result.run_signature.run_id}: Guard Activation Timeline",
-#         fontsize=16,
-#         y=1.02
-#     )
-#     ax.grid(True, alpha=0.3, axis='x')
-#     ax.set_ylim(-0.5, len(unique_guards) - 0.5)
-    
-#     fig.tight_layout()
-#     return fig
-
-
-# def guard_activation_rate_bar_chart_fig(run_result: RunResult):
-#     """
-#     Bar chart showing activation rate for each guard.
-    
-#     Returns:
-#         pyplot.figure with bar chart
-#     """
-#     activation_rates = guard_activation_rate(run_result)
-    
-#     if not activation_rates:
-#         return None
-    
-#     fig, ax = plt.subplots(figsize=(10, 6))
-    
-#     guards = list(activation_rates.keys())
-#     rates = list(activation_rates.values())
-    
-#     colors = plt.cm.Set2(np.linspace(0, 1, len(guards)))
-    
-#     bars = ax.bar(guards, rates, color=colors, edgecolor='black', linewidth=1.5)
-    
-#     # Add value labels on top of bars
-#     for bar in bars:
-#         height = bar.get_height()
-#         ax.text(bar.get_x() + bar.get_width()/2., height,
-#                 f'{height:.3f}',
-#                 ha='center', va='bottom', fontsize=10, fontweight='bold')
-    
-#     ax.set_xlabel("Guard", fontsize=12)
-#     ax.set_ylabel("Activation Rate (activations/second)", fontsize=12)
-#     ax.set_title(
-#         f"{run_result.run_signature.model_name} v{run_result.run_signature.model_version} — Run {run_result.run_signature.run_id}: Guard Activation Rates",
-#         fontsize=16,
-#         y=1.02
-#     )
-#     ax.grid(True, alpha=0.3, axis='y')
-    
-#     fig.tight_layout()
-#     return fig
-
+# TODO(v1.1): guard activation timeline/rate figures (analogous to the mode-level
+# figures above) are planned but not implemented yet.
 
 def chattering_detection_fig(run_result: RunResult):
     """
@@ -395,7 +304,6 @@ def chattering_detection_fig(run_result: RunResult):
     
     # Plot all transitions as points
     modes = [mode for mode, _ in mode_transitions]
-    times = [time for _, time in mode_transitions]
     unique_modes = sorted(list(set(modes)))
     mode_to_y = {mode: i for i, mode in enumerate(unique_modes)}
     
@@ -466,16 +374,14 @@ if __name__ == '__main__':
             delta_time=0.01,
             automaton_definition=definition
         ),
-        run_logs_dir_path="/home/ryan/hybrid-automaton/log_hybrid_automaton/bouncing_ball"
+        run_logs_dir_path="./log_hybrid_automaton/bouncing_ball"
     )
-    
+
     # Generate all figures
     fig1 = mode_timeline_fig(run_results)
     fig2 = mode_duration_pie_chart_fig(run_results)
     fig3 = mode_visit_count_bar_chart_fig(run_results)
     fig4 = transition_matrix_heatmap_fig(run_results)
-    # fig5 = guard_activation_timeline_fig(run_results)
-    # fig6 = guard_activation_rate_bar_chart_fig(run_results)
-    fig7 = chattering_detection_fig(run_results)
+    fig5 = chattering_detection_fig(run_results)
     
     plt.show()

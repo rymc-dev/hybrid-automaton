@@ -5,6 +5,7 @@ import asyncio
 import csv
 import hashlib
 import json
+import logging
 import os
 import socket
 import sys
@@ -19,13 +20,15 @@ from typing import Any, Callable, Dict, List, Optional
 import numpy as np
 
 from .definition import State, Transition, _Definition
-from .definition import continuous_state_provider, auxiliary_state_provider, control_input_states_provider
+from .__about__ import __version__
 
 
 # environment info
 PYTHON_VERSION = sys.version
 HOST_NAME = socket.gethostname()
 PID = os.getpid()
+
+_logger = logging.getLogger(__name__)
 
 
 class _Runtime: 
@@ -43,7 +46,7 @@ class _Runtime:
     Args: 
         TODO: 
     """
-    _VERSION = "0.0.3"
+    _VERSION = __version__
     
     class Logger: 
         """logs temporal data regarding the automaton 
@@ -310,22 +313,22 @@ f"""# ------------------------------------------------------------
             """Generate human-readable summary"""
             lines = [
                 f"{'='*60}",
-                f"Automaton Run Summary",
+                "Automaton Run Summary",
                 f"{'='*60}",
                 f"Run ID: {self.run_signature.run_id if self.run_signature else 'N/A'}",
                 f"Status: {self.status.name if self.status else 'UNKNOWN'}",
                 f"logs directory: {self.run_logs_dir_path}",
-                f"",
-                f"Termination:",
+                "",
+                "Termination:",
                 f"  Code: {self.termination_code.name if self.termination_code else 'N/A'}",
                 f"  Message: {self.termination_message}",
                 f"  Final State: {self.final_discrete_state}",
-                f"",
-                f"Execution Metrics:",
+                "",
+                "Execution Metrics:",
                 f"  Total Runtime: {self.total_runtime_sec:.3f}s",
                 f"  Total Steps: {self.total_steps}",
                 f"  Transitions: {self.transitions_count}",
-                f"",
+                "",
             ]
             
             if self.step_statistics:
@@ -823,7 +826,7 @@ f"""# ------------------------------------------------------------
                             value = self._fn(ctx)
                             self._inject(ctx, value)
                         except Exception as e:
-                            print(f"{self.__class__.__name__} injection error: {e}")
+                            _logger.warning("%s injection error: %s", self.__class__.__name__, e)
                             break
 
                         await asyncio.sleep(self._update_rate)
@@ -989,7 +992,7 @@ f"""# ------------------------------------------------------------
                 with open(self._file_path, "a", newline="") as f:
                     writer = csv.writer(f)
                     for ts, state in self._samples:
-                        if type(state) == str: 
+                        if isinstance(state, str):
                             writer.writerow([ts, state])
                         else:                                        
                             writer.writerow([ts, json.dumps(to_serializable(state))])
@@ -1110,7 +1113,7 @@ f"""# ------------------------------------------------------------
         """
         try: 
             # ---------------------------------------------------------
-            # 1️⃣ Continuous dynamics
+            # ️1. Continuous dynamics
             # ---------------------------------------------------------
             try:
                 xdot = runtime_context.discrete_state.continuous_dynamics(
@@ -1134,7 +1137,7 @@ f"""# ------------------------------------------------------------
                     ) 
             
             # ---------------------------------------------------------
-            # 2️⃣ Guard transitions
+            # 2. Guard transitions
             # ---------------------------------------------------------
             try:
                 guard_evaluations = runtime_context.discrete_state.evaluate_transitions(
@@ -1144,7 +1147,7 @@ f"""# ------------------------------------------------------------
                 error_guards = [[item[0], item[2]] for item in guard_evaluations if item[2] is not None]
                 
                 if error_guards and len(error_guards) >= len(active_guards):
-                    logger.WARNING("GUARD WARNING", f"guard evaluation exceptions occured - automaton may be stuck")
+                    logger.WARNING("GUARD WARNING", "guard evaluation exceptions occured - automaton may be stuck")
                      
                 if error_guards:
                     for g in error_guards:
@@ -1194,7 +1197,7 @@ f"""# ------------------------------------------------------------
                     )
 
             # ---------------------------------------------------------
-            # 3️⃣ No transition → invariant check
+            # 3. No transition → invariant check
             # ---------------------------------------------------------
             try:
                 invariant_holds = runtime_context.discrete_state.check_invariants(
@@ -1377,11 +1380,11 @@ f"""# ------------------------------------------------------------
         control_input_states_sampler_enabled: bool = False,
         control_input_states_sampler_rate: Optional[int] = 1,
         control_input_states_samples_per_write: Optional[int] = 1000,
-        continuous_state_provider: Optional[continuous_state_provider] = None,
+        continuous_state_provider: Optional[Callable] = None,
         continuous_state_provision_rate: Optional[int] = None,
-        auxiliary_states_provider: Optional[auxiliary_state_provider] = None,
+        auxiliary_states_provider: Optional[Callable] = None,
         auxiliary_states_provision_rate: Optional[int] = None,
-        control_input_states_provider: Optional[control_input_states_provider] = None,
+        control_input_states_provider: Optional[Callable] = None,
         control_input_states_provision_rate: Optional[int] = None,
         should_write_logs: bool = True,
         output_dir: str = "./log_hybrid_automaton/"
@@ -1487,8 +1490,8 @@ f"""# ------------------------------------------------------------
                     await state_samplers.deactivate()
                 if state_providers.is_providers():
                     await state_providers.deactivate()
-            except Exception:
-                pass
+            except Exception as cleanup_error:
+                run_logger.WARNING("Cleanup Error", f"error during error-path cleanup: {cleanup_error}")
             raise
         
     def deactivate(self): 

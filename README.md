@@ -7,15 +7,15 @@
 
 | Field         | Value        |
 |---------------|--------------|
-| Last Updated  | 2026-04-19   |
-| Version       | 0.0.8        |
+| Last Updated  | 2026-08-10   |
+| Version       | 1.0.0        |
 
 ## Overview
 Hybrid Automaton is a Python-based framework for simulating and running hybrid automata in both real-time and offline settings. It provides a lightweight, flexible foundation for defining & evaluating custom automata, while remaining easily integrable into real-world technology stacks such as ROS2 or other systems. The design emphasizes simplicity, extensibility, and practical applicability for a wide range of use cases.
 
-This project was created out of necessity for a USV Hybrid Automaton project and is the first implementation of its kind. While still in active development, **it is production-capable for many real-world applications** including robotics, industrial control, building automation, and more. See [Practical Use Cases](#practical-use-cases) below for detailed information.
+This project was created out of necessity for a USV Hybrid Automaton project and is the first implementation of its kind. As of v1.0.0, **it is production-capable for many real-world applications** including robotics, industrial control, building automation, and more. See [Practical Use Cases](#practical-use-cases) below for detailed information.
 
-**Framework Status**: Beta (v0.0.6) - Ready for production use in non-safety-critical applications with proper testing.
+**Framework Status**: v1.0.0 - Stable API, ready for production use in non-safety-critical applications with proper testing.
 
 If you have ideas for improvement or want to contribute, please reach out and become a collaborator!
 
@@ -42,27 +42,35 @@ Below is a sample of how one of the demonstration hybrid automaton (`bouncing ba
 using the framework can be found here: [bouncing ball automaton definition](./src/hybrid_automatons/bouncing_ball.py)
 
 ```python
+import os
+import numpy as np
+
 from hybrid_automatons import bouncing_ball
-from hybrid_automaton import Automaton
-from hybrid_automaton import AutomatonResult
+from hybrid_automaton import Automaton, RunResult, RuntimeContext
+
+ContinuousState = RuntimeContext.ContinuousState
 
 ha: Automaton = bouncing_ball(gravity=-9.81, restitution=0.8)
-results: AutomatonResult = await ha.activate(
-    initial_continuous_state=np.array([5.0, 0.0]), 
+results: RunResult = await ha.activate(
+    initial_continuous_state=ContinuousState(
+        "bouncing_ball_state",
+        x0=np.array([5.0, 0.0]),
+        x_labels=['height', 'velocity'],
+    ),
     enable_real_time_mode=False,
     continuous_state_sampler_enabled=True,
     continuous_state_sampler_rate=100,
     enable_self_integration=True,
     delta_time=0.001,
     timeout_sec=30.0,
-    output_dir = os.path.join(os.getcwd(), 'logs', 'bouncing_ball_run') 
+    output_dir=os.path.join(os.getcwd(), 'logs', 'bouncing_ball_run')
 )
-print (results)
+print(results)
 ```
 
 ## Practical Use Cases
 
-**Is this framework ready for real-world use?** Yes! While still in active development (v0.0.6), hybrid-automaton is production-capable for many applications.
+**Is this framework ready for real-world use?** Yes! As of v1.0.0, hybrid-automaton is production-capable for many applications.
 
 ### Key Applications
 
@@ -116,12 +124,12 @@ Please open an issue or pull request on [GitHub](https://github.com/rymc-dev/hyb
 Please cite this package as described below if used in research:
 
 ```bibtex
-@misc{hybrid_automaton_2025,
+@misc{hybrid_automaton_2026,
   author       = {Ryan McKee},
-  title        = {hybrid-automaton v0.0.6},
+  title        = {hybrid-automaton v1.0.0},
   howpublished = {GitHub repository},
   year         = {2026},
-  note         = {Accessed: Feb. 04, 2026},
+  note         = {Accessed: Aug. 10, 2026},
   url          = {https://github.com/rymc-dev/hybrid-automaton}
 }
 ```
