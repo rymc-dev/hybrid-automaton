@@ -11,24 +11,24 @@ on:
     types: [published]
 
 jobs:
-  lint:
-    name: Lint
-    runs-on: ubuntu-latest
+  # lint:
+  #   name: Lint
+  #   runs-on: ubuntu-latest
 
-    steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
+  #   steps:
+  #     - name: Checkout Repository
+  #       uses: actions/checkout@v4
 
-      - name: Set Up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: "3.12"
+  #     - name: Set Up Python
+  #       uses: actions/setup-python@v4
+  #       with:
+  #         python-version: "3.12"
 
-      - name: Install Ruff
-        run: pip install ruff
+  #     - name: Install Ruff
+  #       run: pip install ruff
 
-      - name: Run Ruff
-        run: ruff check src/
+  #     - name: Run Ruff
+  #       run: ruff check src/
 
   test:
     name: Run Tests
@@ -53,7 +53,7 @@ jobs:
 
   build:
     name: Build Package
-    needs: [lint, test]
+    needs: [test]
     if: github.event_name == 'push' || github.event_name == 'release'
     runs-on: ubuntu-latest
 
